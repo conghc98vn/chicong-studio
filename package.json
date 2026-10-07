@@ -1,0 +1,22 @@
+{
+  "name": "chicong-photo",
+  "version": "2.2.1",
+  "private": true,
+  "description": "Photography studio: portfolio, private proofing galleries and booking",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env studio/server/start.mjs",
+    "start": "node --env-file-if-exists=.env studio/server/start.mjs",
+    "test": "node --test studio/tests/*.test.mjs",
+    "check": "node --check studio/server/app.mjs && node --check studio/web/main.js",
+    "admin:reset": "node --env-file-if-exists=.env studio/server/reset-admin.mjs"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.4.0",
+    "pg": "^8.23.1",
+    "sharp": "^0.35.5"
+  }
+}

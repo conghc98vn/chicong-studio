@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.DS_Store
+wp.*/
+public/api/config.php
+data/
+.env
+.env.*
+!.env.example
+*.zip
+legacy-prototype/
+
+# Local screenshots and review artifacts
+/docs/*.png
+/docs/*.jpg
+/docs/*.jpeg
+
+# Database exports and local logs
+/*.sql
+/*.sql.gz
+/*.sqlite
+/*.sqlite-*
+*.log
