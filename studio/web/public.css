@@ -171,3 +171,35 @@ body.public-view {
   :where(.public-view) .album-card:hover img,:where(.public-view) .album-card:hover .story-arrow { transform:none; }
 }
 :where(.public-view) .lightbox-controls p { color:var(--muted); }
+
+/* Finishing details: legible small text and comfortable touch controls. */
+:where(.public-view) .album-meta .label { font-size:10px; letter-spacing:.11em; }
+:where(.public-view) .wordmark span { font-size:9px; letter-spacing:.17em; }
+:where(.public-view) .footer-main>div:empty { display:none; }
+:where(.public-view) .footer-main a:not(.wordmark) { overflow-wrap:anywhere; }
+:where(.public-view) .footer-bottom a { display:inline-flex; align-items:center; min-height:44px; }
+:where(.public-view) .footer-bottom { align-items:center; }
+:where(.public-view) .photo-open { background:#eeebe5; cursor:zoom-in; }
+:where(.public-view) .photo-open:focus-visible { outline-offset:5px; }
+:where(.public-view) #lightbox.image-loading img { opacity:.25; }
+:where(.public-view) #lightbox.image-error img { visibility:hidden; }
+:where(.public-view) #lightbox img { transition:opacity .18s; }
+:where(.public-view) #lightbox .lightbox-controls:has(button[hidden]):has(p:empty) { display:none; }
+:where(.public-view) #lightbox button:hover { background:#e9ece3; }
+:where(.public-view) .booking-layout form { min-width:0; }
+:where(.public-view) .booking-layout input[aria-invalid=true] { border-color:#9d4534; }
+@media (max-width:750px) {
+  :where(.public-view) .portfolio-title .label,:where(.public-view) .public-cta .label { font-size:10px; letter-spacing:.12em; }
+  :where(.public-view) .wordmark span { font-size:8px; }
+  :where(.public-view) .mobile-menu { font-size:12px; }
+  :where(.public-view) .public-nav nav { border-radius:0 0 16px 16px; }
+  :where(.public-view) .calendar-heading button { width:44px; height:44px; }
+  :where(.public-view) #booking-form>.btn { width:100%; }
+  :where(.public-view) #lightbox { width:100vw; max-width:100vw; max-height:100dvh; margin:auto; padding:64px 12px 78px; border-radius:0; }
+  :where(.public-view) #lightbox img { height:auto; max-height:calc(100dvh - 250px); object-fit:contain; }
+  :where(.public-view) #lightbox figcaption { padding:18px 8px 0; font-size:12px; }
+  :where(.public-view) #lightbox .photo-prev,:where(.public-view) #lightbox .photo-next { top:auto; bottom:16px; }
+  :where(.public-view) #lightbox .photo-prev { left:calc(50% - 58px); }
+  :where(.public-view) #lightbox .photo-next { right:calc(50% - 58px); }
+  :where(.public-view) .lightbox-controls { margin-top:14px; }
+}
