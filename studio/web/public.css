@@ -1,0 +1,173 @@
+/* Public photography journal. Studio controls retain their own compact layout. */
+body.public-view {
+  --paper:#faf8f5; --surface:#fffdfa; --ink:#383b34; --muted:#72736b;
+  --line:#e6e3dc; --green:#525d4e; --green-light:#eeefe8;
+  --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+  --gutter:clamp(22px,5.5vw,88px);
+  background:var(--paper); color:var(--ink); font-size:15px;
+}
+:where(.public-view) ::selection { background:#dce0d3; color:#30372d; }
+:where(.public-view) h1,:where(.public-view) h2,:where(.public-view) h3 { font-weight:400; letter-spacing:-.025em; }
+:where(.public-view) em { color:#707764; }
+:where(.public-view) .page-width { max-width:1120px; }
+:where(.public-view) .label { font-size:10px; font-weight:400; letter-spacing:.18em; line-height:1.8; text-transform:uppercase; margin-bottom:23px; }
+:where(.public-view) .public-nav { max-width:1320px; min-height:124px; border:0; gap:32px; }
+:where(.public-view) .wordmark { font-family:var(--serif); font-size:43px; letter-spacing:-.055em; }
+:where(.public-view) .wordmark span { font-size:8px; font-weight:400; letter-spacing:.22em; margin-top:5px; color:var(--muted); }
+:where(.public-view) .public-nav nav { gap:36px; font-size:12px; letter-spacing:.035em; }
+:where(.public-view) .public-nav nav a { position:relative; border:0; padding:12px 0; transition:color .2s; }
+:where(.public-view) .public-nav nav a[aria-current]:after { content:''; width:3px; height:3px; border-radius:50%; position:absolute; bottom:3px; left:calc(50% - 1.5px); background:var(--green); }
+:where(.public-view) .public-nav nav a:last-child { border:1px solid #d7d9cf; border-radius:100px; padding:10px 23px; }
+:where(.public-view) .public-nav nav a:last-child[aria-current]:after { display:none; }
+:where(.public-view) .public-nav nav a:last-child:hover { background:#eeeee6; }
+:where(.public-view) .btn { border-radius:100px; padding:13px 25px; min-height:48px; font-size:12px; font-weight:400; letter-spacing:.025em; background:var(--green); border-color:var(--green); }
+:where(.public-view) .btn:hover { background:#3d493a; border-color:#3d493a; }
+:where(.public-view) .btn-outline { background:transparent; color:var(--ink); border-color:#c8cdc1; }
+:where(.public-view) .btn-outline:hover { background:#eeeee6; color:var(--ink); border-color:#a7ae9c; }
+:where(.public-view) .small-btn { border-radius:100px; font-weight:400; }
+:where(.public-view) .underlink,:where(.public-view) .link-btn { font-size:12px; font-weight:400; border-color:#c3c8bb; padding-block:8px; }
+:where(.public-view) .page-title { padding:66px 0 58px; }
+:where(.public-view) .page-title h1 { font-size:clamp(50px,6.5vw,82px); line-height:1.08; margin-bottom:24px; text-wrap:balance; }
+:where(.public-view) .page-title>p:not(.label) { font-size:14px; line-height:1.9; }
+:where(.public-view) .portfolio-title { text-align:center; padding:57px 0 52px; }
+:where(.public-view) .portfolio-title h1 { margin-inline:auto; }
+:where(.public-view) .portfolio-title h1 em { white-space:nowrap; }
+:where(.public-view) .portfolio-title>p:not(.label) { margin-inline:auto; font-size:13px; line-height:1.9; }
+:where(.public-view) .portfolio-section { max-width:1060px; padding-bottom:94px; }
+:where(.public-view) .filter-row { border:0; justify-content:center; gap:12px 28px; padding:0; margin:0 0 56px; }
+:where(.public-view) .filter-row button { min-height:44px; border:0; border-radius:100px; font-size:12px; padding:10px 17px; color:var(--muted); transition:background .2s,color .2s; }
+:where(.public-view) .filter-row button:hover { color:var(--ink); background:#f0eee8; }
+:where(.public-view) .filter-row button.active { background:#e9ece3; color:#414c3b; }
+:where(.public-view) .album-grid { gap:56px 32px; }
+:where(.public-view) .stories-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 76px; align-items:start; }
+:where(.public-view) .stories-grid .album-card:nth-child(even) { padding-top:96px; }
+:where(.public-view) .story-image { overflow:hidden; aspect-ratio:4/5; border-radius:3px; background:#eeebe5; }
+:where(.public-view) .album-card img { height:100%; max-height:none; width:100%; object-fit:cover; transition:transform .65s cubic-bezier(.2,.65,.3,1); }
+:where(.public-view) .album-card:hover img { filter:none; transform:scale(1.018); }
+:where(.public-view) .album-meta { padding:22px 0 32px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+:where(.public-view) .album-meta .label { font-size:9px; letter-spacing:.13em; margin-bottom:8px; }
+:where(.public-view) .album-meta h3 { font-size:clamp(28px,2.5vw,34px); line-height:1.15; }
+:where(.public-view) .story-arrow { color:#787e6e; transition:transform .25s; flex-shrink:0; }
+:where(.public-view) .story-arrow .icon { width:23px; height:23px; stroke-width:1; }
+:where(.public-view) .album-card:hover .story-arrow { transform:translateX(4px); }
+:where(.public-view) .new-hero { grid-template-columns:1fr 1fr; gap:8%; align-items:center; padding:36px 0 110px; }
+:where(.public-view) .hero-copy { padding:0; }
+:where(.public-view) .hero-copy .label { max-width:320px; font-size:9px; }
+:where(.public-view) .hero-copy h1 { font-size:clamp(50px,5.1vw,72px); line-height:1.07; letter-spacing:-.035em; font-weight:400; text-wrap:balance; }
+:where(.public-view) .hero-copy>p:not(.label) { font-size:14px; line-height:1.95; max-width:355px; margin-top:26px; }
+:where(.public-view) .hero-copy .btn { margin-top:30px; }
+:where(.public-view) .hero-foot { font-size:9px; letter-spacing:.1em; padding-top:58px; max-width:330px; }
+:where(.public-view) .hero-foot .icon { stroke-width:1; width:28px; }
+:where(.public-view) .hero-visual { min-height:0; height:auto; aspect-ratio:4/5; border-radius:3px; }
+:where(.public-view) .hero-visual:after { inset:80% 0 0; background:linear-gradient(transparent,#25251b55); }
+:where(.public-view) .image-label { font-size:26px; bottom:20px; left:26px; }
+:where(.public-view) .featured { padding:48px 0 70px; border:0; }
+:where(.public-view) .section-top { margin-bottom:40px; }
+:where(.public-view) .section-top h2 { font-size:clamp(36px,4vw,50px); }
+:where(.public-view) .section-top .label { margin-bottom:17px; }
+:where(.public-view) .featured .album-meta h3 { font-size:28px; }
+:where(.public-view) .note-section { border:0; padding:96px 14%; }
+:where(.public-view) .note-section>p:not(.label) { font-size:clamp(30px,3.4vw,43px); font-weight:400; line-height:1.35; letter-spacing:-.02em; }
+:where(.public-view) .note-section .underlink { margin-top:32px; }
+:where(.public-view) .public-cta { border:0; padding:105px 0 115px; }
+:where(.public-view) .public-cta:before { content:''; display:block; width:38px; height:1px; background:#c7ccbf; margin:0 auto 45px; }
+:where(.public-view) .public-cta h2 { font-size:clamp(40px,5vw,62px); line-height:1.13; margin-bottom:30px; }
+:where(.public-view) .public-cta .label { margin-bottom:20px; }
+:where(.public-view) .public-footer { max-width:1320px; }
+:where(.public-view) .footer-main { padding:44px 0 32px; border-color:var(--line); }
+:where(.public-view) .footer-main .wordmark { font-size:36px; }
+:where(.public-view) .footer-main p,:where(.public-view) .footer-main>div { font-size:12px; }
+:where(.public-view) .footer-bottom { border:0; padding:18px 0 30px; font-size:10px; letter-spacing:.035em; }
+:where(.public-view) .album-title { text-align:center; padding-top:60px; }
+:where(.public-view) .album-title h1,:where(.public-view) .album-title>p { margin-inline:auto; }
+:where(.public-view) .album-title>p:not(.label) { font-size:13px; max-width:520px; }
+:where(.public-view) .album-line { border:0; margin-top:36px; padding-top:20px; font-size:11px; letter-spacing:.05em; }
+:where(.public-view) .album-line a { padding-block:10px; border-bottom:1px solid var(--line); }
+:where(.public-view) .editorial-photos .photo-grid { columns:2; column-gap:32px; }
+:where(.public-view) .editorial-photos .photo-item { margin-bottom:32px; }
+:where(.public-view) .editorial-photos .photo-info { display:none; }
+:where(.public-view) .photo-open { border-radius:2px; overflow:hidden; }
+:where(.public-view) .about-layout { gap:10%; padding-bottom:80px; }
+:where(.public-view) .about-art { border-radius:3px; overflow:hidden; }
+:where(.public-view) .about-layout h2 { font-size:46px; }
+:where(.public-view) .long-copy { font-size:14px; line-height:2; }
+:where(.public-view) .booking-layout { padding-top:20px; }
+:where(.public-view) .booking-layout aside h2 { font-size:38px; }
+:where(.public-view) form label { font-weight:400; font-size:12px; }
+:where(.public-view) input,:where(.public-view) textarea,:where(.public-view) select { background:#fffdfa; border-color:#dedfd6; border-radius:8px; }
+:where(.public-view) .calendar-grid button { border-radius:50%; background:#eff0e9; }
+:where(.public-view) .calendar-grid button.chosen,:where(.public-view) .calendar-grid button:hover:not(:disabled) { background:var(--green); color:white; }
+:where(.public-view) .calendar-grid button.busy { background:#eee6e0; color:#805d50; }
+:where(.public-view) .calendar-grid button:disabled:not(.busy) { background:transparent; }
+:where(.public-view) #lightbox { background:#faf8f5; color:var(--ink); border-radius:5px; box-shadow:0 20px 100px #171e191a; }
+:where(.public-view) #lightbox figcaption { color:var(--muted); font-size:11px; }
+:where(.public-view) #lightbox button { border-color:#d9dbd1; color:var(--ink); }
+:where(.public-view) dialog::backdrop { background:#e9e6dfdd; backdrop-filter:blur(9px); }
+@media (max-width:1000px) {
+  :where(.public-view) .stories-grid { gap:16px 44px; }
+  :where(.public-view) .stories-grid .album-card:nth-child(even) { padding-top:70px; }
+  :where(.public-view) .new-hero { gap:6%; }
+  :where(.public-view) .hero-copy h1 { font-size:54px; }
+}
+@media (max-width:750px) {
+  body.public-view { --gutter:24px; }
+  :where(.public-view) .public-nav { min-height:100px; gap:20px; }
+  :where(.public-view) .wordmark { font-size:38px; }
+  :where(.public-view) .wordmark span { font-size:7px; letter-spacing:.18em; }
+  :where(.public-view) .mobile-menu { border:0; border-radius:100px; padding:10px 0 10px 14px; min-height:44px; font-size:11px; gap:12px; }
+  :where(.public-view) .mobile-menu .icon { width:20px; stroke-width:1; }
+  :where(.public-view) .public-nav nav { top:99px; background:var(--paper); border-color:var(--line); padding:16px var(--gutter) 24px; }
+  :where(.public-view) .public-nav nav a { min-height:44px; padding:12px 0; }
+  :where(.public-view) .public-nav nav a[aria-current]:after { left:auto; right:8px; bottom:21px; }
+  :where(.public-view) .public-nav nav a:last-child { border:0; padding:12px 0; border-radius:0; }
+  :where(.public-view) .public-nav nav a:last-child[aria-current]:after { display:block; }
+  :where(.public-view) .page-title { padding:42px 0 38px; }
+  :where(.public-view) .page-title h1 { font-size:clamp(46px,9vw,64px); margin-bottom:23px; }
+  :where(.public-view) .portfolio-title { padding:44px 0 34px; }
+  :where(.public-view) .portfolio-title h1 { max-width:420px; }
+  :where(.public-view) .portfolio-title .label { font-size:8px; letter-spacing:.17em; }
+  :where(.public-view) .portfolio-title>p:not(.label) { font-size:12px; }
+  :where(.public-view) .filter-row { gap:5px; margin-bottom:34px; }
+  :where(.public-view) .filter-row button { font-size:11px; padding:9px 12px; }
+  :where(.public-view) .stories-grid { grid-template-columns:1fr; gap:26px; }
+  :where(.public-view) .stories-grid .album-card:nth-child(even) { padding-top:0; }
+  :where(.public-view) .album-meta { padding:19px 0 22px; }
+  :where(.public-view) .album-meta h3 { font-size:30px; }
+  :where(.public-view) .album-meta .label { font-size:8px; }
+  :where(.public-view) .portfolio-section { padding-bottom:42px; }
+  :where(.public-view) .new-hero { grid-template-columns:1fr; padding:30px 0 64px; gap:40px; }
+  :where(.public-view) .hero-copy h1 { font-size:clamp(48px,9vw,64px); max-width:520px; }
+  :where(.public-view) .hero-copy>p:not(.label) { font-size:13px; line-height:1.9; margin-top:22px; }
+  :where(.public-view) .hero-foot { display:none; }
+  :where(.public-view) .hero-visual { height:auto; aspect-ratio:4/5; }
+  :where(.public-view) .hero-copy .btn { margin-top:25px; }
+  :where(.public-view) .featured { padding:20px 0 48px; }
+  :where(.public-view) .featured .album-grid { grid-template-columns:1fr; gap:28px; }
+  :where(.public-view) .section-top { gap:22px; margin-bottom:32px; }
+  :where(.public-view) .section-top h2 { font-size:40px; }
+  :where(.public-view) .note-section { padding:54px 0; }
+  :where(.public-view) .note-section>p:not(.label) { font-size:32px; }
+  :where(.public-view) .public-cta { padding:65px 0 76px; }
+  :where(.public-view) .public-cta h2 { font-size:42px; }
+  :where(.public-view) .public-cta .label { font-size:8px; }
+  :where(.public-view) .footer-main { grid-template-columns:1fr; gap:23px; padding:30px 0 18px; }
+  :where(.public-view) .footer-main>div { grid-column:auto; }
+  :where(.public-view) .footer-bottom { padding-bottom:24px; font-size:10px; }
+  :where(.public-view) .album-title { padding-top:38px; }
+  :where(.public-view) .album-line { margin-top:22px; font-size:10px; }
+  :where(.public-view) .editorial-photos .photo-grid { column-gap:14px; }
+  :where(.public-view) .editorial-photos .photo-item { margin-bottom:14px; }
+  :where(.public-view) .about-layout { gap:36px; }
+  :where(.public-view) .about-layout h2 { font-size:40px; }
+  :where(.public-view) .booking-layout { padding-top:8px; }
+  :where(.public-view) #lightbox { padding-inline:44px; }
+}
+@media (max-width:380px) {
+  body.public-view { --gutter:20px; }
+  :where(.public-view) .filter-row button { padding-inline:9px; font-size:10px; }
+  :where(.public-view) .portfolio-title h1 { font-size:46px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  :where(.public-view) .album-card:hover img,:where(.public-view) .album-card:hover .story-arrow { transform:none; }
+}
+:where(.public-view) .lightbox-controls p { color:var(--muted); }
