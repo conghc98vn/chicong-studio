@@ -203,3 +203,356 @@ body.public-view {
   :where(.public-view) #lightbox .photo-next { right:calc(50% - 58px); }
   :where(.public-view) .lightbox-controls { margin-top:14px; }
 }
+
+/* Wedding portfolio: a quiet introduction, with photographs at its heart. */
+:where(.public-view) .wedding-hero { gap:7%; padding-top:24px; padding-bottom:82px; }
+:where(.public-view) .wedding-hero h1 { font-size:clamp(48px,5.1vw,72px); white-space:normal; }
+:where(.public-view) .hero-frame { margin:0; min-width:0; }
+:where(.public-view) .hero-frame .hero-visual:after { display:none; }
+:where(.public-view) .hero-frame figcaption { display:flex; justify-content:space-between; gap:18px; padding-top:18px; color:var(--muted); font-size:11px; line-height:1.7; }
+:where(.public-view) .hero-frame figcaption a { display:inline-flex; align-items:center; gap:8px; text-align:right; }
+:where(.public-view) .hero-frame .icon { width:17px; flex-shrink:0; }
+:where(.public-view) .hero-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px 22px; margin-top:30px; }
+:where(.public-view) .hero-actions .btn { margin:0; }
+:where(.public-view) .underlink .icon { width:17px; margin-left:6px; vertical-align:middle; }
+:where(.public-view) .wedding-hero .hero-foot { display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding-top:40px; font-size:10px; line-height:1.7; }
+:where(.public-view) .medium-note { display:grid; grid-template-columns:1fr 1fr; gap:10%; padding:72px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); align-items:center; }
+:where(.public-view) .medium-note h2,:where(.public-view) .approach-section h2 { font-size:clamp(36px,4vw,50px); line-height:1.15; }
+:where(.public-view) .medium-note p:not(.label) { font-size:15px; line-height:1.95; margin-bottom:24px; }
+:where(.public-view) .cta-copy { color:var(--muted); max-width:420px; margin:0 auto 28px; font-size:14px; line-height:1.9; }
+:where(.public-view) .about-title { text-align:center; }
+:where(.public-view) .about-title h1,:where(.public-view) .about-title>p { margin-inline:auto; }
+:where(.public-view) .about-story { padding-top:20px; }
+:where(.public-view) .experience-mark { font-family:var(--serif); font-size:88px; line-height:1; color:var(--green); display:block; margin-bottom:14px; }
+:where(.public-view) .experience-mark span { font-size:42px; vertical-align:top; }
+:where(.public-view) .about-intro .long-copy { margin-bottom:18px; }
+:where(.public-view) .about-art { margin:0; }
+:where(.public-view) .about-art img { width:100%; aspect-ratio:4/5; }
+:where(.public-view) .about-art figcaption { padding-top:16px; font-size:11px; line-height:1.8; color:var(--muted); }
+:where(.public-view) .about-art figcaption a { text-decoration:underline; text-underline-offset:4px; }
+:where(.public-view) .about-letter { padding:60px 30px; background:#eeefe8; font:36px/1.5 var(--serif); }
+:where(.public-view) .approach-section { border-top:1px solid var(--line); padding:64px 0 20px; }
+:where(.public-view) .approach-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:44px; margin-top:44px; }
+:where(.public-view) .approach-grid article>span { color:var(--green); font-size:11px; letter-spacing:.15em; }
+:where(.public-view) .approach-grid h3 { font-size:30px; margin:16px 0; }
+:where(.public-view) .approach-grid p { color:var(--muted); font-size:14px; line-height:1.9; }
+@media (prefers-reduced-motion:no-preference) {
+  :where(.public-view) .wedding-hero { animation:wedding-arrive .7s ease-out both; }
+  @keyframes wedding-arrive { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+}
+@media (max-width:750px) {
+  :where(.public-view) .wedding-hero { padding-top:22px; padding-bottom:54px; gap:30px; }
+  :where(.public-view) .wedding-hero h1 { font-size:clamp(42px,8.5vw,62px); }
+  :where(.public-view) .wedding-hero .hero-copy .label { font-size:10px; letter-spacing:.12em; margin-bottom:18px; }
+  :where(.public-view) .wedding-hero .hero-foot { padding-top:24px; gap:3px; }
+  :where(.public-view) .hero-frame figcaption { font-size:10px; gap:12px; }
+  :where(.public-view) .medium-note { grid-template-columns:1fr; gap:26px; padding:42px 0; }
+  :where(.public-view) .about-story { padding-top:0; }
+  :where(.public-view) .approach-grid { grid-template-columns:1fr; gap:28px; margin-top:30px; }
+  :where(.public-view) .approach-grid h3 { margin:10px 0; }
+  :where(.public-view) .about-title>p:not(.label) { font-size:12px; }
+}
+
+/* Editorial rhythm and restrained interaction. */
+:where(.public-view) .wedding-hero { animation:none; gap:9%; padding-top:38px; }
+:where(.public-view) .wedding-hero h1 { font-size:clamp(48px,5.25vw,74px); line-height:1.06; }
+:where(.public-view) .wedding-hero h1 em { font-weight:400; }
+:where(.public-view) .hero-frame { position:relative; padding:12px 12px 0; background:#f1eee7; }
+:where(.public-view) .hero-frame .hero-visual { border-radius:0; }
+:where(.public-view) .frame-note { display:block; position:absolute; right:18px; top:-31px; font:italic 19px/1.4 var(--serif); color:var(--green); }
+:where(.public-view) .hero-frame figcaption { padding:17px 2px; align-items:center; }
+:where(.public-view) .hero-frame figcaption .scroll-cue { text-align:left; gap:10px; }
+:where(.public-view) .scroll-cue>span { display:inline-flex; justify-content:center; align-items:center; width:25px; height:35px; border:1px solid #c8cbbf; border-radius:20px; flex-shrink:0; font-size:16px; }
+:where(.public-view) .selected-grid { grid-template-columns:1fr 1.15fr 1fr; gap:38px; align-items:start; }
+:where(.public-view) .selected-grid .album-card:nth-child(2) { margin-top:86px; }
+:where(.public-view) .selected-grid .album-card:nth-child(3) { margin-top:30px; }
+:where(.public-view) .selected-grid .story-image { border-radius:0; }
+:where(.public-view) .selected-grid .album-meta h3 { font-size:30px; }
+:where(.public-view) .medium-note { margin-top:28px; border-bottom:0; }
+:where(.public-view) .note-section { position:relative; margin-top:30px; margin-bottom:25px; padding:85px 9%; background:#eeefe8; }
+:where(.public-view) .note-section:before { content:'“'; display:block; font:68px/.65 var(--serif); color:#8d957f; margin-bottom:26px; }
+:where(.public-view) .underlink { transition:color .25s,border-color .25s; }
+:where(.public-view) .underlink .icon { transition:transform .35s; }
+:where(.public-view) .btn { transition:background .25s,border-color .25s,transform .3s; }
+:where(.public-view) .hero-visual img { transition:transform 1.2s cubic-bezier(.22,1,.36,1); }
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+  :where(.public-view) .hero-visual:hover img { transform:scale(1.035); }
+  :where(.public-view) .album-card:hover img { transform:scale(1.045); }
+  :where(.public-view) .underlink:hover .icon { transform:translateX(5px); }
+  :where(.public-view) .btn:hover { transform:translateY(-2px); }
+}
+@media (max-width:750px) {
+  :where(.public-view) .wedding-hero { padding-top:18px; gap:48px; }
+  :where(.public-view) .wedding-hero h1 { font-size:clamp(42px,9vw,64px); }
+  :where(.public-view) .hero-frame { padding:8px 8px 0; }
+  :where(.public-view) .frame-note { font-size:17px; top:-29px; right:8px; }
+  :where(.public-view) .hero-frame figcaption { padding:12px 0; font-size:10px; }
+  :where(.public-view) .hero-frame figcaption>a { max-width:55%; }
+  :where(.public-view) .selected-grid .album-card:nth-child(n) { margin-top:0; }
+  :where(.public-view) .featured .selected-grid { gap:20px; }
+  :where(.public-view) .selected-grid .album-card:nth-child(2) .story-image { aspect-ratio:1; }
+  :where(.public-view) .note-section { padding:48px 20px; margin-top:8px; }
+  :where(.public-view) .note-section>p:not(.label) { font-size:clamp(26px,7vw,36px); }
+}
+@media (prefers-reduced-motion:reduce) {
+  :where(.public-view) .hero-visual img,:where(.public-view) .album-card img,:where(.public-view) .btn,:where(.public-view) .underlink .icon { transition:none; transform:none; }
+}
+
+/* A consistent two-family hierarchy across the public portfolio. */
+:where(.public-view) h1 em,
+:where(.public-view) h2 em,
+:where(.public-view) h3 em,
+:where(.public-view) .note-section em,
+:where(.public-view) .about-letter em { font-style:normal; color:inherit; }
+:where(.public-view) h1,
+:where(.public-view) h2,
+:where(.public-view) h3 { letter-spacing:-.025em; }
+:where(.public-view) .wedding-hero h1 { font-size:clamp(44px,4.7vw,66px); letter-spacing:-.018em; line-height:1.18; color:#4c5047; }
+:where(.public-view) .wedding-hero h1 em { font-style:italic; color:inherit; }
+:where(.public-view) .section-top h2,
+:where(.public-view) .medium-note h2,
+:where(.public-view) .approach-section h2 { font-size:clamp(34px,3.5vw,46px); line-height:1.22; }
+:where(.public-view) .hero-copy>p:not(.label) { max-width:370px; }
+@media (max-width:750px) {
+ :where(.public-view) .wedding-hero h1 { font-size:clamp(39px,8.6vw,55px); }
+}
+:where(.public-view) .label,
+:where(.public-view) .hero-copy .label,
+:where(.public-view) .portfolio-title .label,
+:where(.public-view) .public-cta .label { font-size:11px; letter-spacing:.09em; line-height:1.7; }
+:where(.public-view) .wordmark span { letter-spacing:.12em; }
+:where(.public-view) .public-nav nav,
+:where(.public-view) .btn,
+:where(.public-view) .underlink { font-size:13px; letter-spacing:0; }
+:where(.public-view) .hero-copy>p:not(.label),
+:where(.public-view) .long-copy,
+:where(.public-view) .medium-note p:not(.label),
+:where(.public-view) .approach-grid p,
+:where(.public-view) .cta-copy { font-size:15px; line-height:1.85; }
+:where(.public-view) .wedding-hero .hero-foot { text-transform:none; letter-spacing:.015em; font-size:12px; }
+:where(.public-view) .hero-frame figcaption,
+:where(.public-view) .about-art figcaption { font-size:12px; letter-spacing:0; }
+@media (max-width:750px) {
+ :where(.public-view) .hero-frame figcaption { font-size:11px; }
+ :where(.public-view) .wordmark span { font-size:8px; }
+}
+
+/* Quiet navigation and a single, welcoming ending. */
+:where(.public-view) .public-nav { min-height:98px; }
+:where(.public-view) .public-nav>.wordmark { font-size:38px; }
+:where(.public-view) .public-nav nav a,
+:where(.public-view) .public-nav nav a:last-child { border:0; border-radius:0; padding:12px 0; background:transparent; }
+:where(.public-view) .public-nav nav a:after,
+:where(.public-view) .public-nav nav a[aria-current]:after,
+:where(.public-view) .public-nav nav a:last-child[aria-current]:after { content:''; display:block; position:absolute; left:0; right:0; bottom:5px; width:auto; height:1px; border-radius:0; background:#9ca38f; transform:scaleX(0); transform-origin:left; transition:transform .25s; }
+:where(.public-view) .public-nav nav a:hover:after,
+:where(.public-view) .public-nav nav a[aria-current]:after { transform:scaleX(1); }
+:where(.public-view) .public-nav nav a:last-child:hover { background:transparent; }
+:where(.public-view) .journal-footer { width:100%; max-width:none; margin-top:64px; background:#f0eee8; }
+:where(.public-view) .footer-invitation { padding:76px 0 64px; text-align:center; }
+:where(.public-view) .footer-invitation h2 { font-size:clamp(36px,4vw,54px); line-height:1.2; letter-spacing:-.02em; color:#4c5047; }
+:where(.public-view) .footer-invitation h2 em { font-style:italic; }
+:where(.public-view) .footer-invitation p { font-size:14px; line-height:1.9; margin:24px 0; }
+:where(.public-view) .footer-invitation .underlink { min-height:44px; }
+:where(.public-view) .journal-footer .footer-main { padding:32px 0 20px; border-top:1px solid #dcded3; }
+:where(.public-view) .journal-footer .wordmark span { text-transform:none; font-size:12px; letter-spacing:.025em; margin-top:10px; }
+:where(.public-view) .footer-links { display:flex; flex-wrap:wrap; gap:12px 28px; }
+:where(.public-view) .footer-links:empty { display:none; }
+:where(.public-view) .footer-links a { display:inline-flex; align-items:center; gap:8px; min-height:44px; font-size:13px; }
+:where(.public-view) .footer-links .icon { width:15px; }
+:where(.public-view) .journal-footer .footer-bottom { padding:4px 0 20px; font-size:11px; }
+@media (max-width:750px) {
+ :where(.public-view) .public-nav { min-height:84px; }
+ :where(.public-view) .public-nav>.wordmark { font-size:34px; }
+ :where(.public-view) .public-nav nav { top:83px; border-radius:0; }
+ :where(.public-view) .public-nav nav a:after { right:auto; width:28px; }
+ :where(.public-view) .journal-footer { margin-top:40px; }
+ :where(.public-view) .footer-invitation { padding:52px 0 44px; }
+ :where(.public-view) .footer-invitation h2 { font-size:clamp(32px,8vw,42px); }
+ :where(.public-view) .journal-footer .footer-main { gap:18px; }
+}
+@media (prefers-reduced-motion:no-preference) {
+ :where(.public-view) .public-nav nav.open { animation:menu-arrive .22s ease-out; }
+ @keyframes menu-arrive { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+}
+@media (prefers-reduced-motion:reduce) {
+ :where(.public-view) .public-nav nav a:after { transition:none; }
+}
+
+/* Curated stories keep wide scenes intact and portraits unhurried. */
+:where(.public-view) .selected-grid { row-gap:30px; }
+:where(.public-view) .selected-grid .album-card:nth-child(n) { margin-top:0; }
+:where(.public-view) .selected-grid .album-card:nth-child(3n+2) { margin-top:58px; }
+:where(.public-view) .selected-grid .album-card:nth-child(3n) { margin-top:24px; }
+:where(.public-view) .selected-grid .landscape-card .story-image { aspect-ratio:3/2; }
+@media (max-width:750px) {
+ :where(.public-view) .selected-grid .album-card:nth-child(n) { margin-top:0; }
+ :where(.public-view) .selected-grid .album-card:nth-child(n) .story-image { aspect-ratio:4/5; }
+ :where(.public-view) .selected-grid .landscape-card:nth-child(n) .story-image { aspect-ratio:3/2; }
+}
+
+/* Consistent cover choices, then a gentle path to the next story. */
+:where(.public-view) .stories-grid .landscape-card .story-image { aspect-ratio:3/2; }
+:where(.public-view) .related-stories { padding-top:58px; padding-bottom:20px; border-top:1px solid var(--line); }
+:where(.public-view) .related-stories h2 { font-size:clamp(34px,3.5vw,46px); line-height:1.22; }
+:where(.public-view) .related-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:48px; align-items:start; }
+:where(.public-view) .related-grid .story-image { aspect-ratio:4/5; }
+:where(.public-view) .related-grid .landscape-card .story-image { aspect-ratio:3/2; }
+:where(.public-view) .related-grid .album-meta h3 { font-size:30px; }
+@media (max-width:750px) {
+ :where(.public-view) .related-stories { padding-top:36px; }
+ :where(.public-view) .related-grid { grid-template-columns:1fr; gap:24px; }
+ :where(.public-view) .related-grid .story-image { aspect-ratio:4/5; }
+}
+
+/* Image-led opening: four highlights, one quiet invitation. */
+:where(.public-view) .highlight-hero { padding-top:10px; padding-bottom:46px; }
+:where(.public-view) .highlight-stage { position:relative; height:clamp(430px,68svh,720px); background:#e8e7df; overflow:hidden; }
+:where(.public-view) .highlight-slide { position:absolute; inset:0; opacity:0; transition:opacity 1s ease; margin:0; }
+:where(.public-view) .highlight-slide.is-active { opacity:1; }
+:where(.public-view) .highlight-slide picture,:where(.public-view) .highlight-slide img { display:block; width:100%; height:100%; object-fit:cover; }
+:where(.public-view) .highlight-stage:after { content:''; position:absolute; inset:0; background:linear-gradient(0deg,rgba(20,24,18,.65),transparent 65%); pointer-events:none; }
+:where(.public-view) .highlight-copy { position:absolute; z-index:1; bottom:36px; left:40px; right:24px; color:#fffdf7; }
+:where(.public-view) .highlight-copy .label { color:inherit; text-transform:none; font-size:12px; letter-spacing:.07em; margin-bottom:14px; }
+:where(.public-view) .highlight-copy h1 { font-size:clamp(36px,4vw,54px); line-height:1.12; letter-spacing:-.015em; text-shadow:0 1px 12px #17201833; }
+:where(.public-view) .highlight-copy h1 em { font-style:italic; color:inherit; }
+:where(.public-view) .highlight-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-top:14px; font-size:12px; }
+:where(.public-view) .highlight-bar a { display:inline-flex; align-items:center; gap:12px; min-height:44px; }
+:where(.public-view) .highlight-controls { display:flex; align-items:center; gap:6px; }
+:where(.public-view) .highlight-controls button { border:0; background:transparent; color:var(--ink); width:44px; height:44px; font-size:18px; }
+:where(.public-view) .highlight-controls button:hover { background:#eeefe8; border-radius:50%; }
+:where(.public-view) .highlight-count { font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+@media(max-width:750px){
+ :where(.public-view) .highlight-hero { width:100%; padding-top:0; padding-bottom:32px; }
+ :where(.public-view) .highlight-stage { height:clamp(400px,70svh,650px); }
+ :where(.public-view) .highlight-copy { bottom:28px; left:24px; }
+ :where(.public-view) .highlight-copy h1 { font-size:38px; }
+ :where(.public-view) .highlight-bar { padding:10px 20px 0; flex-wrap:wrap; gap:0 12px; }
+ :where(.public-view) .highlight-scroll { flex:1; }
+ :where(.public-view) .highlight-album { order:3; width:100%; color:var(--muted); }
+ :where(.public-view) .highlight-controls { gap:0; }
+ :where(.public-view) .highlight-controls button { width:36px; }
+}
+@media(prefers-reduced-motion:reduce){
+ :where(.public-view) .highlight-slide { transition:none; }
+}
+
+/* Final editorial pass: readable details, honest biography, easier contact. */
+:where(.public-view) .selected-grid .album-card:nth-child(n) { margin-top:0; }
+:where(.public-view) .stories-grid .album-card:nth-child(even) { padding-top:32px; }
+:where(.public-view) .selected-grid { gap:32px; }
+:where(.public-view) .highlight-stage:after { background:linear-gradient(0deg,rgba(20,24,18,.62),rgba(20,24,18,.2) 28%,transparent 52%); }
+:where(.public-view) .highlight-copy { max-width:450px; }
+:where(.public-view) .highlight-bar { font-size:13px; }
+:where(.public-view) .highlight-count { font-size:12px; }
+:where(.public-view) .album-meta .label { font-size:11px; letter-spacing:.06em; }
+:where(.public-view) .album-credit { font-size:12px; line-height:1.8; max-width:600px; margin:16px auto 0; color:var(--muted); }
+:where(.public-view) .album-description { max-width:600px; }
+:where(.public-view) .editorial-photos .photo-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; columns:auto; align-items:start; }
+:where(.public-view) .editorial-photos .photo-item { margin:0; }
+:where(.public-view) .editorial-photos .photo-wide { grid-column:1/-1; }
+:where(.public-view) .about-title { padding:40px 0; }
+:where(.public-view) .about-title h1 { font-size:clamp(44px,5vw,64px); }
+:where(.public-view) .about-profile { padding:16px 0 60px; gap:8%; }
+:where(.public-view) .about-profile h2 { font-size:clamp(32px,3.5vw,44px); }
+:where(.public-view) .without-portrait { display:block; max-width:700px; }
+:where(.public-view) .about-art img { object-fit:contain; aspect-ratio:auto; max-height:600px; }
+:where(.public-view) .about-actions .btn { margin:0; }
+:where(.public-view) .direct-contact { display:flex; flex-wrap:wrap; gap:12px 26px; margin-top:22px; }
+:where(.public-view) .direct-contact a { min-height:44px; }
+:where(.public-view) .contact-title { padding:40px 0 30px; }
+:where(.public-view) .contact-title h1 { font-size:clamp(44px,5vw,64px); }
+:where(.public-view) .contact-title>p { max-width:540px; }
+:where(.public-view) .contact-layout { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); align-items:start; gap:60px; }
+:where(.public-view) .contact-calendar summary { cursor:pointer; min-height:48px; padding:10px 0; font-size:14px; border-bottom:1px solid var(--line); }
+:where(.public-view) .contact-calendar .form-note { margin:16px 0; }
+:where(.public-view) .contact-layout form label { font-size:13px; }
+@media(max-width:750px){
+ :where(.public-view) .contact-layout { grid-template-columns:1fr; gap:28px; }
+ :where(.public-view) .stories-grid .album-card:nth-child(even) { padding-top:0; }
+ :where(.public-view) .highlight-controls button { width:44px; }
+ :where(.public-view) .highlight-scroll { flex-basis:100%; }
+ :where(.public-view) .highlight-album { order:0; flex:1; width:auto; }
+ :where(.public-view) .editorial-photos .photo-grid { gap:12px; }
+ :where(.public-view) .direct-contact { gap:8px; }
+}
+
+/* Mobile photographs retain their composition; captions sit outside the frame. */
+:where(.public-view) .highlight-images { position:absolute; inset:0; }
+@media(max-width:750px) {
+ :where(.public-view) .highlight-stage { height:auto; background:transparent; overflow:visible; }
+ :where(.public-view) .highlight-images { position:relative; height:min(112vw,52svh); background:#eeece6; overflow:hidden; }
+ :where(.public-view) .highlight-slide img { object-fit:contain; }
+ :where(.public-view) .highlight-stage:after { display:none; }
+ :where(.public-view) .highlight-copy { position:static; max-width:none; padding:20px 20px 8px; color:var(--ink); }
+ :where(.public-view) .highlight-copy .label { display:none; }
+ :where(.public-view) .highlight-copy h1 { font-size:clamp(30px,8vw,38px); line-height:1.12; text-shadow:none; }
+ :where(.public-view) .highlight-copy h1 br { display:none; }
+ :where(.public-view) .highlight-copy h1 em { display:block; }
+ :where(.public-view) .highlight-bar { padding-top:0; }
+ :where(.public-view) .highlight-scroll { min-height:44px; }
+ :where(.public-view) .highlight-album { min-width:0; font-size:12px; overflow-wrap:anywhere; }
+ :where(.public-view) .highlight-controls { flex-shrink:0; }
+ :where(.public-view) .album-grid .album-card:nth-child(n) .story-image { aspect-ratio:auto; background:transparent; }
+ :where(.public-view) .album-grid .album-card img { display:block; height:auto; max-height:none; object-fit:contain; transform:none; }
+ :where(.public-view) .editorial-photos .photo-grid { grid-template-columns:minmax(0,1fr); gap:24px; }
+ :where(.public-view) .editorial-photos .photo-wide { grid-column:auto; }
+ :where(.public-view) .editorial-photos .photo-info { font-size:11px; margin-top:8px; }
+ :where(.public-view) .portfolio-title { padding-top:30px; padding-bottom:30px; }
+}
+
+/* Homepage covers are photographs, not cropped thumbnails. */
+:where(.public-view) .featured .selected-grid .album-card:nth-child(n) .story-image { aspect-ratio:auto; }
+:where(.public-view) .featured .selected-grid .album-card img { display:block; height:auto; object-fit:contain; transform:none; }
+:where(.public-view) .highlight-stage { aspect-ratio:3/2; height:auto; }
+:where(.public-view) .highlight-slide img { object-fit:contain; }
+:where(.public-view) .highlight-images { background:#eeece6; }
+:where(.public-view) .note-section:before { display:none; }
+@media(max-width:750px) {
+ :where(.public-view) .highlight-stage { aspect-ratio:auto; }
+ :where(.public-view) .featured .album-meta { padding:16px 0 12px; }
+ :where(.public-view) .featured .selected-grid { row-gap:28px; }
+}
+
+@media(min-width:751px) and (max-width:1000px) {
+ :where(.public-view) .featured .selected-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+/* Consultation refinements: readable album navigation and an inline optional calendar. */
+:where(.public-view) .album-line { font-size:14px; }
+:where(.public-view) .album-description,
+:where(.public-view) .album-credit { font-size:15px; line-height:1.8; }
+:where(.public-view) .album-context { font-size:14px; line-height:1.6; color:var(--muted); margin:8px 0 0; }
+:where(.public-view) .album-consult { margin-top:22px; min-height:44px; font-size:14px; }
+:where(.public-view) .contact-layout { display:block; max-width:760px; margin-inline:auto; }
+:where(.public-view) .contact-calendar { margin:0 0 24px; }
+:where(.public-view) .contact-calendar details[open] { padding-bottom:16px; }
+:where(.public-view) .booking-success .direct-contact { justify-content:center; margin-bottom:24px; }
+:where(.public-view) .direct-contact .icon { flex-shrink:0; }
+
+/* Keep contact copy and form on one axis; target actual album text specificity. */
+:where(.public-view) .contact-title { max-width:760px; margin-inline:auto; padding-top:32px; padding-bottom:18px; }
+:where(.public-view) .contact-title>p:not(.label) { max-width:620px; font-size:15px; }
+:where(.public-view) .album-title>p.album-description,
+:where(.public-view) .album-title>p.album-credit { font-size:15px; line-height:1.8; }
+:where(.public-view) .contact-layout form label { font-size:14px; }
+:where(.public-view) .field-error { display:block; font-size:14px; line-height:1.6; color:#963c30; margin-top:6px; }
+:where(.public-view) .field-error:empty { display:none; }
+:where(.public-view) [aria-invalid=true] { border-color:#963c30; }
+:where(.public-view) .booking-success p { overflow-wrap:anywhere; }
+:where(.public-view) .contact-title .response-note { font-size:14px; color:var(--muted); }
+:where(.public-view) #booking-form[aria-busy=true] button[type=submit] { cursor:wait; opacity:.75; }
+@media(max-width:750px){
+ :where(.public-view) .contact-title { padding-top:24px; padding-bottom:10px; }
+ :where(.public-view) .contact-title h1 { font-size:40px; margin-bottom:18px; }
+ :where(.public-view) .contact-title .direct-contact { margin-top:12px; }
+ :where(.public-view) .contact-layout .form-note { font-size:14px; line-height:1.7; }
+}
+
+:where(.public-view) .inquiry-field { min-width:0; margin-bottom:22px; }
+:where(.public-view) .inquiry-field>label { margin-bottom:0; }
+:where(.public-view) .booking-date-field .inquiry-field { margin-bottom:8px; }
+
+:where(.public-view) .delivery-note { border-top:1px solid var(--line); margin-top:32px; padding-top:24px; max-width:700px; }
+:where(.public-view) .delivery-note h3 { font-size:26px; margin-bottom:12px; }
+:where(.public-view) .delivery-note p { color:var(--muted); font-size:15px; line-height:1.8; }

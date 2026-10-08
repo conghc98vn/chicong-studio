@@ -1,3 +1,4 @@
+import {siteDefaults} from '../web/site-copy.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync} from 'node:fs';
 import path from 'node:path';
@@ -22,14 +23,18 @@ export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
  CREATE TABLE IF NOT EXISTS rate_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires BIGINT NOT NULL);`);
  if(db.cloud){await db.exec(['settings','admins','sessions','albums','photos','selections','inquiries','blocked_dates','rate_limits'].map(t=>`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'));}
  // Additive migration: existing albums, photos and sessions stay intact.
- if(db.cloud){await db.exec("ALTER TABLE photos ADD COLUMN IF NOT EXISTS upload_key TEXT; ALTER TABLE photos ADD COLUMN IF NOT EXISTS upload_hash TEXT; ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT '';");}
- else{const columns=await db.all('PRAGMA table_info(photos)');for(const column of ['upload_key','upload_hash'])if(!columns.some(c=>c.name===column))await db.exec('ALTER TABLE photos ADD COLUMN '+column+' TEXT;');const inquiryColumns=await db.all('PRAGMA table_info(inquiries)');if(!inquiryColumns.some(c=>c.name==='notes'))await db.exec("ALTER TABLE inquiries ADD COLUMN notes TEXT NOT NULL DEFAULT '';");}
+ if(db.cloud){await db.exec("ALTER TABLE photos ADD COLUMN IF NOT EXISTS upload_key TEXT; ALTER TABLE photos ADD COLUMN IF NOT EXISTS upload_hash TEXT; ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''; ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS budget TEXT NOT NULL DEFAULT '';");}
+ else{const columns=await db.all('PRAGMA table_info(photos)');for(const column of ['upload_key','upload_hash'])if(!columns.some(c=>c.name===column))await db.exec('ALTER TABLE photos ADD COLUMN '+column+' TEXT;');const inquiryColumns=await db.all('PRAGMA table_info(inquiries)');if(!inquiryColumns.some(c=>c.name==='budget'))await db.exec("ALTER TABLE inquiries ADD COLUMN budget TEXT NOT NULL DEFAULT '';");if(!inquiryColumns.some(c=>c.name==='notes'))await db.exec("ALTER TABLE inquiries ADD COLUMN notes TEXT NOT NULL DEFAULT '';");}
+ // Request identity survives retries and server restarts; legacy requests remain valid.
+ if(db.cloud)await db.exec('ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS request_key TEXT; ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS request_hash TEXT;');
+ else{const columns=await db.all('PRAGMA table_info(inquiries)');for(const key of ['request_key','request_hash'])if(!columns.some(c=>c.name===key))await db.exec('ALTER TABLE inquiries ADD COLUMN '+key+' TEXT;');}
+ await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS inquiry_request_key ON inquiries(request_key) WHERE request_key IS NOT NULL;');
  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS photo_upload_key ON photos(album_id,upload_key) WHERE upload_key IS NOT NULL;
  CREATE INDEX IF NOT EXISTS photos_album_position ON photos(album_id,position);
  CREATE INDEX IF NOT EXISTS sessions_expires ON sessions(expires);
  CREATE INDEX IF NOT EXISTS albums_status_created ON albums(status,created);
  CREATE INDEX IF NOT EXISTS inquiries_status_created ON inquiries(status,created);`);
- const defaults={brand:'ChiCong',tagline:'Photography & stories',headline:'Những câu chuyện xứng đáng được lưu giữ.',intro:'Một góc nhìn riêng. Những khoảnh khắc chân thật. Khám phá portfolio và cùng lên ý tưởng cho buổi chụp của bạn.',email:'',phone:'',location:'TP. Hồ Chí Minh, Việt Nam',instagram:'',about:'Mỗi bộ ảnh bắt đầu từ một cuộc trò chuyện. Chia sẻ với mình về điều bạn muốn lưu giữ, để cùng tạo nên một câu chuyện mang dấu ấn riêng.',bookingNote:'Gửi yêu cầu để trao đổi và xác nhận lịch chụp. Yêu cầu chưa phải là lịch hẹn đã được xác nhận.'};
+ const defaults=siteDefaults;
  for(const [key,value] of Object.entries(defaults))await db.run('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO NOTHING',[key,value]);
  return db;
 }

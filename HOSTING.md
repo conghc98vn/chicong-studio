@@ -66,7 +66,7 @@ Chờ xác minh DNS/HTTPS, đặt `SITE_URL=https://chicongphoto.vn`, rồi ki�
 
 Đã kiểm chứng trên tài khoản cloud thật ngày 08/10/2026: health PostgreSQL, 9 bảng ứng dụng bật RLS, các trang/API công khai, API quản trị trả 401 khi chưa đăng nhập, và Storage ghi/đọc khớp dữ liệu trong bucket private với truy cập công khai bị từ chối. Ảnh kiểm thử đã được xóa. Mã nguồn cũng xử lý phản hồi HTTP 400 `NoSuchBucket` của Supabase để tự tạo bucket private khi chưa có; các lỗi xác thực khác vẫn dừng khởi động.
 
-Các bước còn cần kiểm tra qua tài khoản studio: upload album, restart/deploy lại và kiểm tra ảnh còn; mở gallery trong trình duyệt khách và kiểm tra mật khẩu/lựa chọn ảnh; xử lý yêu cầu đặt lịch trong quản trị. Bộ kiểm thử tự động hiện có 26 bài đã đạt; chúng không thay thế các bước kiểm tra giao diện quản trị trên cloud.
+Các bước còn cần kiểm tra qua tài khoản studio: upload album, restart/deploy lại và kiểm tra ảnh còn; mở gallery trong trình duyệt khách và kiểm tra mật khẩu/lựa chọn ảnh; xử lý yêu cầu đặt lịch trong quản trị. Bộ kiểm thử tự động được chạy lại ngày 09/10/2026: 45/45 bài đạt; chúng không thay thế các bước kiểm tra giao diện quản trị trên cloud.
 
 Biểu mẫu liên hệ trên website thật cũng đã gửi thành công một yêu cầu thử; PostgreSQL lưu đúng một bản ghi và không giữ ngày chụp khi chưa chọn ngày. Bản ghi kiểm thử đã được xóa sau đối chiếu. Lượt kiểm tra từ dòng lệnh trước đó gặp lỗi kết nối mạng; luồng trình duyệt thực tế đã được xác nhận thành công.
 

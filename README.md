@@ -106,3 +106,11 @@ Nâng cấp tự thêm cột `inquiries.notes` mặc định rỗng, giữ nguy�
 Website và studio dùng chung bảng màu trắng ngà/xanh rêu, hệ thống nút và ô nhập liệu, biểu tượng SVG nét mảnh. Tiêu đề quản trị ngắn hơn; thanh điều hướng mobile tự đưa mục đang chọn vào vùng nhìn thấy. Bảng yêu cầu đặt lịch chuyển thành danh sách thông tin trên điện thoại để không phải cuộn ngang. Các trạng thái chưa có album/ảnh cũng có bố cục riêng.
 
 Kiểm tra trình duyệt trên 11 trang ở các độ rộng 320, 390, 768 và 1440px: không tràn ngang; tìm kiếm, lọc, lưu yêu cầu, tạo album, menu mobile, mở gallery, chọn ảnh và gửi lựa chọn hoạt động. Bộ 24 bài kiểm thử vẫn qua. Toàn bộ dữ liệu thử nằm trong fixture tạm; cập nhật giao diện không thay đổi database thật.
+
+## Hoàn thiện tư vấn · 08/10/2026
+
+Khách có thể để email hoặc điện thoại; ngân sách dự kiến không bắt buộc và báo giá vẫn gửi riêng. Form chỉ rõ trường sai, có trạng thái đang gửi và giữ nội dung khi lỗi mạng. Mã lần gửi bảo vệ thao tác thử lại khỏi tạo trùng; database tự bổ sung các cột, không xóa yêu cầu cũ. Ngày chụp vẫn được máy chủ kiểm tra kể cả khi lịch trên giao diện tạm chưa tải được.
+
+Trong **Website**, điền **Thời gian phản hồi thực tế** nếu đã có cam kết; để trống sẽ không hiện lời hứa thời gian. Facebook chỉ hiện khi có đường dẫn được cấu hình. Việc nhận yêu cầu vẫn cần chủ studio mở quản trị kiểm tra, chưa có email tự động.
+
+Đã kiểm tra 43 tests cùng các tình huống lỗi trên trình duyệt. Xem [kết quả kiểm thử](docs/consultation-enhancements-2026-10-08.md) để biết phạm vi và giới hạn xác minh.

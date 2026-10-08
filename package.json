@@ -5,9 +5,10 @@
   "description": "Photography studio: portfolio, private proofing galleries and booking",
   "scripts": {
     "dev": "node --env-file-if-exists=.env studio/server/start.mjs",
+    "dev:lan": "HOST=0.0.0.0 node --env-file-if-exists=.env studio/server/start.mjs",
     "start": "node --env-file-if-exists=.env studio/server/start.mjs",
     "test": "node --test studio/tests/*.test.mjs",
-    "check": "node --check studio/server/app.mjs && node --check studio/web/main.js",
+    "check": "node studio/tests/check-syntax.mjs",
     "admin:reset": "node --env-file-if-exists=.env studio/server/reset-admin.mjs"
   },
   "engines": {

@@ -22,3 +22,24 @@ test('Booking notes migration preserves existing requests and notes across resta
   assert.equal((await db.all('SELECT * FROM inquiries')).length,1);
  }finally{await db?.close();await rm(dir,{recursive:true,force:true});}
 });
+
+test('Budget migration preserves existing inquiries and persists across restart',async()=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'chicong-budget-migration-'));let db;
+ try{
+  db=await openDatabase(dir,{url:null});await db.run("INSERT INTO inquiries(id,name,email,service,message,created) VALUES('existing','Customer','','Wedding','Existing message','2026-01-01')");await db.close();db=null;
+  const legacy=new DatabaseSync(path.join(dir,'studio.sqlite'));legacy.exec('ALTER TABLE inquiries DROP COLUMN budget');legacy.close();
+  db=await openDatabase(dir,{url:null});assert.equal((await db.get("SELECT * FROM inquiries WHERE id='existing'")).budget,'');
+  await db.run("UPDATE inquiries SET budget='Chưa xác định' WHERE id='existing'");await db.close();db=await openDatabase(dir,{url:null});
+  const row=await db.get("SELECT * FROM inquiries WHERE id='existing'");assert.equal(row.budget,'Chưa xác định');assert.equal(row.message,'Existing message');
+ }finally{await db?.close();await rm(dir,{recursive:true,force:true});}
+});
+
+test('Request identity upgrade preserves legacy bookings and retry keys',async()=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'chicong-request-upgrade-'));let db;
+ try{
+  db=await openDatabase(dir,{url:null});await db.run("INSERT INTO inquiries(id,name,email,service,message,created) VALUES('legacy','Customer','','Wedding','Keep this request','2026-01-01')");await db.close();db=null;
+  const legacy=new DatabaseSync(path.join(dir,'studio.sqlite'));legacy.exec('DROP INDEX inquiry_request_key; ALTER TABLE inquiries DROP COLUMN request_key; ALTER TABLE inquiries DROP COLUMN request_hash;');legacy.close();
+  db=await openDatabase(dir,{url:null});const row=await db.get("SELECT * FROM inquiries WHERE id='legacy'");assert.equal(row.message,'Keep this request');assert.equal(row.request_key,null);
+  await db.run("UPDATE inquiries SET request_key=?,request_hash='digest' WHERE id='legacy'",['a'.repeat(32)]);await db.close();db=await openDatabase(dir,{url:null});assert.equal((await db.get("SELECT request_key FROM inquiries WHERE id='legacy'")).request_key,'a'.repeat(32));
+ }finally{await db?.close();await rm(dir,{recursive:true,force:true});}
+});

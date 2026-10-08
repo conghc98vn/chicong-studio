@@ -1,4 +1,6 @@
 import test from 'node:test';
+import {createHash} from 'node:crypto';
+import {validateInquiry} from '../web/inquiry-validation.mjs';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -107,5 +109,142 @@ test('Historical booking notes can be edited without moving the date',async()=>{
   await f.db.run("UPDATE inquiries SET date='2000-01-01',status='confirmed' WHERE id=?",[row.id]);
   assert.equal((await f.client('/api/admin/inquiries/'+row.id,{date:'2000-01-01',status:'completed',notes:'Đã bàn giao ảnh'},'PATCH')).status,200);
   assert.equal((await f.db.get('SELECT notes FROM inquiries WHERE id=?',[row.id])).notes,'Đã bàn giao ảnh');
+ }finally{await f.close();}
+});
+
+test('Editorial copy preserves custom text and updates sharing metadata',async()=>{
+ const f=await fixture();try{
+  await f.setup();
+  await f.db.run("UPDATE settings SET value=? WHERE key='headline'",['Những câu chuyện xứng đáng được lưu giữ.']);
+  const s=await(await f.client('/api/site')).json();assert.equal(s.headline,'Ngày cưới qua đi.\nCảm xúc ở lại.');
+  assert.equal((await f.client('/api/admin/settings',{headline:'A personal headline',intro:'My custom public introduction',phone:'0969 910 198',name:'Chí Công'},'PATCH')).status,200);
+  const html=await(await fetch(f.base+'/')).text();assert.match(html,/My custom public introduction/);assert.match(html,/Wedding Photographer/);
+  assert.equal((await(await f.client('/api/site')).json()).headline,'A personal headline');
+  assert.equal((await f.client('/api/admin/settings',{phone:'not a phone'},'PATCH')).status,422);
+  assert.equal((await f.client('/api/admin/settings',{zalo:'javascript:alert(1)'},'PATCH')).status,422);
+ }finally{await f.close();}
+});
+
+test('Curation validates public membership and commits settings atomically',async()=>{
+ const f=await fixture();try{
+  await f.setup();const published=await createAlbum(f,'published'),hidden=await createAlbum(f,'private','private-test-password');await upload(f,published);await upload(f,hidden);
+  const albums=await(await f.client('/api/admin/albums')).json();const photo=albums.find(a=>a.id===published).photos[0].id,privatePhoto=albums.find(a=>a.id===hidden).photos[0].id;
+  const heroSelection=JSON.stringify([{albumId:published,wideId:photo,tallId:photo}]);
+  assert.equal((await f.client('/api/admin/settings',{heroSelection,storySelection:JSON.stringify([{albumId:published,photoId:photo}])},'PATCH')).status,200);
+  const before=await(await f.client('/api/site')).json();
+  for(const choices of [[{albumId:hidden,wideId:privatePhoto,tallId:privatePhoto}],[{albumId:published,wideId:privatePhoto,tallId:photo}],[{albumId:published,wideId:photo,tallId:photo},{albumId:published,wideId:photo,tallId:photo}]]){
+   assert.equal((await f.client('/api/admin/settings',{brand:'Should not save',heroSelection:JSON.stringify(choices)},'PATCH')).status,422);
+   assert.deepEqual(await(await f.client('/api/site')).json(),before);
+  }
+  assert.match(await(await fetch(f.base+'/')).text(),new RegExp('og:image[^>]+/media/'+photo));
+  assert.equal((await f.client('/api/admin/settings',{heroSelection:'['},'PATCH')).status,422);
+  assert.equal((await f.client('/api/admin/settings',{heroSelection:'[]'},'PATCH')).status,200);
+ }finally{await f.close();}
+});
+
+test('Portrait upload requires owner, rejects bad images, serves only current portrait',async()=>{
+ const f=await fixture();try{
+  const bytes=await sharp({create:{width:60,height:90,channels:3,background:'#ccc'}}).jpeg().toBuffer();
+  const body=()=>{const fd=new FormData();fd.append('portrait',new Blob([bytes],{type:'image/jpeg'}),'portrait.jpg');return fd;};
+  assert.equal((await f.client('/api/admin/portrait',body(),'POST',false)).status,401);
+  await f.setup();assert.equal((await f.client('/api/admin/portrait',body(),'POST')).status,201);
+  const first=(await(await f.client('/api/site')).json()).portrait;assert.match(first,/^[a-f0-9]{32}$/);
+  assert.equal((await fetch(f.base+'/portrait/'+first)).status,200);
+  const invalid=new FormData();invalid.append('portrait',new Blob(['broken'],{type:'image/jpeg'}),'broken.jpg');
+  assert.equal((await f.client('/api/admin/portrait',invalid,'POST')).status,422);
+  assert.equal((await(await f.client('/api/site')).json()).portrait,first);
+  assert.equal((await f.client('/api/admin/portrait',body(),'POST')).status,201);
+  assert.equal((await fetch(f.base+'/portrait/'+first)).status,404);
+  assert.equal((await f.client('/api/admin/settings',{portrait:'../../secret'},'PATCH')).status,422);
+  assert.equal((await f.client('/api/admin/settings',{portrait:''},'PATCH')).status,200);
+ }finally{await f.close();}
+});
+
+test('Consultation accepts phone or email and keeps budget private in studio records',async()=>{
+ const f=await fixture();try{
+  await f.setup();
+  const request={name:'Khách thử',service:'Mình muốn được tư vấn thêm',message:'Tư vấn chụp ngày cưới',budget:'10–15 triệu VNĐ'};
+  assert.equal((await f.client('/api/inquiries',{...request,phone:'0969 910 198'},'POST',false)).status,201);
+  assert.equal((await f.client('/api/inquiries',{...request,email:'couple@example.com',budget:''},'POST',false)).status,201);
+  assert.equal((await f.client('/api/inquiries',request,'POST',false)).status,422);
+  assert.equal((await f.client('/api/inquiries',{...request,phone:'not-a-phone'},'POST',false)).status,422);
+  assert.equal((await f.client('/api/inquiries',{...request,email:'couple@example.com',budget:'x'.repeat(101)},'POST',false)).status,422);
+  const rows=await (await f.client('/api/admin/inquiries')).json();
+  assert.equal(rows.length,2);assert.equal(rows.find(r=>r.phone).budget,request.budget);assert.equal(rows.find(r=>r.phone).email,'');
+  const exported=await (await f.client('/api/admin/export')).json();assert.equal(exported.inquiries.find(r=>r.phone).budget,request.budget);
+  assert.equal((await f.client('/api/admin/inquiries',null,'GET',false)).status,401);
+  assert.doesNotMatch(JSON.stringify(await (await f.client('/api/availability')).json()),/triệu|0969|couple/);
+  assert.equal((await f.client('/api/admin/settings',{facebook:'javascript:alert(1)'},'PATCH')).status,422);
+  assert.equal((await f.client('/api/admin/settings',{facebook:'https://www.facebook.com/CC.PhotoLife'},'PATCH')).status,200);
+ }finally{await f.close();}
+});
+
+test('Invalid consultation fields do not spend the valid-submission quota',async()=>{
+ const f=await fixture();try{
+  const data={name:'Khách thử',email:'review@example.com',phone:'123',service:'Tư vấn',message:'Tư vấn chụp ngày cưới'};
+  for(let i=0;i<8;i++){const r=await f.client('/api/inquiries',data,'POST',false);assert.equal(r.status,422);assert.match((await r.json()).fields.phone,/bỏ trống/);}
+  for(let i=0;i<5;i++)assert.equal((await f.client('/api/inquiries',{...data,phone:''},'POST',false)).status,201);
+  assert.equal((await f.client('/api/inquiries',{...data,phone:''},'POST',false)).status,429);
+  assert.equal((await f.db.all('SELECT * FROM inquiries')).length,5);
+ }finally{await f.close();}
+});
+test('Consultation replay is durable, concurrent-safe and bound to the same content',async()=>{
+ const f=await fixture();try{
+  const data={name:'Khách thử',phone:'0900000000',service:'Tư vấn',date:'2099-10-10',message:'Tư vấn chụp ngày cưới',budget:'Chưa xác định',requestKey:'a'.repeat(32)};
+  const responses=await Promise.all([f.client('/api/inquiries',data,'POST',false),f.client('/api/inquiries',data,'POST',false)]);
+  assert.deepEqual(responses.map(r=>r.status).sort(),[200,201]);
+  const results=await Promise.all(responses.map(r=>r.json()));assert.equal(results[0].reference,results[1].reference);
+  const rows=await f.db.all('SELECT * FROM inquiries');assert.equal(rows.length,1);
+  // A replay still succeeds when that date has since become unavailable.
+  await f.db.run("INSERT INTO blocked_dates(date,note) VALUES(?,'test')",[data.date]);
+  const second=await openDatabase(f.dir,{url:null});try{assert.equal((await second.get('SELECT request_key FROM inquiries WHERE id=?',[rows[0].id])).request_key,data.requestKey);}finally{await second.close();}
+  assert.equal((await f.client('/api/inquiries',data,'POST',false)).status,200);
+  assert.equal((await f.client('/api/inquiries',{...data,budget:'Khác'},'POST',false)).status,409);
+  for(let i=0;i<4;i++)assert.equal((await f.client('/api/inquiries',{...data,date:'',requestKey:String(i).repeat(32)},'POST',false)).status,201);
+  assert.equal((await f.client('/api/inquiries',{...data,date:'',requestKey:'f'.repeat(32)},'POST',false)).status,429);
+  assert.equal((await f.client('/api/inquiries',data,'POST',false)).status,200);
+  assert.equal((await f.db.all('SELECT * FROM inquiries')).length,5);
+ }finally{await f.close();}
+});
+test('Calendar conflicts identify date and allow an undated consultation',async()=>{
+ const f=await fixture();try{
+  await f.db.run("INSERT INTO blocked_dates(date,note) VALUES('2099-10-10','Private')");
+  const data={name:'Khách thử',phone:'0900000000',service:'Tư vấn',date:'2099-10-10',message:'Tư vấn chụp ngày cưới',requestKey:'b'.repeat(32)};
+  const busy=await f.client('/api/inquiries',data,'POST',false);assert.equal(busy.status,409);assert.match((await busy.json()).fields.date,/kín lịch/);
+  assert.equal((await f.client('/api/inquiries',{...data,date:''},'POST',false)).status,201);
+ }finally{await f.close();}
+});
+test('Portfolio cards preserve curated images and counts without loading the entire album',async()=>{
+ const f=await fixture();try{
+  await f.setup();const a=await createAlbum(f,'published'),privateAlbum=await createAlbum(f,'private','private-pass');
+  for(let i=0;i<6;i++)await upload(f,a);await upload(f,privateAlbum);
+  const full=await (await f.client('/api/portfolio')).json();const photos=full[0].photos;
+  const choice={albumId:a,wideId:photos[2].id,tallId:photos[3].id};
+  assert.equal((await f.client('/api/admin/settings',{heroSelection:JSON.stringify([choice]),storySelection:JSON.stringify([{albumId:a,photoId:photos[4].id}])},'PATCH')).status,200);
+  const cards=await (await f.client('/api/portfolio?view=cards')).json();assert.equal(cards.length,1);assert.equal(cards[0].photo_count,6);assert.ok(cards[0].photos.length<6);
+  for(const p of [photos[2],photos[3],photos[4]])assert.ok(cards[0].photos.some(x=>x.id===p.id));
+  assert.ok(cards[0].photos.every(p=>!('original' in p)&&!('selected' in p)));
+  assert.equal((await (await f.client('/api/albums/'+a)).json()).photos.length,6);
+ }finally{await f.close();}
+});
+
+test('Concurrent retries cannot exhaust unused consultation quota',async()=>{
+ const f=await fixture();try{
+  const data={name:'Retry test',email:'retry@example.com',service:'Tư vấn',message:'Please advise about wedding photography',requestKey:'c'.repeat(32)};
+  const responses=await Promise.all(Array.from({length:10},()=>f.client('/api/inquiries',data,'POST',false)));
+  assert.equal(responses.filter(r=>r.status===201).length,1);
+  assert.ok(responses.every(r=>[200,201,429].includes(r.status)));
+  assert.equal((await f.db.all('SELECT * FROM inquiries')).length,1);
+  for(let i=0;i<4;i++)assert.equal((await f.client('/api/inquiries',{...data,requestKey:String(i).repeat(32)},'POST',false)).status,201);
+  assert.equal((await f.client('/api/inquiries',{...data,requestKey:'d'.repeat(32)},'POST',false)).status,429);
+ }finally{await f.close();}
+});
+test('Historical saved consultation replays while new past dates are rejected',async()=>{
+ const f=await fixture();try{
+  const request={name:'Historical retry',email:'retry@example.com',date:'2020-01-01',service:'Tư vấn',message:'Please advise about wedding photography',requestKey:'e'.repeat(32)};
+  const {data}=validateInquiry(request),hash=createHash('sha256').update(JSON.stringify(data)).digest('hex');
+  await f.db.run("INSERT INTO inquiries(id,name,email,phone,date,service,message,status,created,budget,request_key,request_hash) VALUES(?,?,?,?,?,?,?,'new',?,?,?,?)",['f'.repeat(32),data.name,data.email,data.phone,data.date,data.service,data.message,'2020-01-01',data.budget,request.requestKey,hash]);
+  const replay=await f.client('/api/inquiries',request,'POST',false);assert.equal(replay.status,200);assert.equal((await replay.json()).reference,'ffffffff');
+  const fresh=await f.client('/api/inquiries',{...request,requestKey:'a'.repeat(32)},'POST',false);assert.equal(fresh.status,422);assert.ok((await fresh.json()).fields.date);
  }finally{await f.close();}
 });

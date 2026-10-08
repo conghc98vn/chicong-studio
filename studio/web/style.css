@@ -399,3 +399,15 @@ input[type=file]::file-selector-button { background:white; border:1px solid #cbd
 @media (prefers-reduced-motion:reduce) {
   html { scroll-behavior:auto; }*,*:before,*:after { animation:none!important; transition:none!important; }
 }
+
+/* Website editing: visual choices with a preview for each placement. */
+.curation-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin:20px 0 32px; }
+.curation-row { min-width:0; border:1px solid var(--line); padding:16px; border-radius:8px; }
+.curation-row legend { padding:0 8px; font-size:13px; }
+.curation-photos { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.curation-photos>label:only-child { grid-column:1/-1; }
+.curation-preview { width:100%; height:140px; object-fit:contain; background:var(--paper); margin-top:8px; }
+.portrait-preview { width:200px; max-height:260px; object-fit:contain; margin:20px 0; }
+.settings-panel h3 { margin-top:20px; }
+.about-actions { display:flex; align-items:center; flex-wrap:wrap; gap:20px; margin-top:24px; }
+@media(max-width:750px) { .curation-grid { grid-template-columns:1fr; } }

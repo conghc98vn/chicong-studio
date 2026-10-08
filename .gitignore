@@ -21,3 +21,6 @@ legacy-prototype/
 /*.sqlite
 /*.sqlite-*
 *.log
+
+# Generated previews and local review exports
+/output/
