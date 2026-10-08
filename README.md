@@ -62,7 +62,9 @@ Tải JSON trong phần sao lưu để giữ cấu trúc album/lựa chọn/yêu
 
 Xem [HOSTING.md](HOSTING.md): Render Free + Supabase PostgreSQL/Storage, cấu hình cho chicongphoto.vn. Production từ chối chạy nếu không cấu hình database và Storage lưu bền vững. Đây là app Node.js chạy server, không phải thư mục HTML để upload vào hosting tĩnh/cPanel PHP.
 
-Chưa deploy lên cloud hoặc cấu hình DNS. Chưa chạy thử với tài khoản Supabase/Render thật; cần kiểm tra các bước trong hướng dẫn sau khi thiết lập.
+Đã triển khai Render Free + Supabase ngày 08/10/2026: [website](https://chicong-photo-studio.onrender.com), [quản trị](https://chicong-photo-studio.onrender.com/admin). Tài khoản quản trị và 10 cài đặt từ bản local đã được chuyển sang PostgreSQL, giữ nguyên mật khẩu; không chuyển phiên đăng nhập. Database dùng TLS xác thực CA/hostname, bucket ảnh `chicong-private` giữ riêng tư. Tên miền `chicongphoto.vn` chưa được nối vào dịch vụ này.
+
+Đã đạt 26 bài test tự động, kiểm tra health/API/trang công khai trên Render, chặn API quản trị khi chưa đăng nhập và kiểm thử ghi/đọc/xóa ảnh trên Supabase thật. Portfolio hiện chưa có ảnh. Đăng nhập tài khoản studio cũ để cập nhật thông tin liên hệ và đăng album; kiểm tra thêm luồng quản trị/gallery và dữ liệu qua restart theo [HOSTING.md](HOSTING.md).
 
 Nếu quên mật khẩu quản trị, chạy `npm run admin:reset` trong terminal của máy/server có đúng database; tự nhập email và mật khẩu mới. Mật khẩu không hiển thị khi nhập, các phiên cũ bị vô hiệu. Không có reset password công khai hoặc gửi mail khôi phục.
 
@@ -91,13 +93,13 @@ Integration tests kiểm tra đăng nhập, CSRF, quyền truy cập album/ảnh
 
 Xem [OPERATIONS.md](OPERATIONS.md) cho checklist dùng hằng ngày, cập nhật và xử lý sự cố. Khi khởi động, bản 2.1 tự thêm cột/index vào schema cũ; không xóa hay tạo lại album. Sao lưu trước khi cập nhật phiên bản.
 
-Bản 2.1.1 hoàn thiện thao tác chọn ảnh trong lightbox, cập nhật lựa chọn tại chỗ để giữ vị trí xem, tăng cỡ chữ và vùng bấm trên điện thoại. Website tiếp tục chạy local theo lựa chọn của bạn; không đăng lên Sites hoặc thay cấu hình hosting.
+Bản 2.1.1 hoàn thiện thao tác chọn ảnh trong lightbox, cập nhật lựa chọn tại chỗ để giữ vị trí xem, tăng cỡ chữ và vùng bấm trên điện thoại. Ở thời điểm phát hành 2.1.1, website chỉ chạy local; trạng thái hosting hiện tại nằm ở mục Hosting miễn phí phía trên.
 
 ## Hoàn thiện đặt lịch · 2.2.0
 
 Bổ sung đổi ngày chụp và ghi chú riêng trong **Yêu cầu đặt lịch → Xem**. Một lần lưu cập nhật cả ngày, trạng thái và ghi chú. Ngày chụp mới không được nằm trong quá khứ; vẫn có thể cập nhật ghi chú/trạng thái hoàn thành cho các buổi chụp cũ. Ghi chú riêng chỉ có trong API quản trị và bản sao JSON, không xuất hiện trong thông tin lịch công khai.
 
-Nâng cấp tự thêm cột `inquiries.notes` mặc định rỗng, giữ nguyên các yêu cầu hiện có. Sao lưu trước khi chạy bản mới. Đã kiểm tra 24 bài test tự động trên SQLite và luồng trình duyệt desktop/mobile với database tạm riêng; chưa kiểm thử PostgreSQL trên hosting thật.
+Nâng cấp tự thêm cột `inquiries.notes` mặc định rỗng, giữ nguyên các yêu cầu hiện có. Sao lưu trước khi chạy bản mới. Bản 2.2.0 đã kiểm tra 24 bài test tự động trên SQLite và luồng trình duyệt desktop/mobile với database tạm riêng; kết quả kiểm thử cloud hiện tại nằm ở mục Hosting miễn phí phía trên.
 
 ## Giao diện tinh giản · 2.2.1
 

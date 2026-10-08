@@ -1,6 +1,6 @@
 # Đưa ChiCong Studio lên host miễn phí và chicongphoto.vn
 
-Phương án chuẩn bị trong mã nguồn: **Render Free** chạy Node.js, **Supabase Free** lưu PostgreSQL và ảnh trong bucket riêng. Tên miền đặt ở Render; không cần mua custom domain cho Supabase.
+Phương án đã triển khai: **Render Free** chạy Node.js, **Supabase Free** lưu PostgreSQL và ảnh trong bucket riêng. Website đang chạy tại [chicong-photo-studio.onrender.com](https://chicong-photo-studio.onrender.com) từ ngày 08/10/2026; [trang quản trị](https://chicong-photo-studio.onrender.com/admin) dùng tài khoản studio cũ đã chuyển từ local. Chưa cấu hình DNS cho `chicongphoto.vn`. Tên miền sẽ đặt ở Render; không cần mua custom domain cho Supabase.
 
 Tài liệu nhà cung cấp được kiểm tra ngày 07/10/2026:
 
@@ -52,6 +52,8 @@ Mã khởi động không tạo album minh họa, không tạo mật khẩu admi
 
 Mở `https://…onrender.com/admin`. Tự nhập email, mật khẩu từ 12 ký tự và `SETUP_TOKEN`. Sau khi tạo xong, bạn có thể xóa biến `SETUP_TOKEN` khỏi Render; app không cho tạo thêm tài khoản qua endpoint thiết lập.
 
+Với dịch vụ hiện tại, tài khoản local đã được chuyển và kiểm tra khớp hoàn toàn; `SETUP_TOKEN` đã xóa khỏi Render. Chỉ cần đăng nhập tài khoản studio cũ. Không dùng mật khẩu database Supabase để đăng nhập studio.
+
 Trong **Website**, điền email, điện thoại, nội dung giới thiệu và Instagram. Trong **Portfolio**, tạo album, upload ảnh, chọn ảnh bìa rồi đặt trạng thái công khai. Gallery riêng có mật khẩu từ 8 ký tự.
 
 ## 5. Nối chicongphoto.vn
@@ -62,6 +64,10 @@ Chờ xác minh DNS/HTTPS, đặt `SITE_URL=https://chicongphoto.vn`, rồi ki�
 
 ## Trước khi nhận dữ liệu thật
 
-Kiểm tra bằng album thử trên cloud: upload ảnh, restart/deploy lại, kiểm tra ảnh còn; mở gallery trong trình duyệt khách và kiểm tra password/selected photos; gửi yêu cầu đặt lịch thử rồi xử lý trong studio. Các adapter PostgreSQL/Supabase đã được viết nhưng chưa được kiểm chứng trên tài khoản cloud thật trong phiên làm việc này.
+Đã kiểm chứng trên tài khoản cloud thật ngày 08/10/2026: health PostgreSQL, 9 bảng ứng dụng bật RLS, các trang/API công khai, API quản trị trả 401 khi chưa đăng nhập, và Storage ghi/đọc khớp dữ liệu trong bucket private với truy cập công khai bị từ chối. Ảnh kiểm thử đã được xóa. Mã nguồn cũng xử lý phản hồi HTTP 400 `NoSuchBucket` của Supabase để tự tạo bucket private khi chưa có; các lỗi xác thực khác vẫn dừng khởi động.
+
+Các bước còn cần kiểm tra qua tài khoản studio: upload album, restart/deploy lại và kiểm tra ảnh còn; mở gallery trong trình duyệt khách và kiểm tra mật khẩu/lựa chọn ảnh; xử lý yêu cầu đặt lịch trong quản trị. Bộ kiểm thử tự động hiện có 26 bài đã đạt; chúng không thay thế các bước kiểm tra giao diện quản trị trên cloud.
+
+Biểu mẫu liên hệ trên website thật cũng đã gửi thành công một yêu cầu thử; PostgreSQL lưu đúng một bản ghi và không giữ ngày chụp khi chưa chọn ngày. Bản ghi kiểm thử đã được xóa sau đối chiếu. Lượt kiểm tra từ dòng lệnh trước đó gặp lỗi kết nối mạng; luồng trình duyệt thực tế đã được xác nhận thành công.
 
 Ảnh upload được đổi sang WebP (cạnh dài tối đa 2400px + thumbnail 900px) và loại metadata; hệ thống phục vụ gallery xem/chọn, không phải kho giao file RAW/ảnh gốc độ phân giải đầy đủ. Email tự động chưa tích hợp: yêu cầu nằm trong **Yêu cầu đặt lịch**, bạn chủ động liên hệ khách. Không có thanh toán hoặc booking tự động được xác nhận.
