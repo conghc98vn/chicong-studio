@@ -22,11 +22,13 @@ Lấy các thông tin dưới đây để nhập trực tiếp vào Environment 
 - `SUPABASE_SERVICE_ROLE_KEY`: legacy **service_role JWT** phía máy chủ, không phải anon/public key.
 - `SUPABASE_BUCKET`: `chicong-private`.
 
+Repository có chứng chỉ công khai `certs/supabase-root-2021.crt`, tải từ Database → Settings → SSL configuration của Supabase. Đặt `NODE_EXTRA_CA_CERTS=./certs/supabase-root-2021.crt` trong Environment của Render để Node tin cậy CA này và vẫn kiểm tra hostname/chứng chỉ với `sslmode=verify-full`. Chứng chỉ hết hạn ngày 26/04/2031; SHA-256: `807025AD50D4ED219D2C9C7D299C004F824EB00CF7F65AFEF607D07B72E6CAFA`. Nếu Supabase thay CA, tải và đối chiếu chứng chỉ mới trước khi thay file. Biến này phải được đặt trước khi Node khởi động, không chỉ trong file `.env` được app nạp.
+
 Ứng dụng kiểm tra bucket khi khởi động và tạo bucket riêng nếu chưa có. Nếu bucket có sẵn, nó phải là **private**. Không bật Public cho bucket này. Backend tự tạo bảng và bật RLS; không có policy cho anon/browser. Browser chỉ gọi backend cùng domain, không nhận service role key hay database URL.
 
 ## 2. Đưa mã nguồn vào repository của bạn
 
-Các file cần: `studio/`, `package.json`, `package-lock.json`, `render.yaml`, `.gitignore`. Không upload `node_modules/`, `.env`, `data/`, `legacy-prototype/` hoặc thư mục WordPress/SQL.
+Các file cần: `studio/`, `certs/`, `package.json`, `package-lock.json`, `render.yaml`, `.gitignore`. Không upload `node_modules/`, `.env`, `data/`, `legacy-prototype/` hoặc thư mục WordPress/SQL.
 
 `studio/tests/manual-fixture.mjs` chỉ là server kiểm thử local; không chạy nó trên host. Lệnh production là `npm start`.
 
@@ -39,6 +41,7 @@ Kết nối repository, chọn Node.js và gói Free. Có thể dùng Blueprint 
 - Start: `npm start`.
 - Health check: `/api/health`.
 - `NODE_ENV=production`.
+- `NODE_EXTRA_CA_CERTS=./certs/supabase-root-2021.crt`.
 - `SITE_URL=https://chicongphoto.vn` (trước khi nối domain có thể đặt URL https://…onrender.com để preview).
 - Các biến Supabase ở bước 1.
 - `SETUP_TOKEN`: tự tạo chuỗi ngẫu nhiên dài dùng một lần để bảo vệ trang thiết lập đầu tiên.

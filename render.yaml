@@ -11,6 +11,8 @@ services:
         value: 24
       - key: NODE_ENV
         value: production
+      - key: NODE_EXTRA_CA_CERTS
+        value: ./certs/supabase-root-2021.crt
       - key: SITE_URL
         value: https://chicongphoto.vn
       - key: DATABASE_URL
