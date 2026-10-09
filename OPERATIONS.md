@@ -77,6 +77,12 @@ already reserved, including by historical URLs. The preview shows the normalized
 base; the saved value includes any necessary suffix. Hash-shaped slugs are
 reserved for legacy IDs. Canonical metadata and portfolio links use the saved URL.
 
+### Schema.org and Web Analytics
+
+Public pages automatically render Schema.org JSON-LD structured data (`@graph` linking `PhotographyBusiness`, founder, social links, contact, and `ImageGallery` on album pages). Private pages (`/admin`, `/gallery/:id`) and 404 responses omit structured data.
+
+Cloudflare Web Analytics can be enabled automatically via the Cloudflare proxy dashboard, or explicitly configured via `CF_BEACON_TOKEN` / `CLOUDFLARE_ANALYTICS_TOKEN` environment variable on Render. Content-Security-Policy permits `static.cloudflareinsights.com` and `cloudflareinsights.com`.
+
 Verification commands (run from the repository root):
 
 - `npm test` runs SQLite, API, privacy and migration regression tests.

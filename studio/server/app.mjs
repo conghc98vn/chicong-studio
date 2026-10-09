@@ -1,3 +1,4 @@
+import {buildSchemaOrg,schemaOrgScript} from './schema-org.mjs';
 import {findAlbum,reserveAlbumSlug} from './album-slugs.mjs';
 import {validateInquiry} from '../web/inquiry-validation.mjs';
 import {currentCopy} from '../web/site-copy.mjs';
@@ -29,7 +30,7 @@ export async function createApp(options={}){
  const db=options.db||await openDatabase(dataDir,{url:env.DATABASE_URL});const storage=options.storage||createStorage(path.join(dataDir,'uploads'),env);
  await storage.init?.();
  const app=express();app.disable('x-powered-by');if(production)app.set('trust proxy',1);
- app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",'Permissions-Policy':'camera=(), microphone=(), geolocation=()'});if(production)res.set('Strict-Transport-Security','max-age=31536000');next();});
+ app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",'Permissions-Policy':'camera=(), microphone=(), geolocation=()'});if(production)res.set('Strict-Transport-Security','max-age=31536000');next();});
  app.use(express.json({limit:'128kb'}));
  app.use((req,res,next)=>{req.body??={};next();});
  app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');if(!['GET','HEAD','OPTIONS'].includes(req.method)){const expected=new URL(options.origin||env.SITE_URL||`${req.protocol}://${req.get('host')}`).origin;const local=`${req.protocol}://${req.get('host')}`;if(req.get('origin')!==expected&&req.get('origin')!==local)return res.status(403).json({error:'Nguồn yêu cầu không hợp lệ. Tải lại trang rồi thử lại.'});}next();});
@@ -220,6 +221,8 @@ export async function createApp(options={}){
  app.get('/robots.txt',(req,res)=>res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /gallery/\nDisallow: /api/\nSitemap: ${(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'')}/sitemap.xml`));
  app.get('/sitemap.xml',asyncRoute(async(req,res)=>{const url=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');const albums=await db.all("SELECT slug FROM albums WHERE status='published'");res.type('application/xml').send(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/','/portfolio','/about','/contact',...albums.map(a=>'/album/'+a.slug)].map(r=>`<url><loc>${url+r}</loc></url>`).join('')}</urlset>`);}));
  const shell=await readFile(path.resolve('studio/web/index.html'),'utf8');
+ const cfToken=env.CF_BEACON_TOKEN||env.CLOUDFLARE_ANALYTICS_TOKEN;
+ const cfBeacon=cfToken?`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${escape(cfToken)}"}'></script>`:'';
  const page=asyncRoute(async(req,res)=>{
   const s=await settings();
   const escape=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -229,11 +232,12 @@ export async function createApp(options={}){
   const galleryPage=req.params.id!==undefined;
   const albumPage=req.params.key!==undefined;
   let privatePage=req.path.toLowerCase().startsWith('/admin')||galleryPage;
-  let imagePhoto,description=s.intro,canonicalPath=req.path;
+  let imagePhoto,description=s.intro,canonicalPath=req.path,matchedAlbum;
   if(albumPage||galleryPage){
    const a=albumPage?await findAlbum(db,req.params.key):await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);
    if(!a||(galleryPage&&a.status!=='private')||(albumPage&&!await allowed(req,a)))res.status(404);
    else if(a.status==='published'){
+    matchedAlbum=a;
     canonicalPath='/album/'+a.slug;
     if(req.path!==canonicalPath)return res.redirect(301,canonicalPath);
     description=a.description||s.intro;title=a.title+' · '+s.brand;
@@ -244,11 +248,13 @@ export async function createApp(options={}){
   const url=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');
   if(privatePage)res.set('Cache-Control','private,no-store');
   const og=imagePhoto&&!privatePage?`<meta property="og:image" content="${escape(url+'/media/'+imagePhoto)}">`:'';
-  const values={__TITLE__:escape(title),__DESCRIPTION__:escape(description),__CANONICAL__:escape(url+canonicalPath),__ROBOTS__:privatePage||res.statusCode===404?'noindex,nofollow':'index,follow',__OG_META__:og};
-  res.send(shell.replace(/__TITLE__|__DESCRIPTION__|__CANONICAL__|__ROBOTS__|__OG_META__/g,key=>values[key]));
+  const structuredData=!privatePage&&res.statusCode!==404?schemaOrgScript(buildSchemaOrg({site:s,album:matchedAlbum,url,imagePhoto,path:canonicalPath})):'';
+  const analytics=!privatePage&&res.statusCode!==404?cfBeacon:'';
+  const values={__TITLE__:escape(title),__DESCRIPTION__:escape(description),__CANONICAL__:escape(url+canonicalPath),__ROBOTS__:privatePage||res.statusCode===404?'noindex,nofollow':'index,follow',__OG_META__:og,__STRUCTURED_DATA__:structuredData,__ANALYTICS__:analytics};
+  res.send(shell.replace(/__TITLE__|__DESCRIPTION__|__CANONICAL__|__ROBOTS__|__OG_META__|__STRUCTURED_DATA__|__ANALYTICS__/g,key=>values[key]));
  });
  app.get(['/', '/portfolio','/about','/contact','/admin','/album/:key','/gallery/:id'],page);
- app.use((req,res)=>res.status(404).send(shell.replaceAll('__TITLE__','Không tìm thấy trang').replaceAll('__DESCRIPTION__','').replaceAll('__CANONICAL__','').replaceAll('__ROBOTS__','noindex').replaceAll('__OG_META__','')));
+ app.use((req,res)=>res.status(404).send(shell.replaceAll('__TITLE__','Không tìm thấy trang').replaceAll('__DESCRIPTION__','').replaceAll('__CANONICAL__','').replaceAll('__ROBOTS__','noindex').replaceAll('__OG_META__','').replaceAll('__STRUCTURED_DATA__','').replaceAll('__ANALYTICS__','')));
  app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const status=err instanceof multer.MulterError?422:err.status||500;if(status>=500)console.error('Request failed:',err.name);res.status(status).json({...(err.fields?{fields:err.fields}:{}),error:status>=500?'Có lỗi trên máy chủ. Vui lòng thử lại.':err instanceof multer.MulterError?'Mỗi lần tối đa 8 ảnh, tối đa 8MB/ảnh.':err.message});});
  return {app,db,storage};
 }
