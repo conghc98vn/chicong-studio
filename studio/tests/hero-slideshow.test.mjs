@@ -14,11 +14,11 @@ function fixture(decoders){
  globalThis.document=new EventTarget();document.hidden=false;
  globalThis.IntersectionObserver=class{observe(){}disconnect(){}};
  const slides=decoders.map((decode,i)=>({dataset:{title:'Album '+i,href:'/album/'+i},querySelector:()=>({decode}),classList:{add(){},remove(){}},setAttribute(){}}));
- const root=new EventTarget(),button={textContent:'',setAttribute(){}},count={textContent:'01 / 04'},link={};
+ const root=new EventTarget(),count={textContent:'01 / 04'},link={};
  root.querySelectorAll=()=>slides;
- root.querySelector=selector=>selector==='[data-slide=pause]'?button:selector==='.highlight-count'?count:link;
+ root.querySelector=selector=>selector==='.highlight-count'?count:link;
  root.contains=()=>false;
- return {root,count,timers,click(action){const event=new Event('click');Object.defineProperty(event,'target',{value:{closest:()=>({dataset:{slide:action}})}});root.dispatchEvent(event);},restore(){initHeroSlideshow(null);for(const [key,value]of saved){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}}};
+ return {root,count,timers,preference,click(action){const event=new Event('click');Object.defineProperty(event,'target',{value:{closest:()=>({dataset:{slide:action}})}});root.dispatchEvent(event);},restore(){initHeroSlideshow(null);for(const [key,value]of saved){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}}};
 }
 test('A slow first image gets its viewing interval after decoding, not during loading',async()=>{
  const first=deferred(),f=fixture([()=>first.promise,()=>Promise.resolve()]);
@@ -26,7 +26,7 @@ test('A slow first image gets its viewing interval after decoding, not during lo
 });
 test('Going backwards skips failed images in the same direction and finds the remaining valid image',async()=>{
  const f=fixture([()=>Promise.resolve(),()=>Promise.resolve(),()=>Promise.reject(Error('offline')),()=>Promise.reject(Error('offline'))]);
- try{initHeroSlideshow(f.root);await flush();f.click('prev');await flush();assert.equal(f.count.textContent,'02 / 04');assert.equal(f.timers.size,0);}finally{f.restore();}
+ try{initHeroSlideshow(f.root);await flush();f.click('prev');await flush();assert.equal(f.count.textContent,'02 / 04');assert.equal(f.timers.size,1);}finally{f.restore();}
 });
 test('A failed first image falls back to a working slide',async()=>{
  const f=fixture([()=>Promise.reject(Error('offline')),()=>Promise.resolve()]);
@@ -35,4 +35,13 @@ test('A failed first image falls back to a working slide',async()=>{
 test('Leaving the page while the first image loads cannot restart its slideshow',async()=>{
  const first=deferred(),f=fixture([()=>first.promise,()=>Promise.resolve()]);
  try{initHeroSlideshow(f.root);initHeroSlideshow(null);first.resolve();await flush();assert.equal(f.timers.size,0);}finally{f.restore();}
+});
+
+test('Manual navigation starts a fresh autoplay interval without a pause control',async()=>{
+ const f=fixture([()=>Promise.resolve(),()=>Promise.resolve(),()=>Promise.resolve()]);
+ try{initHeroSlideshow(f.root);await flush();f.click('next');await flush();assert.equal(f.count.textContent,'02 / 03');assert.equal(f.timers.size,1);const [id,tick]=[...f.timers][0];f.timers.delete(id);tick();await flush();assert.equal(f.count.textContent,'03 / 03');assert.equal(f.timers.size,1);}finally{f.restore();}
+});
+test('Reduced motion retains manual navigation without automatic transitions',async()=>{
+ const f=fixture([()=>Promise.resolve(),()=>Promise.resolve()]);
+ try{f.preference.matches=true;initHeroSlideshow(f.root);await flush();assert.equal(f.timers.size,0);f.click('next');await flush();assert.equal(f.count.textContent,'02 / 02');assert.equal(f.timers.size,0);}finally{f.restore();}
 });

@@ -1,3 +1,4 @@
+import {createGoogleCalendar} from './google-calendar.mjs';
 import {buildSchemaOrg,schemaOrgScript} from './schema-org.mjs';
 import {findAlbum,reserveAlbumSlug} from './album-slugs.mjs';
 import {validateInquiry} from '../web/inquiry-validation.mjs';
@@ -30,6 +31,7 @@ export async function createApp(options={}){
  if(production&&(!env.DATABASE_URL||!env.SUPABASE_URL))throw Error('Production requires persistent DATABASE_URL and SUPABASE_URL. See HOSTING.md.');
  const db=options.db||await openDatabase(dataDir,{url:env.DATABASE_URL});const storage=options.storage||createStorage(path.join(dataDir,'uploads'),env);
  const mailer=options.mailer||createMailer(env);
+ const googleCalendar=options.googleCalendar||createGoogleCalendar(env);
  await storage.init?.();
  const app=express();app.disable('x-powered-by');if(production)app.set('trust proxy',1);
  app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",'Permissions-Policy':'camera=(), microphone=(), geolocation=()'});if(production)res.set('Strict-Transport-Security','max-age=31536000');next();});
@@ -71,7 +73,7 @@ export async function createApp(options={}){
  app.put('/api/gallery/:id/selection/:photo',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a||!await allowed(req,a))throw fail(401,'Vui lòng mở khóa gallery.');const p=await db.get('SELECT id FROM photos WHERE id=? AND album_id=?',[req.params.photo,a.id]);if(!p)throw fail(404,'Không tìm thấy ảnh.');if(typeof req.body.selected!=='boolean')throw fail(422,'Lựa chọn không hợp lệ.');if(req.body.selected)await db.run('INSERT INTO selections(album_id,photo_id,updated) VALUES(?,?,?) ON CONFLICT(album_id,photo_id) DO UPDATE SET updated=excluded.updated',[a.id,p.id,now()]);else await db.run('DELETE FROM selections WHERE album_id=? AND photo_id=?',[a.id,p.id]);await db.run("UPDATE albums SET selection_status='draft' WHERE id=?",[a.id]);res.json({success:true});}));
  app.post('/api/gallery/:id/submit',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a||!await allowed(req,a))throw fail(401,'Vui lòng mở khóa gallery.');if(!await db.get('SELECT photo_id FROM selections WHERE album_id=? LIMIT 1',[a.id]))throw fail(422,'Hãy chọn ít nhất một ảnh.');await db.run("UPDATE albums SET selection_status='submitted' WHERE id=?",[a.id]);res.json({success:true});}));
  app.get('/media/:id',asyncRoute(async(req,res)=>{const p=await db.get('SELECT photos.*,albums.status,albums.password FROM photos JOIN albums ON photos.album_id=albums.id WHERE photos.id=?',[req.params.id]);if(!p||!await allowed(req,{id:p.album_id,status:p.status}))throw fail(404,'Không tìm thấy ảnh.');const thumb=req.query.size==='thumb';res.set({'Content-Type':'image/webp','Cache-Control':p.status==='published'?'public,max-age=3600':'private,no-store','ETag':'"'+p.id+(thumb?'-thumb':'-full')+'"'});if(req.fresh)return res.status(304).end();if(req.method==='HEAD')return res.end();const buffer=await storage.get(p.filename+(thumb?'-thumb':'')+'.webp');res.send(buffer);}));
- app.get('/api/availability',asyncRoute(async(req,res)=>{const rows=await db.all("SELECT date FROM blocked_dates UNION SELECT date FROM inquiries WHERE status='confirmed' AND date<>''");res.json({blocked:rows.map(r=>r.date),today:today()});}));
+ app.get('/api/availability',asyncRoute(async(req,res)=>{const rows=await db.all("SELECT date FROM blocked_dates UNION SELECT date FROM inquiries WHERE status='confirmed' AND date<>''");const google=await googleCalendar.read();res.json({blocked:[...new Set([...rows.map(r=>r.date),...google.blocked])],today:today(),...(google.configured?{unavailable:!!google.unavailable,through:google.through}:{})});}));
  app.post('/api/inquiries',asyncRoute(async(req,res)=>{
   // A generous outer guard covers malformed traffic without charging the submission quota.
   await rate(req,'inquiry-attempt',60);
@@ -92,6 +94,7 @@ export async function createApp(options={}){
   const dateFields=validateInquiry(data,today()).fields;
   if(Object.keys(dateFields).length)throw Object.assign(fail(422,'Vui lòng kiểm tra thông tin được đánh dấu.'),{fields:dateFields});
   const {name,email,phone,date,service,budget,message}=data;
+  if(date)await googleCalendar.assertAvailable(date);
   if(date&&await db.get("SELECT date FROM blocked_dates WHERE date=? UNION SELECT date FROM inquiries WHERE date=? AND status='confirmed'",[date,date]))throw Object.assign(fail(409,'Ngày này đã kín lịch. Bạn có thể chọn ngày khác hoặc bỏ chọn để trao đổi thêm.'),{fields:{date:'Ngày này đã kín lịch. Chọn ngày khác hoặc bỏ chọn ngày để được tư vấn.'}});
   await rate(req,'inquiry-valid',5);
   let inserted=false;
@@ -189,12 +192,14 @@ export async function createApp(options={}){
   if(status==='confirmed'){
    if(!date)throw fail(422,'Chọn ngày chụp trước khi xác nhận lịch.');
    if(r.status!=='confirmed'&&date<today())throw fail(422,'Không thể xác nhận lịch chụp trong quá khứ.');
+   if(r.status!=='confirmed'||date!==r.date)await googleCalendar.assertAvailable(date);
    if(await db.get('SELECT date FROM blocked_dates WHERE date=?',[date]))throw fail(409,'Ngày này đang được chặn trong lịch.');
   }
   try{await db.run('UPDATE inquiries SET status=?,date=?,notes=? WHERE id=?',[status,date,notes,r.id]);}
   catch(e){if(e.code==='23505'||String(e.message).includes('UNIQUE'))throw fail(409,'Đã có lịch chụp được xác nhận cho ngày này.');throw e;}
   res.json({success:true});
  }));
+ app.get('/api/admin/google-calendar',asyncRoute(async(req,res)=>res.json(await googleCalendar.read())));
  app.get('/api/admin/dates',asyncRoute(async(req,res)=>res.json(await db.all('SELECT * FROM blocked_dates ORDER BY date'))));
  app.post('/api/admin/dates',asyncRoute(async(req,res)=>{const date=clean(req.body.date,10);if(!validDate(date))throw fail(422,'Ngày không hợp lệ.');await db.run('INSERT INTO blocked_dates(date,note) VALUES(?,?) ON CONFLICT(date) DO UPDATE SET note=excluded.note',[date,clean(req.body.note,200)]);res.json({success:true});}));
  app.delete('/api/admin/dates/:date',asyncRoute(async(req,res)=>{await db.run('DELETE FROM blocked_dates WHERE date=?',[req.params.date]);res.json({success:true});}));

@@ -1,0 +1,11 @@
+# Google Calendar → Studio
+
+Set `GOOGLE_CALENDAR_ICS_URL` to the account's secret iCal address in the server environment. The local `.env` is configured and ignored by Git. Restart the Node server after changing this setting. For hosting, set the same variable in the hosting secret environment and redeploy; never put it in frontend code, an iframe, Git, or shared documentation.
+
+The admin Cài đặt page shows connection status, last successful refresh and imported busy dates. The server reads Google on demand and caches results for five minutes. Public visitors receive busy dates only. Titles, descriptions and the secret address are never returned. Import covers today through the next 730 days in Asia/Ho_Chi_Minh; any busy event blocks the whole Studio day. Cancelled events are excluded. Free events are excluded by default; set `GOOGLE_CALENDAR_INCLUDE_FREE=true` to count them too. This option is enabled locally because the owner stores all-day photo bookings as Free in Google. Admin settings show which rule is active. Recurrences, exceptions and exclusive end dates are supported.
+
+A failed refresh retains previously known busy dates but marks availability unavailable. New dated requests and new confirmations/reschedules are rejected until Google can be checked; undated consultation requests remain available. Dates beyond the import window cannot be confirmed while the integration is enabled. Changes to Google events are reflected after cache expiry on the next request.
+
+This is read-only calendar integration, not Gmail inbox access. Studio bookings are not automatically written to Google. Two-way sync requires a separate Google OAuth connection with Calendar write permission. No Google privacy settings need to be changed to public.
+
+Validation: unit tests cover timezones, all-day events, recurrences, overrides, caching, errors and secret redaction; route tests cover public availability and booking conflicts. A live read of the configured feed succeeded on 2026-10-09 and returned zero upcoming busy days under the original Busy-only rule. Investigation found that the expected October bookings are marked TRANSPARENT in Google; enabling inclusion of Free events imports those bookings. Production deployment has not been performed.
