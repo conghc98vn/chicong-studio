@@ -6,7 +6,7 @@
 2. Trong **Website**, điền thông tin liên hệ và nội dung của bạn. Tên thương hiệu và tiêu đề trang chủ bắt buộc có giá trị.
 3. Tạo portfolio ở trạng thái bản nháp, thêm ảnh, chọn bìa rồi công khai. Kiểm tra bằng cửa sổ khách trước khi chia sẻ.
 4. Với gallery khách, đặt mật khẩu, thêm ảnh, gửi link và mật khẩu riêng. Khi khách gửi lựa chọn, xem cảnh báo tại Tổng quan hoặc xuất CSV trong album.
-5. Kiểm tra yêu cầu đặt lịch thường xuyên. App lưu yêu cầu vào quản trị, chưa gửi email tự động. Chỉ xác nhận lịch sau khi trao đổi với khách.
+5. Kiểm tra yêu cầu đặt lịch thường xuyên. App lưu yêu cầu vào quản trị và gửi email khi đã cấu hình Resend/SMTP; vẫn kiểm tra quản trị để xử lý yêu cầu nếu email bị lỗi. Chỉ xác nhận lịch sau khi trao đổi với khách.
 
 Portfolio chưa có nội dung là trạng thái khởi đầu có chủ đích. App không dùng ảnh cưới giả hoặc tự xuất bản nội dung WordPress.
 

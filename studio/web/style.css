@@ -412,3 +412,20 @@ input[type=file]::file-selector-button { background:white; border:1px solid #cbd
 .settings-panel h3 { margin-top:20px; }
 .about-actions { display:flex; align-items:center; flex-wrap:wrap; gap:20px; margin-top:24px; }
 @media(max-width:750px) { .curation-grid { grid-template-columns:1fr; } }
+
+/* Keep server-rendered text out of view until the interactive page is ready. */
+#root[hidden] { display:none !important; }
+.startup-status { min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:40px 24px; background:#faf8f5; color:#53594e; text-align:center; }
+.startup-mark { position:relative; width:34px; height:42px; margin-bottom:4px; }
+.startup-mark::before,.startup-mark::after { content:''; position:absolute; inset:0; border:1px solid #a5ab9b; border-radius:1px; }
+.startup-mark::before { transform:translate(-5px,-2px) rotate(-10deg); opacity:.45; }
+.startup-mark::after { background:#faf8f5; transform:rotate(7deg); }
+.startup-status p { max-width:440px; margin:0; font-family:'Cormorant Garamond',Georgia,serif; font-size:clamp(30px,4vw,38px); font-style:italic; font-weight:400; letter-spacing:-.02em; line-height:1.3; }
+.startup-status .loader { position:relative; flex-shrink:0; width:96px; height:1px; margin:0; border:0; border-radius:0; overflow:hidden; background:#e3e4db; animation:none; }
+.startup-status .loader::after { content:''; position:absolute; inset:0; background:#88937c; transform:scaleX(.3); animation:startup-drift 1.8s ease-in-out infinite; }
+.startup-status button { padding:10px 22px; border:1px solid #c6cabc; border-radius:2px; background:transparent; color:#53594e; font-size:13px; transition:background .2s; }
+.startup-status button:hover { background:#eeefe8; }
+.startup-status:has(button:not([hidden])) p { font-family:var(--sans); font-size:15px; font-style:normal; letter-spacing:0; line-height:1.7; }
+.startup-status [hidden] { display:none !important; }
+@keyframes startup-drift { 0%,100% { transform:translateX(-65%) scaleX(.3); opacity:.5; } 50% { transform:translateX(65%) scaleX(.3); opacity:1; } }
+@media (prefers-reduced-motion:reduce) { .startup-status .loader::after { animation:none; } }

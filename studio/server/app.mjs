@@ -44,16 +44,22 @@ export async function createApp(options={}){
  const makeSession=async(res,{admin,album})=>{await db.run('DELETE FROM sessions WHERE expires<?',[Date.now()]);const token=randomBytes(32).toString('hex');const age=admin?12*3600000:7*86400000;await db.run('INSERT INTO sessions(token,admin_id,album_id,expires) VALUES(?,?,?,?)',[digest(token),admin||null,album||null,Date.now()+age]);res.cookie(admin?'studio_admin':'gallery_'+album,token,{httpOnly:true,sameSite:'strict',secure:production,maxAge:age,path:'/'});};
  const rate=async(req,key,max=10)=>{const k=digest(key+':'+req.ip);const time=Date.now();const row=await db.get('INSERT INTO rate_limits(key,count,expires) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.expires<? THEN 1 ELSE rate_limits.count+1 END,expires=CASE WHEN rate_limits.expires<? THEN ? ELSE rate_limits.expires END WHERE rate_limits.expires<? OR rate_limits.count<? RETURNING count',[k,time+900000,time,time,time+900000,time,max]);if(!row)throw fail(429,'Bạn đã thử nhiều lần. Vui lòng quay lại sau 15 phút.');await db.run('DELETE FROM rate_limits WHERE expires<?',[time]);};
  const settings=async()=>currentCopy(Object.fromEntries((await db.all('SELECT * FROM settings')).map(r=>[r.key,r.value])));
- const albumDTO=async(a,admin=false)=>{const photos=await db.all('SELECT * FROM photos WHERE album_id=? ORDER BY position,id',[a.id]);const selected=await db.all('SELECT photo_id FROM selections WHERE album_id=?',[a.id]);return {id:a.id,slug:a.slug,title:a.title,category:a.category,description:a.description,status:a.status,event_date:a.event_date,selection_status:a.selection_status,cover_id:a.cover_id,created:a.created,...(admin?{client_name:a.client_name,has_password:!!a.password}:{}),photos:photos.map(p=>({id:p.id,caption:p.caption,original:p.original,width:p.width,height:p.height,position:p.position,src:'/media/'+p.id,thumb:'/media/'+p.id+'?size=thumb',selected:selected.some(s=>s.photo_id===p.id)}))};};
+ const albumDTO=async(a,admin=false)=>{const photos=await db.all('SELECT * FROM photos WHERE album_id=? ORDER BY position,id',[a.id]);const selected=new Set((await db.all('SELECT photo_id FROM selections WHERE album_id=?',[a.id])).map(s=>s.photo_id));return {id:a.id,slug:a.slug,title:a.title,category:a.category,description:a.description,status:a.status,event_date:a.event_date,selection_status:a.selection_status,cover_id:a.cover_id,created:a.created,...(admin?{client_name:a.client_name,has_password:!!a.password}:{}),photos:photos.map(p=>({id:p.id,caption:p.caption,original:p.original,width:p.width,height:p.height,position:p.position,src:'/media/'+p.id,thumb:'/media/'+p.id+'?size=thumb',selected:selected.has(p.id)}))};};
  const portfolioCards=async()=>{
   const config=await settings();
   const choices=[...parseSelection(config.heroSelection,defaultHeroSelection),...parseSelection(config.storySelection,defaultStorySelection)];
   const rows=await db.all("SELECT albums.*,(SELECT COUNT(*) FROM photos WHERE album_id=albums.id) AS photo_count FROM albums WHERE status='published' ORDER BY created DESC");
-  return Promise.all(rows.map(async a=>{
-   const ids=[a.cover_id,...choices.filter(c=>c.albumId===a.id).flatMap(c=>[c.photoId,c.wideId,c.tallId])].filter(Boolean);
-   const photos=await db.all(`SELECT id,caption,width,height,position FROM photos WHERE album_id=? AND (id=(SELECT id FROM photos WHERE album_id=? ORDER BY position,id LIMIT 1)${ids.length?' OR id IN ('+ids.map(()=>'?').join(',')+')':''}) ORDER BY position,id`,[a.id,a.id,...ids]);
-   return {id:a.id,slug:a.slug,title:a.title,category:a.category,description:a.description,status:a.status,event_date:a.event_date,cover_id:a.cover_id,created:a.created,photo_count:Number(a.photo_count),photos:photos.map(p=>({...p,src:'/media/'+p.id,thumb:'/media/'+p.id+'?size=thumb'}))};
-  }));
+  if(!rows.length)return [];
+  const chosen=new Map(rows.map(a=>[a.id,new Set([a.cover_id,...choices.filter(c=>c.albumId===a.id).flatMap(c=>[c.photoId,c.wideId,c.tallId])].filter(Boolean))]));
+  const ids=[...new Set([...chosen.values()].flatMap(set=>[...set]))];
+  // Fetch only covers, first photos and curated photos, in one database round trip.
+  const photos=await db.all(`SELECT p.id,p.album_id,p.caption,p.width,p.height,p.position FROM photos p JOIN albums a ON a.id=p.album_id WHERE a.status='published' AND (p.id=a.cover_id OR p.id=(SELECT first.id FROM photos first WHERE first.album_id=a.id ORDER BY first.position,first.id LIMIT 1)${ids.length?' OR p.id IN ('+ids.map(()=>'?').join(',')+')':''}) ORDER BY p.album_id,p.position,p.id`,ids);
+  const grouped=new Map();
+  for(const p of photos){const list=grouped.get(p.album_id)||[];list.push(p);grouped.set(p.album_id,list);}
+  return rows.map(a=>{
+   const list=grouped.get(a.id)||[];
+   return {id:a.id,slug:a.slug,title:a.title,category:a.category,description:a.description,status:a.status,event_date:a.event_date,cover_id:a.cover_id,created:a.created,photo_count:Number(a.photo_count),photos:list.filter((p,i)=>i===0||chosen.get(a.id).has(p.id)).map(({album_id,...p})=>({...p,src:'/media/'+p.id,thumb:'/media/'+p.id+'?size=thumb'}))};
+  });
  };
  app.get('/api/site',asyncRoute(async(req,res)=>res.json(await settings())));
  app.get('/api/health',async(req,res)=>{try{await db.get('SELECT key FROM settings LIMIT 1');res.json({ok:true});}catch{res.status(503).json({ok:false});}});
@@ -64,7 +70,7 @@ export async function createApp(options={}){
  app.post('/api/gallery/:id/logout',asyncRoute(async(req,res)=>{const token=cookies(req)['gallery_'+req.params.id];if(token)await db.run('DELETE FROM sessions WHERE token=?',[digest(token)]);res.clearCookie('gallery_'+req.params.id,{path:'/',httpOnly:true,sameSite:'strict',secure:production});res.json({success:true});}));
  app.put('/api/gallery/:id/selection/:photo',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a||!await allowed(req,a))throw fail(401,'Vui lòng mở khóa gallery.');const p=await db.get('SELECT id FROM photos WHERE id=? AND album_id=?',[req.params.photo,a.id]);if(!p)throw fail(404,'Không tìm thấy ảnh.');if(typeof req.body.selected!=='boolean')throw fail(422,'Lựa chọn không hợp lệ.');if(req.body.selected)await db.run('INSERT INTO selections(album_id,photo_id,updated) VALUES(?,?,?) ON CONFLICT(album_id,photo_id) DO UPDATE SET updated=excluded.updated',[a.id,p.id,now()]);else await db.run('DELETE FROM selections WHERE album_id=? AND photo_id=?',[a.id,p.id]);await db.run("UPDATE albums SET selection_status='draft' WHERE id=?",[a.id]);res.json({success:true});}));
  app.post('/api/gallery/:id/submit',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a||!await allowed(req,a))throw fail(401,'Vui lòng mở khóa gallery.');if(!await db.get('SELECT photo_id FROM selections WHERE album_id=? LIMIT 1',[a.id]))throw fail(422,'Hãy chọn ít nhất một ảnh.');await db.run("UPDATE albums SET selection_status='submitted' WHERE id=?",[a.id]);res.json({success:true});}));
- app.get('/media/:id',asyncRoute(async(req,res)=>{const p=await db.get('SELECT photos.*,albums.status,albums.password FROM photos JOIN albums ON photos.album_id=albums.id WHERE photos.id=?',[req.params.id]);if(!p||!await allowed(req,{id:p.album_id,status:p.status}))throw fail(404,'Không tìm thấy ảnh.');const thumb=req.query.size==='thumb';const buffer=await storage.get(p.filename+(thumb?'-thumb':'')+'.webp');res.set({'Content-Type':'image/webp','Cache-Control':p.status==='published'?'public,max-age=3600':'private,no-store'});res.send(buffer);}));
+ app.get('/media/:id',asyncRoute(async(req,res)=>{const p=await db.get('SELECT photos.*,albums.status,albums.password FROM photos JOIN albums ON photos.album_id=albums.id WHERE photos.id=?',[req.params.id]);if(!p||!await allowed(req,{id:p.album_id,status:p.status}))throw fail(404,'Không tìm thấy ảnh.');const thumb=req.query.size==='thumb';res.set({'Content-Type':'image/webp','Cache-Control':p.status==='published'?'public,max-age=3600':'private,no-store','ETag':'"'+p.id+(thumb?'-thumb':'-full')+'"'});if(req.fresh)return res.status(304).end();if(req.method==='HEAD')return res.end();const buffer=await storage.get(p.filename+(thumb?'-thumb':'')+'.webp');res.send(buffer);}));
  app.get('/api/availability',asyncRoute(async(req,res)=>{const rows=await db.all("SELECT date FROM blocked_dates UNION SELECT date FROM inquiries WHERE status='confirmed' AND date<>''");res.json({blocked:rows.map(r=>r.date),today:today()});}));
  app.post('/api/inquiries',asyncRoute(async(req,res)=>{
   // A generous outer guard covers malformed traffic without charging the submission quota.
@@ -228,6 +234,8 @@ export async function createApp(options={}){
  app.get('/api/admin/export',asyncRoute(async(req,res)=>{const output={version:2,exported:now()};for(const table of ['settings','albums','photos','selections','inquiries','blocked_dates','album_slugs'])output[table]=await db.all('SELECT * FROM '+table);res.attachment('chicong-backup.json').json(output);}));
  app.use('/api',(req,res)=>res.status(404).json({error:'Không tìm thấy chức năng này.'}));
  app.use('/app',express.static(path.resolve('studio/web'),{maxAge:0,index:false}));
+ // Services content is retained in web/services.mjs for a future launch.
+ app.get('/services',(req,res)=>res.redirect(302,'/'));
  app.get('/bookme',(req,res)=>res.redirect(301,'/contact'));
  app.get('/robots.txt',(req,res)=>res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /gallery/\nDisallow: /api/\nSitemap: ${(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'')}/sitemap.xml`));
  app.get('/sitemap.xml',asyncRoute(async(req,res)=>{
@@ -290,7 +298,7 @@ export async function createApp(options={}){
     initialBody=`<main id="main"><h1>${escape(matchedAlbum.title)}</h1><p>${escape(matchedAlbum.description||s.intro)}</p></main>`;
    }
   }
-  const loadingHtml='<main id="main" class="loading"><span class="loader"></span><p>Đang mở câu chuyện…</p></main>';
+  const loadingHtml='<main id="main" class="loading"><span class="loader"></span><p>Một chút nữa thôi…</p></main>';
   const bodyShell=initialBody?shell.replace(loadingHtml,initialBody):shell;
   const values={__TITLE__:escape(title),__DESCRIPTION__:escape(description),__CANONICAL__:escape(url+canonicalPath),__ROBOTS__:privatePage||res.statusCode===404?'noindex,nofollow':'index,follow',__OG_META__:og,__STRUCTURED_DATA__:structuredData,__ANALYTICS__:analytics};
   res.send(bodyShell.replace(/__TITLE__|__DESCRIPTION__|__CANONICAL__|__ROBOTS__|__OG_META__|__STRUCTURED_DATA__|__ANALYTICS__/g,key=>values[key]));

@@ -41,7 +41,7 @@ File media của gallery private yêu cầu session hợp lệ; có link ảnh �
 ## Liên hệ và đặt lịch
 
 - Khách chọn ngày, dịch vụ, gửi thông tin và lời nhắn.
-- Yêu cầu lưu thật vào database, xuất hiện trong **Yêu cầu đặt lịch**; không gửi email tự động.
+- Yêu cầu lưu thật vào database, xuất hiện trong **Yêu cầu đặt lịch**. Khi cấu hình Resend/SMTP, studio nhận email thông báo và khách có email nhận thư xác nhận.
 - Admin cập nhật: mới nhận, đã liên hệ, đã xác nhận, hoàn thành hoặc đã hủy. Trong chi tiết yêu cầu, có thể đổi ngày chụp và lưu ghi chú riêng (tối đa 3.000 ký tự).
 - Phải chọn ngày trước khi xác nhận. Đổi lịch đã xác nhận kiểm tra ngày bị chặn/lịch trùng; nếu không hợp lệ, ngày, trạng thái và ghi chú cũ được giữ nguyên. Đổi lịch hoặc hủy thành công mở lại ngày cũ nếu không bị chặn riêng.
 - Lịch trên trang liên hệ đồng bộ với ô nhập ngày, giữ ngày đã chọn khi chuyển tháng và có nút bỏ chọn. Khách chưa biết ngày vẫn gửi được yêu cầu tư vấn; ngày bận nhập bằng tay cũng bị kiểm tra.
@@ -111,6 +111,10 @@ Kiểm tra trình duyệt trên 11 trang ở các độ rộng 320, 390, 768 và
 
 Khách có thể để email hoặc điện thoại; ngân sách dự kiến không bắt buộc và báo giá vẫn gửi riêng. Form chỉ rõ trường sai, có trạng thái đang gửi và giữ nội dung khi lỗi mạng. Mã lần gửi bảo vệ thao tác thử lại khỏi tạo trùng; database tự bổ sung các cột, không xóa yêu cầu cũ. Ngày chụp vẫn được máy chủ kiểm tra kể cả khi lịch trên giao diện tạm chưa tải được.
 
-Trong **Website**, điền **Thời gian phản hồi thực tế** nếu đã có cam kết; để trống sẽ không hiện lời hứa thời gian. Facebook chỉ hiện khi có đường dẫn được cấu hình. Việc nhận yêu cầu vẫn cần chủ studio mở quản trị kiểm tra, chưa có email tự động.
+Trong **Website**, điền **Thời gian phản hồi thực tế** nếu đã có cam kết; để trống sẽ không hiện lời hứa thời gian. Facebook chỉ hiện khi có đường dẫn được cấu hình. Studio quản lý yêu cầu trong trang quản trị; phiên bản hiện tại đã hỗ trợ email tự động qua Resend/SMTP.
 
 Đã kiểm tra 43 tests cùng các tình huống lỗi trên trình duyệt. Xem [kết quả kiểm thử](docs/consultation-enhancements-2026-10-08.md) để biết phạm vi và giới hạn xác minh.
+
+## Xác minh email và luồng nhận khách · 09/10/2026
+
+Đã gửi form thử trên website thật và xác minh cả email studio lẫn email xác nhận có trạng thái Delivered trên Resend. Yêu cầu thử đã được đánh dấu Hoàn thành, không giữ lịch chụp. Xem [biên bản kiểm tra](docs/customer-flow-verification-2026-10-09.md) để phân biệt kết quả production, kiểm thử local và phạm vi chưa xác minh.

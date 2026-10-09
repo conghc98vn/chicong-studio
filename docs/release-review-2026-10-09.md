@@ -20,3 +20,11 @@
 - Disposable browser fixture simulated a lost response after saving. The browser retried and showed a successful request reference.
 
 Earlier desktop and mobile checks are documented in consultation-enhancements-2026-10-08.md. Local automated database tests use SQLite; PostgreSQL and production smoke-check results must be recorded separately after deployment. A physical phone and a real mobile network were not tested.
+
+## Additional loading and optimization release
+
+Scope: loading screen with “Một chút nữa thôi…”, hidden startup fallback and retry handling; Portfolio / About / Contact navigation; hidden services page; portfolio query batching, media validators and settings initialization batching; dashboard album label correction.
+
+Pre-release verification: npm run check passed; npm audit --omit=dev reported 0 vulnerabilities; full npm test with disposable PostgreSQL 16 passed 66/66, no skipped tests. git diff --check passed. Browser checks cover desktop About navigation and mobile menu/Contact at 390px. Earlier startup tests verified delayed imports, failed imports and reload recovery. No database schema or production credentials are changed in this release.
+
+Production verification will follow deployment.

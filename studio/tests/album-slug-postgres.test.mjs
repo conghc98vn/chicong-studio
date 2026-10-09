@@ -45,6 +45,7 @@ test('PostgreSQL: legacy migration, URL history, RLS and concurrent album writes
     const r=await fetch(base+'/album/'+key,{redirect:'manual'});assert.equal(r.status,301);assert.equal(r.headers.get('location'),'/album/'+renamed[i].slug);
    }
   }
+  const cards=await fetch(base+'/api/portfolio?view=cards');assert.equal(cards.status,200);assert.equal((await cards.json()).length,20);
   const before=await db.all('SELECT id,slug FROM albums ORDER BY id');
   const reopened=await openDatabase(dir,{url:url.href});
   try{assert.deepEqual(await reopened.all('SELECT id,slug FROM albums ORDER BY id'),before);assert.equal((await reopened.all('SELECT * FROM album_slugs')).length,42);}finally{await reopened.close();}

@@ -368,3 +368,45 @@ test('Renaming a private gallery preserves its ID session, photos and selection 
   const page=await fetch(f.base+'/gallery/'+id);assert.match(page.headers.get('cache-control'),/private,no-store/);assert.match(await page.text(),/noindex,nofollow/);
  }finally{await f.close();}
 });
+
+test('Portfolio card query count stays constant as albums grow',async()=>{
+ const f=await fixture();try{
+  await f.setup();
+  for(let i=0;i<8;i++){const a=await createAlbum(f,'published');await upload(f,a);}
+  const original=f.db.all;let reads=0;f.db.all=async(...args)=>{reads++;return original(...args);};
+  const response=await f.client('/api/portfolio?view=cards',null,'GET',false);const cards=await response.json();
+  assert.equal(response.status,200);assert.equal(cards.length,8);assert.equal(reads,3);
+  for(const a of cards){assert.equal(a.photo_count,1);assert.equal(a.photos.length,1);assert.ok(!('album_id' in a.photos[0]));}
+ }finally{await f.close();}
+});
+
+test('Media validators skip storage reads without bypassing gallery permissions',async()=>{
+ const f=await fixture();try{
+  await f.setup();const a=await createAlbum(f,'published'),b=await createAlbum(f,'private','gallery-pass');await upload(f,a);await upload(f,b);
+  const albums=await(await f.client('/api/admin/albums')).json();const photo=albums.find(x=>x.id===a).photos[0].id,privatePhoto=albums.find(x=>x.id===b).photos[0].id;
+  const original=f.storage.get;let reads=0;f.storage.get=async(...args)=>{reads++;return original(...args);};
+  const first=await fetch(f.base+'/media/'+photo);assert.equal(first.status,200);await first.arrayBuffer();assert.equal(reads,1);const etag=first.headers.get('etag');assert.ok(etag);
+  const cached=await fetch(f.base+'/media/'+photo,{headers:{'If-None-Match':etag,'Cache-Control':'max-age=0'}});assert.equal(cached.status,304);assert.equal(reads,1);
+  assert.equal((await fetch(f.base+'/media/'+photo,{method:'HEAD'})).status,200);assert.equal(reads,1);
+  const thumb=await fetch(f.base+'/media/'+photo+'?size=thumb',{headers:{'If-None-Match':etag,'Cache-Control':'max-age=0'}});assert.equal(thumb.status,200);assert.notEqual(thumb.headers.get('etag'),etag);await thumb.arrayBuffer();assert.equal(reads,2);
+  assert.equal((await f.client('/api/gallery/'+b+'/unlock',{password:'gallery-pass'},'POST',false)).status,200);
+  const secret=await f.client('/media/'+privatePhoto);assert.equal(secret.status,200);assert.equal(secret.headers.get('cache-control'),'private,no-store');await secret.arrayBuffer();const before=reads;
+  assert.equal((await fetch(f.base+'/media/'+privatePhoto,{headers:{'If-None-Match':secret.headers.get('etag')}})).status,404);assert.equal(reads,before);
+  await f.db.run("UPDATE albums SET status='archived' WHERE id=?",[a]);assert.equal((await fetch(f.base+'/media/'+photo,{headers:{'If-None-Match':etag,'Cache-Control':'max-age=0'}})).status,404);assert.equal(reads,before);
+ }finally{await f.close();}
+});
+
+test('Public HTML hides fallback behind a loading screen until startup completes',async()=>{
+ const f=await fixture();try{
+  for(const route of ['/','/portfolio','/about','/contact']){
+   const html=await (await fetch(f.base+route)).text();
+   assert.match(html,/<div id="root" hidden>/);
+   assert.match(html,/id="startup-status"/);
+   assert.match(html,/<script defer src="\/app\/bootstrap.js"><\/script>/);
+   assert.doesNotMatch(html,/<script type="module" src="\/app\/main.js"/);
+  }
+  const entry=await fetch(f.base+'/app/bootstrap.js');assert.equal(entry.status,200);
+  assert.match(entry.headers.get('content-type'),/javascript/);
+  assert.match(await entry.text(),/import\('\.\/main.js'\)/);
+ }finally{await f.close();}
+});

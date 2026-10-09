@@ -556,3 +556,33 @@ body.public-view {
 :where(.public-view) .delivery-note { border-top:1px solid var(--line); margin-top:32px; padding-top:24px; max-width:700px; }
 :where(.public-view) .delivery-note h3 { font-size:26px; margin-bottom:12px; }
 :where(.public-view) .delivery-note p { color:var(--muted); font-size:15px; line-height:1.8; }
+
+/* Services: quiet editorial layout, shared with the portfolio. */
+:where(.public-view) .services-title { max-width:1000px; }
+:where(.public-view) .services-title>p:not(.label) { max-width:640px; }
+:where(.public-view) .services-title .underlink { margin-top:20px; }
+:where(.public-view) .services-section { padding-block:72px; border-top:1px solid var(--line); }
+:where(.public-view) .services-section p { color:var(--muted); line-height:1.85; }
+:where(.public-view) .services-section .section-top>p { max-width:370px; }
+:where(.public-view) .service-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:36px; }
+:where(.public-view) .service-options article { display:flex; flex-direction:column; align-items:flex-start; }
+:where(.public-view) .service-options h3 { font-size:32px; line-height:1.15; margin:16px 0; }
+:where(.public-view) .service-options .underlink { margin-top:auto; padding-top:18px; }
+:where(.public-view) .services-process,:where(.public-view) .services-faq { display:grid; grid-template-columns:1fr 1.25fr; gap:80px; }
+:where(.public-view) .service-steps { margin:0; padding-left:28px; }
+:where(.public-view) .service-steps li { padding:0 0 24px 14px; }
+:where(.public-view) .service-steps li::marker { color:var(--muted); font-size:14px; }
+:where(.public-view) .service-steps h3 { font-size:28px; margin:0 0 12px; }
+:where(.public-view) .services-quote { text-align:center; }
+:where(.public-view) .services-quote>p { max-width:620px; margin:20px auto; }
+:where(.public-view) .services-faq details { border-bottom:1px solid var(--line); padding:20px 0; }
+:where(.public-view) .services-faq summary { cursor:pointer; font-size:17px; line-height:1.6; padding-right:12px; }
+:where(.public-view) .services-faq details p { margin:16px 0 0; }
+:where(.public-view) .services-faq summary:focus-visible { outline:2px solid currentColor; outline-offset:6px; }
+@media(max-width:750px){
+ :where(.public-view) .services-title h1 { font-size:42px; }
+ :where(.public-view) .services-section { padding-block:42px; }
+ :where(.public-view) .service-options,:where(.public-view) .services-process,:where(.public-view) .services-faq { grid-template-columns:1fr; gap:32px; }
+ :where(.public-view) .service-options article+article { border-top:1px solid var(--line); padding-top:28px; }
+ :where(.public-view) .services-section .section-top { display:block; }
+}
