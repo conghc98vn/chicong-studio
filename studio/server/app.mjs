@@ -221,7 +221,7 @@ export async function createApp(options={}){
  app.get('/robots.txt',(req,res)=>res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /gallery/\nDisallow: /api/\nSitemap: ${(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'')}/sitemap.xml`));
  app.get('/sitemap.xml',asyncRoute(async(req,res)=>{const url=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');const albums=await db.all("SELECT slug FROM albums WHERE status='published'");res.type('application/xml').send(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/','/portfolio','/about','/contact',...albums.map(a=>'/album/'+a.slug)].map(r=>`<url><loc>${url+r}</loc></url>`).join('')}</urlset>`);}));
  const shell=await readFile(path.resolve('studio/web/index.html'),'utf8');
- const cfToken=env.CF_BEACON_TOKEN||env.CLOUDFLARE_ANALYTICS_TOKEN;
+ const cfToken=env.CF_BEACON_TOKEN||env.CLOUDFLARE_ANALYTICS_TOKEN||(production?'fd0f089e6f094baca1d372c934fa801d':'');
  const cfBeacon=cfToken?`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${escape(cfToken)}"}'></script>`:'';
  const page=asyncRoute(async(req,res)=>{
   const s=await settings();

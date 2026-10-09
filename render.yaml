@@ -23,5 +23,7 @@ services:
         sync: false
       - key: SUPABASE_BUCKET
         value: chicong-private
+      - key: CF_BEACON_TOKEN
+        value: fd0f089e6f094baca1d372c934fa801d
       - key: SETUP_TOKEN
         sync: false
