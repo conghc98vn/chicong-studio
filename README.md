@@ -58,13 +58,13 @@ Trong **Website**, chỉnh thương hiệu, tiêu đề, giới thiệu, email, 
 
 Tải JSON trong phần sao lưu để giữ cấu trúc album/lựa chọn/yêu cầu. JSON này chứa dữ liệu khách, ghi chú riêng của studio và hash mật khẩu gallery: lưu kín. Nó không chứa ảnh hoặc tài khoản admin. Sao lưu toàn bộ `data/live/` khi app local đã dừng; trên Supabase sao lưu database và Storage riêng. JSON chưa có luồng khôi phục qua giao diện.
 
-## Hosting miễn phí
+## Hosting và Tên miền
 
-Xem [HOSTING.md](HOSTING.md): Render Free + Supabase PostgreSQL/Storage, cấu hình cho chicongphoto.vn. Production từ chối chạy nếu không cấu hình database và Storage lưu bền vững. Đây là app Node.js chạy server, không phải thư mục HTML để upload vào hosting tĩnh/cPanel PHP.
+Xem [HOSTING.md](HOSTING.md): Render Free + Supabase PostgreSQL/Storage, cấu hình chính thức cho [chicongphoto.vn](https://chicongphoto.vn). Production từ chối chạy nếu không cấu hình database và Storage lưu bền vững. Đây là app Node.js chạy server, không phải thư mục HTML tĩnh để upload vào hosting cPanel PHP.
 
-Đã triển khai Render Free + Supabase ngày 08/10/2026: [website](https://chicong-photo-studio.onrender.com), [quản trị](https://chicong-photo-studio.onrender.com/admin). Tài khoản quản trị và 10 cài đặt từ bản local đã được chuyển sang PostgreSQL, giữ nguyên mật khẩu; không chuyển phiên đăng nhập. Database dùng TLS xác thực CA/hostname, bucket ảnh `chicong-private` giữ riêng tư. Tên miền `chicongphoto.vn` chưa được nối vào dịch vụ này.
+Đã triển khai và kết nối tên miền chính thức ngày 09/10/2026: [website](https://chicongphoto.vn), [quản trị](https://chicongphoto.vn/admin). Tên miền `chicongphoto.vn` hoạt động qua HTTPS với proxy Cloudflare, kết hợp Cloudflare Web Analytics và Schema.org JSON-LD structured data. Database dùng TLS xác thực CA/hostname, bucket ảnh `chicong-private` trên Supabase giữ riêng tư.
 
-Đã đạt 26 bài test tự động, kiểm tra health/API/trang công khai trên Render, chặn API quản trị khi chưa đăng nhập và kiểm thử ghi/đọc/xóa ảnh trên Supabase thật. Portfolio hiện chưa có ảnh. Đăng nhập tài khoản studio cũ để cập nhật thông tin liên hệ và đăng album; kiểm tra thêm luồng quản trị/gallery và dữ liệu qua restart theo [HOSTING.md](HOSTING.md).
+Hệ thống đã xác minh 56 bài test tự động (gồm SEO URL slug, retry upload, bảo mật gallery, CSRF và Schema.org). Portfolio hiện đã công khai 7 album với 284 ảnh thực tế phục vụ định dạng WebP tối ưu. Đăng nhập tài khoản studio để cập nhật ảnh chân dung, thông tin liên hệ và quản trị album/gallery theo [HOSTING.md](HOSTING.md) và [OPERATIONS.md](OPERATIONS.md).
 
 Nếu quên mật khẩu quản trị, chạy `npm run admin:reset` trong terminal của máy/server có đúng database; tự nhập email và mật khẩu mới. Mật khẩu không hiển thị khi nhập, các phiên cũ bị vô hiệu. Không có reset password công khai hoặc gửi mail khôi phục.
 

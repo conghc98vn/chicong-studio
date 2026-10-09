@@ -1,6 +1,6 @@
 # Đưa ChiCong Studio lên host miễn phí và chicongphoto.vn
 
-Phương án đã triển khai: **Render Free** chạy Node.js, **Supabase Free** lưu PostgreSQL và ảnh trong bucket riêng. Website đang chạy tại [chicong-photo-studio.onrender.com](https://chicong-photo-studio.onrender.com) từ ngày 08/10/2026; [trang quản trị](https://chicong-photo-studio.onrender.com/admin) dùng tài khoản studio cũ đã chuyển từ local. Chưa cấu hình DNS cho `chicongphoto.vn`. Tên miền sẽ đặt ở Render; không cần mua custom domain cho Supabase.
+Phương án đã triển khai: **Render Free** chạy Node.js, **Supabase Free** lưu PostgreSQL và ảnh trong bucket riêng. Website chính thức đang hoạt động tại [chicongphoto.vn](https://chicongphoto.vn) (được định tuyến qua Cloudflare proxy đến Render) từ ngày 09/10/2026; [trang quản trị](https://chicongphoto.vn/admin) dùng tài khoản studio đã cấu hình. Tên miền `chicongphoto.vn` đã trỏ đúng và kích hoạt HTTPS thành công.
 
 Tài liệu nhà cung cấp được kiểm tra ngày 07/10/2026:
 
@@ -56,18 +56,16 @@ Với dịch vụ hiện tại, tài khoản local đã được chuyển và ki
 
 Trong **Website**, điền email, điện thoại, nội dung giới thiệu và Instagram. Trong **Portfolio**, tạo album, upload ảnh, chọn ảnh bìa rồi đặt trạng thái công khai. Gallery riêng có mật khẩu từ 8 ký tự.
 
-## 5. Nối chicongphoto.vn
+## 5. Đã nối và xác thực chicongphoto.vn
 
-Thêm `chicongphoto.vn` và nếu cần `www.chicongphoto.vn` trong Settings → Custom Domains của Render. Tại nơi quản lý tên miền, thêm đúng DNS records mà Render hiện trong dashboard. Không đoán IP hoặc thay nameserver khi không cần.
+Tên miền `chicongphoto.vn` đã được thêm vào Custom Domains của Render và trỏ bản ghi DNS qua Cloudflare. Biến môi trường `SITE_URL=https://chicongphoto.vn` và `CF_BEACON_TOKEN` đã cấu hình trên Render. HTTPS hoạt động bình thường, cookie và session admin không bị phân tán.
 
-Chờ xác minh DNS/HTTPS, đặt `SITE_URL=https://chicongphoto.vn`, rồi kiểm tra trang chủ, login, upload, gallery riêng và đặt lịch. Giữ một domain chính để người dùng không bị tách cookie đăng nhập giữa www và domain gốc.
+## Đã kiểm chứng và vận hành thực tế
 
-## Trước khi nhận dữ liệu thật
+Đã kiểm chứng trên tài khoản cloud thật ngày 08/10/2026 và 09/10/2026: health PostgreSQL, 9 bảng ứng dụng bật RLS, các trang/API công khai, API quản trị trả 401 khi chưa đăng nhập, và Storage ghi/đọc khớp dữ liệu trong bucket private với truy cập công khai bị từ chối. Mã nguồn tự động xử lý tạo bucket private khi chưa có.
 
-Đã kiểm chứng trên tài khoản cloud thật ngày 08/10/2026: health PostgreSQL, 9 bảng ứng dụng bật RLS, các trang/API công khai, API quản trị trả 401 khi chưa đăng nhập, và Storage ghi/đọc khớp dữ liệu trong bucket private với truy cập công khai bị từ chối. Ảnh kiểm thử đã được xóa. Mã nguồn cũng xử lý phản hồi HTTP 400 `NoSuchBucket` của Supabase để tự tạo bucket private khi chưa có; các lỗi xác thực khác vẫn dừng khởi động.
+Bộ kiểm thử tự động đạt 56/56 bài test (bao gồm SEO album slug, retry upload, bảo mật gallery, CSRF, Schema.org và Cloudflare Analytics). Portfolio trên production hiện đã công khai 7 album với 284 ảnh. Ngày 09/10/2026 đã chụp snapshot sao lưu toàn bộ dữ liệu công khai và 568 file WebP vào `data/backups/launch-2026-10-09/public-1791512046057`.
 
-Các bước còn cần kiểm tra qua tài khoản studio: upload album, restart/deploy lại và kiểm tra ảnh còn; mở gallery trong trình duyệt khách và kiểm tra mật khẩu/lựa chọn ảnh; xử lý yêu cầu đặt lịch trong quản trị. Bộ kiểm thử tự động được chạy lại ngày 09/10/2026: 45/45 bài đạt; chúng không thay thế các bước kiểm tra giao diện quản trị trên cloud.
-
-Biểu mẫu liên hệ trên website thật cũng đã gửi thành công một yêu cầu thử; PostgreSQL lưu đúng một bản ghi và không giữ ngày chụp khi chưa chọn ngày. Bản ghi kiểm thử đã được xóa sau đối chiếu. Lượt kiểm tra từ dòng lệnh trước đó gặp lỗi kết nối mạng; luồng trình duyệt thực tế đã được xác nhận thành công.
+Biểu mẫu liên hệ trên website thật cũng đã gửi thành công yêu cầu thử; PostgreSQL lưu đúng một bản ghi và không giữ ngày chụp khi chưa chọn ngày.
 
 Ảnh upload được đổi sang WebP (cạnh dài tối đa 2400px + thumbnail 900px) và loại metadata; hệ thống phục vụ gallery xem/chọn, không phải kho giao file RAW/ảnh gốc độ phân giải đầy đủ. Email tự động chưa tích hợp: yêu cầu nằm trong **Yêu cầu đặt lịch**, bạn chủ động liên hệ khách. Không có thanh toán hoặc booking tự động được xác nhận.
