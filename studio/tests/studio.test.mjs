@@ -248,3 +248,123 @@ test('Historical saved consultation replays while new past dates are rejected',a
   const fresh=await f.client('/api/inquiries',{...request,requestKey:'a'.repeat(32)},'POST',false);assert.equal(fresh.status,422);assert.ok((await fresh.json()).fields.date);
  }finally{await f.close();}
 });
+
+test('Album SEO URLs preserve ID and slug history, privacy and concurrent uniqueness',async()=>{
+ const f=await fixture();
+ try{
+  await f.setup();
+  const payload={title:'Đám cưới Đà Lạt — Tuấn & Lan',category:'wedding',status:'published',description:'Câu chuyện ngày cưới tại Đà Lạt.'};
+  const responses=await Promise.all(Array.from({length:3},()=>f.client('/api/admin/albums',payload,'POST')));
+  for(const r of responses)assert.equal(r.status,201);
+  const created=await Promise.all(responses.map(r=>r.json()));
+  assert.deepEqual(created.map(a=>a.slug).sort(),['dam-cuoi-da-lat-tuan-lan','dam-cuoi-da-lat-tuan-lan-2','dam-cuoi-da-lat-tuan-lan-3']);
+  const a=created.find(a=>a.slug==='dam-cuoi-da-lat-tuan-lan');
+  const redirect=await fetch(f.base+'/album/'+a.id,{redirect:'manual'});
+  assert.equal(redirect.status,301);assert.equal(redirect.headers.get('location'),'/album/'+a.slug);
+  for(const key of [a.id,a.slug])assert.equal((await (await f.client('/api/albums/'+key,null,'GET',false)).json()).id,a.id);
+  const html=await (await fetch(f.base+'/album/'+a.slug)).text();
+  assert.match(html,new RegExp('<link rel="canonical" href="https://chicongphoto.vn/album/'+a.slug+'"'));
+  assert.match(html,/Câu chuyện ngày cưới tại Đà Lạt\./);
+  let update=await f.client('/api/admin/albums/'+a.id,{...payload,title:'New title'},'PATCH');
+  assert.equal((await update.json()).slug,a.slug);
+  update=await f.client('/api/admin/albums/'+a.id,{...payload,slug:'Ảnh cưới Đà Lạt'},'PATCH');
+  assert.equal((await update.json()).slug,'anh-cuoi-da-lat');
+  for(const key of [a.id,a.slug]){
+   const r=await fetch(f.base+'/album/'+key,{redirect:'manual'});assert.equal(r.status,301);assert.equal(r.headers.get('location'),'/album/anh-cuoi-da-lat');
+  }
+  const reuse=await (await f.client('/api/admin/albums',{...payload,slug:a.slug},'POST')).json();assert.notEqual(reuse.slug,a.slug);
+  const privateId=await createAlbum(f,'private','client-password');
+  const privateAlbum=await f.db.get('SELECT * FROM albums WHERE id=?',[privateId]);
+  for(const key of [privateId,privateAlbum.slug]){
+   const r=await fetch(f.base+'/album/'+key,{redirect:'manual'});assert.equal(r.status,404);assert.equal(r.headers.get('location'),null);
+   assert.equal((await f.client('/api/albums/'+key,null,'GET',false)).status,404);
+  }
+  assert.equal((await fetch(f.base+'/gallery/'+privateId,{redirect:'manual'})).status,200);
+  assert.equal((await fetch(f.base+'/gallery/'+privateAlbum.slug)).status,404);
+  assert.deepEqual(await (await f.client('/api/gallery/'+privateId,null,'GET',false)).json(),{locked:true});
+  const sitemap=await (await fetch(f.base+'/sitemap.xml')).text();assert.match(sitemap,/\/album\/anh-cuoi-da-lat/);assert.doesNotMatch(sitemap,new RegExp(a.id+'|'+privateAlbum.slug+'|'+privateId));
+  const cards=await (await f.client('/api/portfolio?view=cards',null,'GET',false)).json();assert.equal(cards.find(x=>x.id===a.id).slug,'anh-cuoi-da-lat');
+  await f.client('/api/admin/albums/'+a.id,{...payload,status:'archived'},'PATCH');
+  for(const key of [a.id,a.slug,'anh-cuoi-da-lat'])assert.equal((await fetch(f.base+'/album/'+key,{redirect:'manual'})).status,404);
+ }finally{await f.close();}
+});
+
+test('Long duplicate slugs remain unchanged when saving album information',async()=>{
+ const f=await fixture();try{
+  await f.setup();const payload={title:'a'.repeat(120),category:'wedding',status:'published'};
+  const first=await (await f.client('/api/admin/albums',payload,'POST')).json();
+  const second=await (await f.client('/api/admin/albums',payload,'POST')).json();
+  assert.ok(second.slug.length<=120,'Numeric suffix must fit inside the slug limit');
+  await f.client('/api/admin/albums/'+first.id,{...payload,slug:'short-title'},'PATCH');
+  const updated=await (await f.client('/api/admin/albums/'+second.id,{...payload,slug:second.slug},'PATCH')).json();
+  assert.equal(updated.slug,second.slug);
+ }finally{await f.close();}
+});
+
+test('Album URL migration and redirects normalize route casing without bypassing privacy',async()=>{
+ const f=await fixture();try{
+  await f.setup();const id=await createAlbum(f,'published');
+  assert.equal((await fetch(f.base+'/GALLERY/'+id,{redirect:'manual'})).status,404);
+  const privateId=await createAlbum(f,'private','test-password');
+  assert.equal((await fetch(f.base+'/ALBUM/'+privateId,{redirect:'manual'})).status,404);
+ }finally{await f.close();}
+});
+
+test('Multiple slug edits, reset, HEAD and encoded URLs resolve directly to one canonical URL',async()=>{
+ const f=await fixture();try{
+  await f.setup();const payload={title:'Đám cưới Đà Lạt',category:'wedding',status:'published'};
+  const a=await (await f.client('/api/admin/albums',payload,'POST')).json();
+  const old=[a.id,a.slug];
+  for(const slug of ['Tuấn & Lan','Câu chuyện mới','']){
+   const r=await f.client('/api/admin/albums/'+a.id,{...payload,title:'Tên cuối cùng',slug},'PATCH');assert.equal(r.status,200);
+   const saved=await r.json();old.push(saved.slug);
+  }
+  const canonical='/album/ten-cuoi-cung';
+  for(const key of old.slice(0,-1)){
+   for(const method of ['GET','HEAD']){
+    const r=await fetch(f.base+'/album/'+key+'?utm_source=test',{method,redirect:'manual'});
+    assert.equal(r.status,301);assert.equal(r.headers.get('location'),canonical);
+   }
+   const api=await f.client('/api/albums/'+key,null,'GET',false);assert.equal(api.status,200);assert.equal((await api.json()).id,a.id);
+  }
+  for(const route of ['/album/ten-cuoi-cung/','/album/%74en-cuoi-cung','/ALBUM/ten-cuoi-cung']){
+   const r=await fetch(f.base+route,{redirect:'manual'});assert.equal(r.status,301);assert.equal(r.headers.get('location'),canonical);
+  }
+  const final=await fetch(f.base+canonical,{redirect:'manual'});assert.equal(final.status,200);assert.equal(final.headers.get('location'),null);
+  const html=await final.text();assert.match(html,/property="og:url" content="https:\/\/chicongphoto.vn\/album\/ten-cuoi-cung"/);
+  const backup=await (await f.client('/api/admin/export')).json();
+  for(const slug of old.slice(1))assert.ok(backup.album_slugs.some(row=>row.slug===slug&&row.album_id===a.id));
+ }finally{await f.close();}
+});
+
+test('Reserved IDs, unsafe slug input and literal template tokens cannot corrupt URLs or metadata',async()=>{
+ const f=await fixture();try{
+  await f.setup();const payload={title:'Safe title',category:'wedding',status:'published'};
+  for(const slug of ['a'.repeat(32),'../../Ánh cưới?x=<script>','💒']){
+   const r=await f.client('/api/admin/albums',{...payload,slug},'POST');assert.equal(r.status,201);
+   const a=await r.json();assert.match(a.slug,/^[a-z0-9]+(?:-[a-z0-9]+)*$/);assert.doesNotMatch(a.slug,/^[a-f0-9]{32}$/);
+   assert.equal((await fetch(f.base+'/album/'+a.slug)).status,200);
+  }
+  const a=await (await f.client('/api/admin/albums',{...payload,title:'$& __DESCRIPTION__ <script>',description:'$& __CANONICAL__ " onload="bad'},'POST')).json();
+  const html=await (await fetch(f.base+'/album/'+a.slug)).text();
+  assert.match(html,/<title>\$&amp; __DESCRIPTION__ &lt;script&gt;/);
+  assert.match(html,/name="description" content="\$&amp; __CANONICAL__ &quot; onload=&quot;bad"/);
+  assert.doesNotMatch(html,/<script>|content="[^"\n]*" onload=/);
+ }finally{await f.close();}
+});
+
+test('Renaming a private gallery preserves its ID session, photos and selection access',async()=>{
+ const f=await fixture();try{
+  await f.setup();const id=await createAlbum(f,'private','client-pass');await upload(f,id);
+  const adminCookie=f.cookie;const a=(await (await f.client('/api/admin/albums')).json()).find(a=>a.id===id);
+  await f.client('/api/gallery/'+id+'/unlock',{password:'client-pass'},'POST',false);
+  const response=await fetch(f.base+'/api/admin/albums/'+id,{method:'PATCH',headers:{Cookie:adminCookie,Origin:'http://localhost','Content-Type':'application/json'},body:JSON.stringify({...a,slug:'khach-rieng-moi'})});assert.equal(response.status,200);
+  const gallery=await (await f.client('/api/gallery/'+id)).json();assert.equal(gallery.id,id);assert.equal(gallery.photos.length,1);
+  assert.equal((await f.client(`/api/gallery/${id}/selection/${a.photos[0].id}`,{selected:true},'PUT')).status,200);
+  for(const slug of [a.slug,'khach-rieng-moi']){
+   const page=await fetch(f.base+'/album/'+slug,{redirect:'manual'});assert.equal(page.status,404);assert.match(await page.text(),/noindex,nofollow/);
+   assert.equal((await fetch(f.base+'/api/gallery/'+slug)).status,404);
+  }
+  const page=await fetch(f.base+'/gallery/'+id);assert.match(page.headers.get('cache-control'),/private,no-store/);assert.match(await page.text(),/noindex,nofollow/);
+ }finally{await f.close();}
+});

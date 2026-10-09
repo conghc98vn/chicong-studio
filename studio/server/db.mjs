@@ -1,3 +1,4 @@
+import {migrateAlbumSlugs} from './album-slugs.mjs';
 import {siteDefaults} from '../web/site-copy.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync} from 'node:fs';
@@ -34,6 +35,7 @@ export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
  CREATE INDEX IF NOT EXISTS sessions_expires ON sessions(expires);
  CREATE INDEX IF NOT EXISTS albums_status_created ON albums(status,created);
  CREATE INDEX IF NOT EXISTS inquiries_status_created ON inquiries(status,created);`);
+ await migrateAlbumSlugs(db);
  const defaults=siteDefaults;
  for(const [key,value] of Object.entries(defaults))await db.run('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO NOTHING',[key,value]);
  return db;

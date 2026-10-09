@@ -143,6 +143,7 @@ input:hover,textarea:hover,select:hover { border-color:#b3beaf; }
 input:focus,textarea:focus,select:focus { border-color:#65806a; }
 input::placeholder,textarea::placeholder { color:#778073; font-weight:400; }
 textarea { resize:vertical; min-height:110px; }
+[data-slug-preview] { display:block; margin-top:8px; overflow-wrap:anywhere; color:var(--muted); line-height:1.6; }
 .form-note { font-size:13px; line-height:1.8; margin-bottom:24px; }
 .form-error { color:#9d4534; font-size:13px; margin:14px 0; }
 .form-error:empty { display:none; }

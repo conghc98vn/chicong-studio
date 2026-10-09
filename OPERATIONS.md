@@ -56,3 +56,38 @@ Trên Supabase, sao lưu PostgreSQL và toàn bộ bucket Storage riêng, kiểm
 Có website công khai, quản trị nội dung/cài đặt, upload ảnh web, album nháp/công khai/riêng/lưu trữ, chọn ảnh khách hàng và xuất CSV, yêu cầu đặt lịch/lịch bận, đăng nhập/session và cấu hình PostgreSQL/Storage cho hosting.
 
 Việc kết nối tài khoản hosting, domain và kiểm thử cloud thực tế vẫn cần thực hiện khi triển khai. Chưa có email tự động, thanh toán, giao file RAW/ảnh gốc, nhiều tài khoản quản trị hay nhập lại JSON qua giao diện.
+
+### Public album URLs
+
+On startup, the additive migration adds `albums.slug`, the unique `album_slug`
+index, and the `album_slugs` URL history table on SQLite or PostgreSQL. Existing
+albums receive Vietnamese ASCII slugs with numeric suffixes for collisions;
+IDs, photos, gallery passwords and sessions are preserved. Back up the database
+before deployment as usual. Include `album_slugs` in database restores so old
+public URLs retain their redirects (the admin JSON export includes this table).
+
+Published pages use `/album/:slug`. Legacy IDs and previous slugs redirect in one
+301 hop to the current slug. The JSON album API accepts either key without a
+redirect. Non-public albums still require existing authorization; only published
+albums enter the sitemap. `/gallery/:id` remains ID-based and password protected.
+
+In album settings, an empty slug generates a URL from the title; changing only
+the title preserves a saved slug. Custom slugs are normalized and suffixed if
+already reserved, including by historical URLs. The preview shows the normalized
+base; the saved value includes any necessary suffix. Hash-shaped slugs are
+reserved for legacy IDs. Canonical metadata and portfolio links use the saved URL.
+
+Verification commands (run from the repository root):
+
+- `npm test` runs SQLite, API, privacy and migration regression tests.
+- `STUDIO_TEST_POSTGRES_URL=postgres://... npm test` additionally runs the real
+  PostgreSQL test. Use a local disposable test database. The test creates and
+  removes its own random schema, exercises RLS and 20 concurrent create/edit
+  requests, and verifies redirects and migration across restarts.
+- `npm run check` verifies server and frontend JavaScript syntax.
+- `node studio/tests/album-slug-browser.smoke.mjs` runs the optional Chrome smoke
+  test with Playwright installed. Alternatively set `STUDIO_PLAYWRIGHT_MODULE`
+  to an installed Playwright module's absolute path. It uses a temporary SQLite
+  database and checks actual desktop/mobile admin forms, URL previews, photo
+  upload, public links, canonical metadata and redirects. Screenshots go to
+  `STUDIO_BROWSER_EVIDENCE_DIR` or the temporary `chicong-slug-evidence` directory.
