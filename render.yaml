@@ -27,3 +27,9 @@ services:
         value: fd0f089e6f094baca1d372c934fa801d
       - key: SETUP_TOKEN
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: NOTIFICATION_EMAIL
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

@@ -4,6 +4,7 @@ import {validateInquiry} from '../web/inquiry-validation.mjs';
 import {currentCopy} from '../web/site-copy.mjs';
 import {selectHeroSlides,parseSelection,defaultHeroSelection} from '../web/hero-slides.mjs';
 import {defaultStorySelection} from '../web/home-curation.mjs';
+import {createMailer} from './mailer.mjs';
 import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
@@ -28,6 +29,7 @@ export async function createApp(options={}){
  const env=options.env||process.env;const dataDir=options.dataDir||env.DATA_DIR||path.resolve('data/live');
  if(production&&(!env.DATABASE_URL||!env.SUPABASE_URL))throw Error('Production requires persistent DATABASE_URL and SUPABASE_URL. See HOSTING.md.');
  const db=options.db||await openDatabase(dataDir,{url:env.DATABASE_URL});const storage=options.storage||createStorage(path.join(dataDir,'uploads'),env);
+ const mailer=options.mailer||createMailer(env);
  await storage.init?.();
  const app=express();app.disable('x-powered-by');if(production)app.set('trust proxy',1);
  app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",'Permissions-Policy':'camera=(), microphone=(), geolocation=()'});if(production)res.set('Strict-Transport-Security','max-age=31536000');next();});
@@ -93,6 +95,15 @@ export async function createApp(options={}){
    inserted=Number(result.changes)>0;
    const row=inserted?{id:key}:await replay();
    if(!row)throw fail(503,'Chưa lưu được yêu cầu. Vui lòng thử lại.');
+   if(inserted){
+    const ref=row.id.slice(0,8);
+    const siteUrl=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');
+    settings().then(s=>{
+     mailer.notifyNewInquiry({inquiry:{name,email,phone,date,service,budget,message},reference:ref,settings:s,siteUrl}).catch(err=>{
+      console.error('[mailer] Failed to send inquiry notification:',err?.message||err);
+     });
+    }).catch(()=>{});
+   }
    res.status(inserted?201:200).json({success:true,reference:row.id.slice(0,8)});
   }finally{
    // Concurrent replays and failed writes do not spend a successful-submission slot.
@@ -256,5 +267,5 @@ export async function createApp(options={}){
  app.get(['/', '/portfolio','/about','/contact','/admin','/album/:key','/gallery/:id'],page);
  app.use((req,res)=>res.status(404).send(shell.replaceAll('__TITLE__','Không tìm thấy trang').replaceAll('__DESCRIPTION__','').replaceAll('__CANONICAL__','').replaceAll('__ROBOTS__','noindex').replaceAll('__OG_META__','').replaceAll('__STRUCTURED_DATA__','').replaceAll('__ANALYTICS__','')));
  app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const status=err instanceof multer.MulterError?422:err.status||500;if(status>=500)console.error('Request failed:',err.name);res.status(status).json({...(err.fields?{fields:err.fields}:{}),error:status>=500?'Có lỗi trên máy chủ. Vui lòng thử lại.':err instanceof multer.MulterError?'Mỗi lần tối đa 8 ảnh, tối đa 8MB/ảnh.':err.message});});
- return {app,db,storage};
+ return {app,db,storage,mailer};
 }

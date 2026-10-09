@@ -55,7 +55,18 @@ Trên Supabase, sao lưu PostgreSQL và toàn bộ bucket Storage riêng, kiểm
 
 Có website công khai, quản trị nội dung/cài đặt, upload ảnh web, album nháp/công khai/riêng/lưu trữ, chọn ảnh khách hàng và xuất CSV, yêu cầu đặt lịch/lịch bận, đăng nhập/session và cấu hình PostgreSQL/Storage cho hosting.
 
-Việc kết nối tài khoản hosting, domain và kiểm thử cloud thực tế vẫn cần thực hiện khi triển khai. Chưa có email tự động, thanh toán, giao file RAW/ảnh gốc, nhiều tài khoản quản trị hay nhập lại JSON qua giao diện.
+Việc kết nối tài khoản hosting, domain và kiểm thử cloud thực tế đã hoàn thành. Hệ thống hỗ trợ email tự động qua Resend/SMTP; chưa có thanh toán tự động, giao file RAW/ảnh gốc, nhiều tài khoản quản trị hay nhập lại JSON qua giao diện.
+
+### Email thông báo tự động (Resend / SMTP)
+
+Hệ thống hỗ trợ gửi email thông báo tự động khi khách hàng gửi biểu mẫu tư vấn qua website:
+1. **Thông báo cho Studio**: Gửi email tóm tắt thông tin khách (tên, SĐT, email, dịch vụ, ngày, ngân sách, lời nhắn) kèm link truy cập Quản trị đến địa chỉ `NOTIFICATION_EMAIL` (hoặc email cài đặt của studio). Header `reply_to` được gắn sẵn email của khách để studio có thể trả lời trực tiếp.
+2. **Xác nhận cho Khách hàng**: Nếu khách hàng có nhập email hợp lệ, hệ thống gửi email xác nhận mang phong cách editorial trang nhã, tóm tắt thông tin yêu cầu, mã tham chiếu `#...`, ghi chú thời gian phản hồi và thông tin liên hệ Zalo/Hotline của Chí Công.
+
+Cấu hình qua biến môi trường:
+- **Resend (khuyên dùng trên Render)**: Đặt `RESEND_API_KEY=re_...`, `NOTIFICATION_EMAIL=...`, và `EMAIL_FROM=...` (mặc định `ChiCong Studio <onboarding@resend.dev>` hoặc domain riêng đã xác thực trên Resend).
+- **SMTP**: Đặt `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` nếu muốn sử dụng máy chủ gửi mail riêng (như Gmail SMTP).
+- Khi chưa cấu hình email, hệ thống tự động bỏ qua gửi mail và không gây gián đoạn luồng lưu yêu cầu của khách.
 
 ### Public album URLs
 
