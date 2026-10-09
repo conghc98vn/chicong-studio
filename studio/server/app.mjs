@@ -230,7 +230,21 @@ export async function createApp(options={}){
  app.use('/app',express.static(path.resolve('studio/web'),{maxAge:0,index:false}));
  app.get('/bookme',(req,res)=>res.redirect(301,'/contact'));
  app.get('/robots.txt',(req,res)=>res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /gallery/\nDisallow: /api/\nSitemap: ${(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'')}/sitemap.xml`));
- app.get('/sitemap.xml',asyncRoute(async(req,res)=>{const url=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');const albums=await db.all("SELECT slug FROM albums WHERE status='published'");res.type('application/xml').send(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/','/portfolio','/about','/contact',...albums.map(a=>'/album/'+a.slug)].map(r=>`<url><loc>${url+r}</loc></url>`).join('')}</urlset>`);}));
+ app.get('/sitemap.xml',asyncRoute(async(req,res)=>{
+  const url=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');
+  const albums=await db.all("SELECT slug,created FROM albums WHERE status='published' ORDER BY created DESC");
+  const today=new Date().toISOString().slice(0,10);
+  const pages=[
+   {loc:'/',priority:'1.0',changefreq:'weekly'},
+   {loc:'/portfolio',priority:'0.9',changefreq:'daily'},
+   {loc:'/about',priority:'0.8',changefreq:'monthly'},
+   {loc:'/contact',priority:'0.8',changefreq:'monthly'},
+   ...albums.map(a=>({loc:'/album/'+a.slug,lastmod:(a.created||today).slice(0,10),priority:'0.8',changefreq:'monthly'}))
+  ];
+  const xml='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+
+   pages.map(p=>`  <url>\n    <loc>${url+p.loc}</loc>\n    <lastmod>${p.lastmod||today}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`).join('\n')+'\n</urlset>';
+  res.type('application/xml; charset=utf-8').send(xml);
+ }));
  const shell=await readFile(path.resolve('studio/web/index.html'),'utf8');
  const cfToken=env.CF_BEACON_TOKEN||env.CLOUDFLARE_ANALYTICS_TOKEN||(production?'fd0f089e6f094baca1d372c934fa801d':'');
  const cfBeacon=cfToken?`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${escape(cfToken)}"}'></script>`:'';
@@ -261,8 +275,25 @@ export async function createApp(options={}){
   const og=imagePhoto&&!privatePage?`<meta property="og:image" content="${escape(url+'/media/'+imagePhoto)}">`:'';
   const structuredData=!privatePage&&res.statusCode!==404?schemaOrgScript(buildSchemaOrg({site:s,album:matchedAlbum,url,imagePhoto,path:canonicalPath})):'';
   const analytics=!privatePage&&res.statusCode!==404?cfBeacon:'';
+  let initialBody='';
+  if(!privatePage&&res.statusCode!==404){
+   if(req.path==='/'){
+    initialBody=`<main id="main"><section class="hero-intro"><h1>${escape(s.headline).replace(/\n/g,'<br>')}</h1><p>${escape(s.intro)}</p></section><section class="about-summary"><h2>Về ${escape(s.name||s.brand)}</h2><p>${escape(s.about).replace(/\n/g,'<br>')}</p></section></main>`;
+   }else if(req.path==='/about'){
+    initialBody=`<main id="main"><h1>Giới thiệu · ${escape(s.brand)}</h1><p>${escape(s.about).replace(/\n/g,'<br>')}</p></main>`;
+   }else if(req.path==='/contact'){
+    initialBody=`<main id="main"><h1>Liên hệ &amp; đặt lịch</h1><p>${escape(s.bookingNote||s.intro)}</p><p>Hotline / Zalo: ${escape(s.phone)} · Email: ${escape(s.email)}</p></main>`;
+   }else if(req.path==='/portfolio'){
+    const list=await db.all("SELECT slug,title FROM albums WHERE status='published' ORDER BY created DESC");
+    initialBody=`<main id="main"><h1>Bộ ảnh · ${escape(s.brand)}</h1><p>${escape(s.intro)}</p><ul>${list.map(a=>`<li><a href="/album/${a.slug}">${escape(a.title)}</a></li>`).join('')}</ul></main>`;
+   }else if(matchedAlbum){
+    initialBody=`<main id="main"><h1>${escape(matchedAlbum.title)}</h1><p>${escape(matchedAlbum.description||s.intro)}</p></main>`;
+   }
+  }
+  const loadingHtml='<main id="main" class="loading"><span class="loader"></span><p>Đang mở câu chuyện…</p></main>';
+  const bodyShell=initialBody?shell.replace(loadingHtml,initialBody):shell;
   const values={__TITLE__:escape(title),__DESCRIPTION__:escape(description),__CANONICAL__:escape(url+canonicalPath),__ROBOTS__:privatePage||res.statusCode===404?'noindex,nofollow':'index,follow',__OG_META__:og,__STRUCTURED_DATA__:structuredData,__ANALYTICS__:analytics};
-  res.send(shell.replace(/__TITLE__|__DESCRIPTION__|__CANONICAL__|__ROBOTS__|__OG_META__|__STRUCTURED_DATA__|__ANALYTICS__/g,key=>values[key]));
+  res.send(bodyShell.replace(/__TITLE__|__DESCRIPTION__|__CANONICAL__|__ROBOTS__|__OG_META__|__STRUCTURED_DATA__|__ANALYTICS__/g,key=>values[key]));
  });
  app.get(['/', '/portfolio','/about','/contact','/admin','/album/:key','/gallery/:id'],page);
  app.use((req,res)=>res.status(404).send(shell.replaceAll('__TITLE__','Không tìm thấy trang').replaceAll('__DESCRIPTION__','').replaceAll('__CANONICAL__','').replaceAll('__ROBOTS__','noindex').replaceAll('__OG_META__','').replaceAll('__STRUCTURED_DATA__','').replaceAll('__ANALYTICS__','')));
