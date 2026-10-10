@@ -6,7 +6,7 @@
  const retry=status.querySelector('[data-startup-retry]');
  retry.addEventListener('click',()=>location.reload());
  const show=text=>{message.textContent=text;retry.hidden=false;};
- const timer=setTimeout(()=>show('Giao diện đang tải lâu hơn dự kiến. Bạn có thể chờ thêm hoặc tải lại trang.'),8000);
+ const timer=setTimeout(()=>show('Trang đang tải lâu hơn dự kiến. Bạn có thể chờ thêm hoặc tải lại trang.'),8000);
  import('./main.js').then(app=>app.ready).then(()=>{
   clearTimeout(timer);
   root.hidden=false;
@@ -15,6 +15,6 @@
   clearTimeout(timer);
   console.error('Website startup failed:',error);
   status.querySelector('.loader').hidden=true;
-  show('Chưa tải được giao diện. Vui lòng kiểm tra kết nối rồi tải lại trang.');
+  show('Chưa tải được trang. Vui lòng kiểm tra kết nối rồi tải lại trang.');
  });
 })();

@@ -43,8 +43,8 @@ export function createGoogleCalendar(env={},fetcher=fetch,clock=()=>new Date()){
  function result(){return {configured:true,includeTransparent,...(cached||{blocked:[]}),unavailable:error};}
  async function assertAvailable(date){
   const state=await read();
-  if(state.configured&&(state.unavailable||date>state.through))throw Object.assign(Error('Chưa kiểm tra được Google Calendar cho ngày này. Bạn có thể bỏ chọn ngày để gửi tư vấn.'),{status:409,fields:{date:'Chưa kiểm tra được lịch cho ngày này. Chọn ngày khác hoặc bỏ chọn ngày để được tư vấn.'}});
-  if(state.blocked.includes(date))throw Object.assign(Error('Ngày này đã bận trên Google Calendar. Vui lòng chọn ngày khác.'),{status:409,fields:{date:'Ngày này đã kín lịch. Chọn ngày khác hoặc bỏ chọn ngày để được tư vấn.'}});
+  if(state.configured&&(state.unavailable||date>state.through))throw Object.assign(Error('Chưa kiểm tra được lịch cho ngày này. Vui lòng thử lại sau.'),{status:409,fields:{date:'Chưa kiểm tra được lịch cho ngày này. Bạn có thể bỏ chọn ngày để gửi yêu cầu tư vấn.'}});
+  if(state.blocked.includes(date))throw Object.assign(Error('Ngày này đã kín lịch. Vui lòng chọn ngày khác.'),{status:409,fields:{date:'Ngày này đã kín lịch. Chọn ngày khác hoặc bỏ chọn ngày để gửi yêu cầu tư vấn.'}});
  }
  return {read,assertAvailable};
 }

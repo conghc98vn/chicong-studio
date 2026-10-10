@@ -118,7 +118,7 @@ test('Editorial copy preserves custom text and updates sharing metadata',async()
   await f.db.run("UPDATE settings SET value=? WHERE key='headline'",['Những câu chuyện xứng đáng được lưu giữ.']);
   const s=await(await f.client('/api/site')).json();assert.equal(s.headline,'Ngày cưới qua đi.\nCảm xúc ở lại.');
   assert.equal((await f.client('/api/admin/settings',{headline:'A personal headline',intro:'My custom public introduction',phone:'0969 910 198',name:'Chí Công'},'PATCH')).status,200);
-  const html=await(await fetch(f.base+'/')).text();assert.match(html,/My custom public introduction/);assert.match(html,/Wedding Photographer/);
+  const html=await(await fetch(f.base+'/')).text();assert.match(html,/My custom public introduction/);assert.match(html,/Nhiếp ảnh cưới/);
   assert.equal((await(await f.client('/api/site')).json()).headline,'A personal headline');
   assert.equal((await f.client('/api/admin/settings',{phone:'not a phone'},'PATCH')).status,422);
   assert.equal((await f.client('/api/admin/settings',{zalo:'javascript:alert(1)'},'PATCH')).status,422);
@@ -182,7 +182,7 @@ test('Consultation accepts phone or email and keeps budget private in studio rec
 test('Invalid consultation fields do not spend the valid-submission quota',async()=>{
  const f=await fixture();try{
   const data={name:'Khách thử',email:'review@example.com',phone:'123',service:'Tư vấn',message:'Tư vấn chụp ngày cưới'};
-  for(let i=0;i<8;i++){const r=await f.client('/api/inquiries',data,'POST',false);assert.equal(r.status,422);assert.match((await r.json()).fields.phone,/bỏ trống/);}
+  for(let i=0;i<8;i++){const r=await f.client('/api/inquiries',data,'POST',false);assert.equal(r.status,422);assert.match((await r.json()).fields.phone,/để trống/);}
   for(let i=0;i<5;i++)assert.equal((await f.client('/api/inquiries',{...data,phone:''},'POST',false)).status,201);
   assert.equal((await f.client('/api/inquiries',{...data,phone:''},'POST',false)).status,429);
   assert.equal((await f.db.all('SELECT * FROM inquiries')).length,5);
@@ -401,6 +401,9 @@ test('Public HTML hides fallback behind a loading screen until startup completes
   for(const route of ['/','/portfolio','/about','/contact']){
    const html=await (await fetch(f.base+route)).text();
    assert.match(html,/<div id="root" hidden>/);
+   const initial=html.match(/<div id="root" hidden>([\s\S]*?)<\/div>/)?.[1];
+   assert.match(initial,/<main id="main"><(?:h1|section)/);
+   assert.doesNotMatch(initial,/class="loading"/);
    assert.match(html,/id="startup-status"/);
    assert.match(html,/<script defer src="\/app\/bootstrap.js"><\/script>/);
    assert.doesNotMatch(html,/<script type="module" src="\/app\/main.js"/);

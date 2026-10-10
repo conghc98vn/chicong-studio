@@ -1,3 +1,5 @@
+import { inquiryNotice, budgetLabel } from '../web/ui-copy.mjs';
+
 /**
  * ChiCong Studio Email Notification Service
  * Supports Resend API (HTTP REST, zero-dependency) and SMTP (Nodemailer).
@@ -12,20 +14,21 @@ const escapeHtml = (str) =>
     .replace(/'/g, '&#039;');
 
 export function buildStudioEmail({ inquiry, reference, settings, siteUrl = 'https://chicongphoto.vn' }) {
-  const brand = escapeHtml(settings?.brand || 'ChiCong');
+  const brandName = String(settings?.brand || 'ChiCong');
+  const brand = escapeHtml(brandName);
   const name = escapeHtml(inquiry.name);
   const phone = escapeHtml(inquiry.phone || 'Chưa cung cấp');
   const email = escapeHtml(inquiry.email || 'Chưa cung cấp');
   const service = escapeHtml(inquiry.service || 'Chưa chọn dịch vụ');
-  const date = escapeHtml(inquiry.date || 'Chưa chọn ngày');
-  const budget = escapeHtml(inquiry.budget || 'Chưa cung cấp');
+  const date = escapeHtml(inquiry.date || 'Chưa xác định');
+  const budget = escapeHtml(budgetLabel(inquiry.budget));
   const message = escapeHtml(inquiry.message || 'Không có lời nhắn');
   const adminUrl = `${siteUrl.replace(/\/$/, '')}/admin`;
 
-  const subject = `[${brand}] Yêu cầu tư vấn mới từ ${inquiry.name.replace(/[\r\n]/g, ' ')} (#${reference})`;
+  const subject = `[${brandName.replace(/[\r\n]/g, ' ')}] Yêu cầu tư vấn mới từ ${inquiry.name.replace(/[\r\n]/g, ' ')} (#${reference})`;
 
   const html = `<!doctype html>
-<html>
+<html lang="vi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -39,14 +42,14 @@ export function buildStudioEmail({ inquiry, reference, settings, siteUrl = 'http
           <!-- Header -->
           <tr>
             <td style="padding:28px 32px;background:#1c1917;color:#faf8f5;">
-              <h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:0.02em;">${brand} · Thông báo yêu cầu tư vấn</h1>
-              <p style="margin:6px 0 0;font-size:13px;color:#a8a29e;">Mã tham chiếu: #${reference}</p>
+              <h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:0.02em;">${brand} · Yêu cầu tư vấn mới</h1>
+              <p style="margin:6px 0 0;font-size:13px;color:#a8a29e;">Mã yêu cầu: #${reference}</p>
             </td>
           </tr>
           <!-- Body -->
           <tr>
             <td style="padding:32px;">
-              <p style="margin:0 0 20px;font-size:15px;color:#44403c;">Khách hàng vừa gửi biểu mẫu tư vấn ngày cưới qua website:</p>
+              <p style="margin:0 0 20px;font-size:15px;color:#44403c;">Khách hàng vừa gửi yêu cầu tư vấn qua website. Ngày bên dưới là ngày dự kiến, chưa phải lịch chụp đã xác nhận.</p>
               
               <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:24px;font-size:14px;">
                 <tr style="border-bottom:1px solid #f5f5f4;">
@@ -56,7 +59,7 @@ export function buildStudioEmail({ inquiry, reference, settings, siteUrl = 'http
                 <tr style="border-bottom:1px solid #f5f5f4;">
                   <td style="padding:10px 0;color:#78716c;vertical-align:top;">Số điện thoại</td>
                   <td style="padding:10px 0;color:#1c1917;">
-                    ${inquiry.phone ? `<a href="tel:${phone}" style="color:#2563eb;text-decoration:none;font-weight:600;">${phone}</a> (Bấm để gọi)` : '<em>Chưa cung cấp</em>'}
+                    ${inquiry.phone ? `<a href="tel:${phone}" style="color:#2563eb;text-decoration:none;font-weight:600;">${phone}</a> (Nhấn để gọi)` : '<em>Chưa cung cấp</em>'}
                   </td>
                 </tr>
                 <tr style="border-bottom:1px solid #f5f5f4;">
@@ -66,7 +69,7 @@ export function buildStudioEmail({ inquiry, reference, settings, siteUrl = 'http
                   </td>
                 </tr>
                 <tr style="border-bottom:1px solid #f5f5f4;">
-                  <td style="padding:10px 0;color:#78716c;vertical-align:top;">Dịch vụ</td>
+                  <td style="padding:10px 0;color:#78716c;vertical-align:top;">Dịch vụ quan tâm</td>
                   <td style="padding:10px 0;color:#1c1917;font-weight:500;">${service}</td>
                 </tr>
                 <tr style="border-bottom:1px solid #f5f5f4;">
@@ -84,7 +87,7 @@ export function buildStudioEmail({ inquiry, reference, settings, siteUrl = 'http
               </table>
 
               <div style="margin:28px 0 12px;text-align:center;">
-                <a href="${adminUrl}" style="display:inline-block;padding:12px 28px;background:#1c1917;color:#faf8f5;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500;">Mở trang Quản trị Studio</a>
+                <a href="${adminUrl}" style="display:inline-block;padding:12px 28px;background:#1c1917;color:#faf8f5;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500;">Mở trang quản trị</a>
               </div>
             </td>
           </tr>
@@ -106,31 +109,36 @@ export function buildStudioEmail({ inquiry, reference, settings, siteUrl = 'http
 Họ và tên: ${inquiry.name}
 Số điện thoại: ${inquiry.phone || 'Chưa cung cấp'}
 Email: ${inquiry.email || 'Chưa cung cấp'}
-Dịch vụ: ${inquiry.service || 'Chưa chọn'}
-Ngày dự kiến: ${inquiry.date || 'Chưa chốt ngày'}
-Ngân sách: ${inquiry.budget || 'Chưa cung cấp'}
-Lời nhắn: ${inquiry.message || 'Không có'}
+Dịch vụ quan tâm: ${inquiry.service || 'Chưa chọn dịch vụ'}
+Ngày dự kiến: ${inquiry.date || 'Chưa xác định'}
+Ngân sách: ${budgetLabel(inquiry.budget)}
+Lời nhắn: ${inquiry.message || 'Không có lời nhắn'}
 
-Xem trong Quản trị: ${adminUrl}
+Ngày dự kiến chưa phải lịch chụp đã xác nhận.
+
+Mở trang quản trị: ${adminUrl}
 `;
 
   return { subject, html, text };
 }
 
 export function buildClientEmail({ inquiry, reference, settings, siteUrl = 'https://chicongphoto.vn' }) {
-  const brand = escapeHtml(settings?.brand || 'ChiCong');
+  const brandName = String(settings?.brand || 'ChiCong');
+  const brand = escapeHtml(brandName);
   const name = escapeHtml(inquiry.name);
-  const service = escapeHtml(inquiry.service || 'Tư vấn ngày cưới');
-  const date = escapeHtml(inquiry.date || 'Chưa chốt ngày');
-  const responseNote = escapeHtml(settings?.responseNote || 'Chí Công sẽ liên hệ lại qua Số điện thoại / Zalo trong thời gian sớm nhất để lắng nghe và trao đổi chi tiết.');
-  const phone = escapeHtml(settings?.phone || '0969910198');
+  const service = escapeHtml(inquiry.service || 'Chưa chọn dịch vụ');
+  const date = escapeHtml(inquiry.date || 'Chưa xác định');
+  const responseText = settings?.responseNote || 'Mình sẽ dựa trên thông tin hai bạn đã gửi để trao đổi thêm về buổi chụp.';
+  const responseNote = escapeHtml(responseText);
+  const phoneNumber = settings?.phone || '0969910198';
+  const phone = escapeHtml(phoneNumber);
   const zalo = settings?.zalo || (settings?.phone ? `https://zalo.me/${settings.phone}` : 'https://zalo.me/0969910198');
   const facebook = settings?.facebook || 'https://facebook.com/chicongphoto';
 
-  const subject = `${brand} đã nhận lời nhắn của bạn (Mã: #${reference})`;
+  const subject = `${brandName.replace(/[\r\n]/g, ' ')} đã nhận lời nhắn của bạn (#${reference})`;
 
   const html = `<!doctype html>
-<html>
+<html lang="vi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -145,7 +153,7 @@ export function buildClientEmail({ inquiry, reference, settings, siteUrl = 'http
           <tr>
             <td style="padding:32px 32px 20px;text-align:center;border-bottom:1px solid #f5f5f4;">
               <h1 style="margin:0;font-family:Georgia,serif;font-size:24px;font-weight:400;letter-spacing:0.04em;color:#1c1917;">${brand}</h1>
-              <p style="margin:4px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#a8a29e;">Wedding Photography</p>
+              <p style="margin:4px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#a8a29e;">Chụp ảnh cưới</p>
             </td>
           </tr>
           <!-- Body -->
@@ -154,11 +162,11 @@ export function buildClientEmail({ inquiry, reference, settings, siteUrl = 'http
               <p style="margin:0 0 16px;font-size:16px;color:#1c1917;">Chào <strong>${name}</strong>,</p>
               
               <p style="margin:0 0 18px;font-size:14px;color:#44403c;">
-                Cảm ơn hai bạn đã ghé thăm portfolio và gửi lời nhắn cho Chí Công Studio! Mình đã nhận được thông tin yêu cầu tư vấn:
+                Cảm ơn hai bạn đã gửi yêu cầu tư vấn cho ${brand}. Mình đã nhận được những thông tin sau:
               </p>
 
               <div style="background:#faf8f5;border-radius:8px;padding:16px 20px;margin-bottom:20px;border-left:3px solid #1c1917;">
-                <p style="margin:0 0 8px;font-size:13px;color:#78716c;">Mã tham chiếu: <strong style="color:#1c1917;">#${reference}</strong></p>
+                <p style="margin:0 0 8px;font-size:13px;color:#78716c;">Mã yêu cầu: <strong style="color:#1c1917;">#${reference}</strong></p>
                 <p style="margin:0 0 8px;font-size:13px;color:#78716c;">Dịch vụ quan tâm: <strong style="color:#1c1917;">${service}</strong></p>
                 <p style="margin:0;font-size:13px;color:#78716c;">Ngày dự kiến: <strong style="color:#1c1917;">${date}</strong></p>
               </div>
@@ -167,8 +175,12 @@ export function buildClientEmail({ inquiry, reference, settings, siteUrl = 'http
                 ${responseNote}
               </p>
 
+              <p style="margin:0 0 20px;font-size:14px;color:#44403c;">
+                ${escapeHtml(inquiryNotice)}
+              </p>
+
               <p style="margin:0 0 24px;font-size:14px;color:#44403c;">
-                Nếu cần trao đổi gấp hoặc gửi thêm hình ảnh phong cách yêu thích, hai bạn có thể nhắn trực tiếp cho mình qua Zalo hoặc gọi số hotline bên dưới nhé.
+                Nếu muốn bổ sung lịch trình hoặc ảnh tham khảo, hai bạn có thể liên hệ theo thông tin bên dưới và gửi kèm mã yêu cầu.
               </p>
 
               <div style="text-align:center;margin-bottom:12px;">
@@ -180,9 +192,9 @@ export function buildClientEmail({ inquiry, reference, settings, siteUrl = 'http
           <!-- Footer -->
           <tr>
             <td style="padding:24px 32px;background:#faf8f5;border-top:1px solid #e7e5e4;font-size:12px;color:#78716c;text-align:center;line-height:1.7;">
-              <p style="margin:0;"><strong>${brand} · Vietnam Wedding Photographer</strong></p>
+              <p style="margin:0;"><strong>${brand} · Chụp ảnh cưới</strong></p>
               <p style="margin:4px 0 0;">Điện thoại: ${phone} · <a href="${siteUrl}" style="color:#1c1917;text-decoration:none;">${siteUrl}</a></p>
-              <p style="margin:4px 0 0;"><a href="${facebook}" style="color:#78716c;">Facebook Fanpage</a></p>
+              <p style="margin:4px 0 0;"><a href="${facebook}" style="color:#78716c;">Trang Facebook</a></p>
             </td>
           </tr>
         </table>
@@ -194,20 +206,24 @@ export function buildClientEmail({ inquiry, reference, settings, siteUrl = 'http
 
   const text = `Chào ${inquiry.name},
 
-Cảm ơn hai bạn đã gửi lời nhắn cho Chí Công Studio! Mình đã nhận được thông tin yêu cầu tư vấn:
-- Mã tham chiếu: #${reference}
-- Dịch vụ: ${inquiry.service || 'Tư vấn ngày cưới'}
-- Ngày dự kiến: ${inquiry.date || 'Chưa chốt ngày'}
+Cảm ơn hai bạn đã gửi yêu cầu tư vấn cho ${brandName}. Mình đã nhận được những thông tin sau:
+- Mã yêu cầu: #${reference}
+- Dịch vụ quan tâm: ${inquiry.service || 'Chưa chọn dịch vụ'}
+- Ngày dự kiến: ${inquiry.date || 'Chưa xác định'}
 
-${settings?.responseNote || 'Chí Công sẽ liên hệ lại qua Số điện thoại / Zalo trong thời gian sớm nhất.'}
+${responseText}
+
+${inquiryNotice}
+
+Nếu muốn bổ sung lịch trình hoặc ảnh tham khảo, hai bạn có thể liên hệ theo thông tin bên dưới và gửi kèm mã yêu cầu.
 
 Liên hệ trực tiếp:
-- Hotline: ${phone}
+- Điện thoại: ${phoneNumber}
 - Zalo: ${zalo}
 - Website: ${siteUrl}
 
 Thân mến,
-Chí Công Studio
+${brandName}
 `;
 
   return { subject, html, text };

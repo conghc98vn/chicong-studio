@@ -91,3 +91,25 @@ test('Slug migration fills multiple blank placeholders before adding its unique 
   await assert.rejects(db.run("UPDATE albums SET slug='cung-ten' WHERE id='two'"),/UNIQUE/);
  }finally{await db?.close();await rm(dir,{recursive:true,force:true});}
 });
+
+
+test('Copy upgrades preserve custom text, intentional blanks and stored settings',async()=>{
+ const {currentCopy,siteDefaults,legacyCopy}=await import('../web/site-copy.mjs');
+ const stored={...legacyCopy,brand:'Tên riêng',name:'Tên tác giả',email:'studio@example.com',phone:'',responseNote:'',heroSelection:'[]'};
+ const snapshot={...stored};
+ const upgraded=currentCopy(stored);
+ assert.equal(upgraded.about,siteDefaults.about);
+ assert.equal(upgraded.bookingNote,siteDefaults.bookingNote);
+ assert.equal(upgraded.tagline,siteDefaults.tagline);
+ assert.equal(upgraded.brand,stored.brand);
+ assert.equal(upgraded.name,stored.name);
+ assert.equal(upgraded.email,stored.email);
+ assert.equal(upgraded.heroSelection,'[]');
+ assert.equal(upgraded.phone,'');
+ assert.equal(upgraded.responseNote,'');
+ assert.deepEqual(stored,snapshot);
+ const custom={about:'Nội dung studio tự viết.',intro:'',bookingNote:'Nhắn cho mình để trao đổi.',tagline:'Ảnh theo cách của mình'};
+ for(const [key,value]of Object.entries(custom))assert.equal(currentCopy(custom)[key],value);
+ assert.deepEqual(currentCopy(upgraded),upgraded);
+ assert.equal(currentCopy({tagline:'Wedding Photographer'}).tagline,siteDefaults.tagline);
+});

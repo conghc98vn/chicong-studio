@@ -19,11 +19,11 @@ export async function postInquiry(payload,{fetcher=fetch,timeout=20000}={}){
  try{
   const response=await fetcher('/api/inquiries',{method:'POST',credentials:'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const result=await response.json();
-  if(!response.ok)throw Object.assign(Error(result.error||'Chưa gửi được yêu cầu. Vui lòng thử lại.'),{status:response.status,fields:result.fields});
+  if(!response.ok)throw Object.assign(Error(result.error||'Chưa gửi được yêu cầu tư vấn. Vui lòng thử gửi lại.'),{status:response.status,fields:result.fields});
   return result;
  }catch(error){
   if(error.status)throw error;
-  throw Error('Chưa xác nhận được yêu cầu đã gửi thành công. Thông tin bạn điền vẫn được giữ lại. Hãy thử gửi lại hoặc liên hệ trực tiếp.');
+  throw Error('Chưa xác nhận được yêu cầu tư vấn đã gửi thành công. Thông tin bạn điền vẫn được giữ lại trên trang này. Hãy thử gửi lại hoặc liên hệ trực tiếp.');
  }finally{clearTimeout(timer);}
 }
 function showErrors(form,fields){
@@ -61,10 +61,10 @@ export function initInquiryForm(form,{onSuccess,onDateConflict}){
   const {data,fields}=validateInquiry(raw);
   showErrors(form,fields);
   const summary=form.querySelector('.form-error');
-  if(Object.keys(fields).length){summary.textContent='Vui lòng kiểm tra thông tin được đánh dấu.';return;}
+  if(Object.keys(fields).length){summary.textContent='Vui lòng kiểm tra các mục được đánh dấu trong biểu mẫu.';return;}
   const submit=form.querySelector('[type=submit]'),original=submit.innerHTML;
   form.dataset.sending='true';form.setAttribute('aria-busy','true');summary.textContent='';
-  submit.disabled=true;submit.textContent='Đang gửi yêu cầu…';
+  submit.disabled=true;submit.textContent='Đang gửi yêu cầu tư vấn…';
   const inputs=[...form.querySelectorAll('input,select,textarea,button')].map(input=>({input,disabled:input.disabled}));
   inputs.forEach(({input})=>input.disabled=true);
   try{

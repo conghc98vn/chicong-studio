@@ -11,7 +11,7 @@ export class UploadQueue {
    try{result=await send(batch,batch.map(file=>this.keys.get(file)));}catch(error){
     if(error.data?.results)result=error.data;
     else if(error.status)throw error;
-    else throw Error('Kết nối bị gián đoạn. Bấm thử lại để tiếp tục; hệ thống sẽ nhận diện các ảnh đã lưu trong đợt vừa rồi.');
+    else throw Error('Kết nối bị gián đoạn. Giữ nguyên trang và bấm “Tải lại các ảnh còn lại” để tiếp tục. Hệ thống sẽ nhận diện những ảnh đã lưu trong lượt tải này.');
    }
    for(const item of result.results||[])if(item.success&&batch[item.index])this.done.add(batch[item.index]);
    progress(this.done.size,this.files.length);

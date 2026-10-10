@@ -43,7 +43,11 @@ test('Email templates format, escape and include essential consultation details'
   assert.ok(!client.html.includes('<script>alert(1)</script>'));
   assert.match(client.html, /Chí Công phản hồi trong 24 giờ/);
   assert.match(client.html, /zalo\.me\/0969910198/);
-  assert.match(client.text, /Mã tham chiếu: #a1b2c3d4/);
+  assert.match(client.text, /Mã yêu cầu: #a1b2c3d4/);
+  for(const body of [client.html,client.text])assert.match(body,/chưa có nghĩa là đã giữ lịch chụp/);
+  const special=buildStudioEmail({inquiry,reference:'a1b2c3d4',settings:{brand:'A & B'},siteUrl:'https://example.com'});
+  assert.match(special.subject,/A & B/);
+  assert.match(special.html,/A &amp; B/);
 });
 
 test('createMailer detects configuration and supports mock transports', async () => {

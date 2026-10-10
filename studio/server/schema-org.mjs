@@ -1,3 +1,4 @@
+import {categoryLabels} from '../web/ui-copy.mjs';
 export function buildSchemaOrg({site,album,url,imagePhoto,path}){
  const siteUrl=url.replace(/\/$/,'');
  const sameAs=[site.instagram,site.facebook,site.zalo].filter(Boolean);
@@ -18,28 +19,22 @@ export function buildSchemaOrg({site,album,url,imagePhoto,path}){
   },
   priceRange:'$$',
   knowsAbout:[
-   'Wedding Photography',
-   'Pre-wedding',
+   'Nhiếp ảnh cưới',
+   'Ảnh trước ngày cưới',
    'Phóng sự cưới',
    'Chụp ảnh cưới',
-   'Couple Photography'
+   'Ảnh cặp đôi'
   ],
   founder:{
    '@type':'Person',
    name:site.name||'Chí Công',
-   jobTitle:site.tagline||'Wedding Photographer'
+   jobTitle:site.tagline||'Nhiếp ảnh gia cưới'
   },
   ...(sameAs.length?{sameAs}:{})
  };
 
  if(path.startsWith('/album/')&&album&&album.status==='published'){
-  const categoryLabels={
-   wedding:'Ngày cưới',
-   prewedding:'Pre-wedding',
-   couple:'Couple',
-   portrait:'Chân dung',
-   story:'Câu chuyện'
-  };
+  const legacyCategoryLabels={couple:'Cặp đôi',story:'Câu chuyện'};
   return {
    '@context':'https://schema.org',
    '@graph':[
@@ -51,7 +46,7 @@ export function buildSchemaOrg({site,album,url,imagePhoto,path}){
      name:album.title,
      headline:album.title,
      description:album.description||site.intro||'',
-     genre:categoryLabels[album.category]||album.category,
+     genre:categoryLabels[album.category]||legacyCategoryLabels[album.category]||album.category,
      author:{'@id':siteUrl+'/#studio'},
      creator:{
       '@type':'Person',
@@ -75,7 +70,7 @@ export function buildSchemaOrg({site,album,url,imagePhoto,path}){
   ?(site.brand+' · '+site.tagline)
   :(path==='/portfolio'?'Bộ ảnh · '+site.brand
   :(path==='/about'?'Giới thiệu · '+site.brand
-  :(path==='/contact'?'Liên hệ & đặt lịch · '+site.brand
+  :(path==='/contact'?'Liên hệ & tư vấn · '+site.brand
   :site.brand)));
 
  return {
