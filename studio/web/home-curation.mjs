@@ -1,6 +1,6 @@
-import {parseSelection} from './hero-slides.mjs';
+import {parseSelection,selectHeroSlides} from './hero-slides.mjs';
 // Visually selected from the current public portfolio. IDs survive album reordering.
-const heroChoice = {"albumId":"4c5afcfeff9518b24e9da470aeb58fd8","photoId":"62e964452f59aa8b30058e3530c0d94b"};
+const defaultHeroChoice = {"albumId":"4c5afcfeff9518b24e9da470aeb58fd8","photoId":"62e964452f59aa8b30058e3530c0d94b"};
 export const defaultStorySelection = [
   {
     "albumId": "f5364d170eb33dd7663dd3a83728e192",
@@ -28,11 +28,19 @@ export const defaultStorySelection = [
   }
 ];
 
-export function curateHome(albums,config='') {
+function currentHeroChoice(albums,heroConfig){
+ const first=selectHeroSlides(albums,heroConfig)[0];
+ return first ? {albumId:first.album.id, photoId:first.tall.id} : defaultHeroChoice;
+}
+
+export function curateHome(albums,config='',heroConfig='') {
+ const heroChoice=currentHeroChoice(albums,heroConfig);
  const choices=parseSelection(config,defaultStorySelection);
  const available = albums.filter(a => a.photos.length);
  const heroAlbum = available.find(a => a.id === heroChoice.albumId) || available[0];
- const heroPhoto = heroAlbum?.photos.find(p => p.id === heroChoice.photoId) || heroAlbum?.photos.find(p => p.id === heroAlbum.cover_id) || heroAlbum?.photos[0];
+ const heroPhoto = heroAlbum?.photos.find(p => p.id === heroChoice.photoId)
+  || heroAlbum?.photos.find(p => p.id === heroAlbum.cover_id)
+  || heroAlbum?.photos[0];
  const ordered = [...choices.map(choice => available.find(a => a.id === choice.albumId)), ...available];
  const used = new Set(!config&&heroAlbum ? [heroAlbum.id] : []);
  const stories = [];
@@ -40,7 +48,9 @@ export function curateHome(albums,config='') {
   if (!album || used.has(album.id)) continue;
   used.add(album.id);
   const choice = choices.find(c => c.albumId === album.id);
-  const photo = album.photos.find(p => p.id === choice?.photoId) || album.photos.find(p => p.id === album.cover_id) || album.photos[0];
+  const photo = album.photos.find(p => p.id === choice?.photoId)
+   || album.photos.find(p => p.id === album.cover_id)
+   || album.photos[0];
   stories.push({album, photo});
   if (stories.length === 6) break;
  }
@@ -48,7 +58,8 @@ export function curateHome(albums,config='') {
 }
 
 // Share the selection with the portfolio and next-story navigation.
-export function curatePortfolio(albums,config='') {
+export function curatePortfolio(albums,config='',heroConfig='') {
+ const heroChoice=currentHeroChoice(albums,heroConfig);
  const choices = [...parseSelection(config,defaultStorySelection), heroChoice];
  const ordered = [...choices.map(choice => albums.find(a => a.id === choice.albumId)), ...albums];
  const used = new Set();
@@ -58,13 +69,15 @@ export function curatePortfolio(albums,config='') {
   return true;
  }).map(album => {
   const choice = choices.find(c => c.albumId === album.id);
-  const photo = album.photos.find(p => p.id === choice?.photoId) || album.photos.find(p => p.id === album.cover_id) || album.photos[0];
+  const photo = album.photos.find(p => p.id === choice?.photoId)
+   || album.photos.find(p => p.id === album.cover_id)
+   || album.photos[0];
   return {album, photo};
  });
 }
 
-export function nextStories(albums, currentId,config='') {
- const stories = curatePortfolio(albums,config).filter(story => story.photo);
+export function nextStories(albums, currentId,config='',heroConfig='') {
+ const stories = curatePortfolio(albums,config,heroConfig).filter(story => story.photo);
  const index = stories.findIndex(story => story.album.id === currentId);
  return [...stories.slice(index + 1), ...stories.slice(0, Math.max(0, index))]
   .filter(story => story.album.id !== currentId).slice(0, 2);
