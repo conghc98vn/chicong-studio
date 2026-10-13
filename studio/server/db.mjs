@@ -33,6 +33,7 @@ export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS photo_upload_key ON photos(album_id,upload_key) WHERE upload_key IS NOT NULL;
  CREATE INDEX IF NOT EXISTS photos_album_position ON photos(album_id,position);
  CREATE INDEX IF NOT EXISTS sessions_expires ON sessions(expires);
+ CREATE INDEX IF NOT EXISTS rate_limits_expires ON rate_limits(expires);
  CREATE INDEX IF NOT EXISTS albums_status_created ON albums(status,created);
  CREATE INDEX IF NOT EXISTS inquiries_status_created ON inquiries(status,created);`);
  await migrateAlbumSlugs(db);

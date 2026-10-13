@@ -1,4 +1,15 @@
 let dispose=()=>{};
+function loadSlide(slide){
+ const photo=slide.querySelector('img');
+ if(photo.dataset?.src){
+  // Hidden slides have no network URLs until needed; opacity alone does not defer them.
+  for(const source of slide.querySelectorAll('source[data-srcset]')){source.srcset=source.dataset.srcset;delete source.dataset.srcset;}
+  photo.loading='eager';
+  if(photo.dataset.srcset){photo.srcset=photo.dataset.srcset;delete photo.dataset.srcset;}
+  photo.src=photo.dataset.src;delete photo.dataset.src;
+ }
+ return photo;
+}
 export function initHeroSlideshow(root){
  dispose();
  if(!root)return;
@@ -15,7 +26,7 @@ export function initHeroSlideshow(root){
   for(let attempt=0;attempt<slides.length;attempt++){
    const target=((next+attempt*direction)%slides.length+slides.length)%slides.length;
    if(target===index)continue;
-   try{await slides[target].querySelector('img').decode();}catch{continue;}
+   try{await loadSlide(slides[target]).decode();}catch{continue;}
    if(token!==request||(!manual&&(paused||!visible||document.hidden)))return;
    slides[index].classList.remove('is-active');slides[index].setAttribute('aria-hidden','true');
    index=target;ready=true;slides[index].classList.add('is-active');slides[index].setAttribute('aria-hidden','false');

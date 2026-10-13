@@ -33,6 +33,13 @@ function currentHeroChoice(albums,heroConfig){
  return first ? {albumId:first.album.id, photoId:first.tall.id} : defaultHeroChoice;
 }
 
+export function homeHeroSlides(albums,storyConfig='',heroConfig=''){
+ const slides=selectHeroSlides(albums,heroConfig);
+ if(slides.length)return slides;
+ const {heroAlbum,heroPhoto}=curateHome(albums,storyConfig,heroConfig);
+ return heroAlbum&&heroPhoto?[{album:heroAlbum,wide:heroPhoto,tall:heroPhoto}]:[];
+}
+
 export function curateHome(albums,config='',heroConfig='') {
  const heroChoice=currentHeroChoice(albums,heroConfig);
  const choices=parseSelection(config,defaultStorySelection);

@@ -4,8 +4,9 @@ import {findAlbum,reserveAlbumSlug} from './album-slugs.mjs';
 import {validateInquiry} from '../web/inquiry-validation.mjs';
 import {currentCopy} from '../web/site-copy.mjs';
 import {inquiryNotice} from '../web/ui-copy.mjs';
-import {selectHeroSlides,parseSelection,defaultHeroSelection} from '../web/hero-slides.mjs';
-import {defaultStorySelection} from '../web/home-curation.mjs';
+import {parseSelection,defaultHeroSelection} from '../web/hero-slides.mjs';
+import {defaultStorySelection,homeHeroSlides} from '../web/home-curation.mjs';
+import {imageSources,heroDesktopSizes,heroMobileSizes} from '../web/responsive-image.mjs';
 import {createMailer} from './mailer.mjs';
 import express from 'express';
 import multer from 'multer';
@@ -15,6 +16,7 @@ import {createHash,randomBytes} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {openDatabase,id,hashPassword,verifyPassword} from './db.mjs';
 import {createStorage} from './storage.mjs';
+import {requestSecurity} from './request-security.mjs';
 const digest=t=>createHash('sha256').update(t).digest('hex');
 const categories=['wedding','prewedding','portrait','lifestyle'];
 const albumStatuses=['draft','published','private','archived'];
@@ -29,27 +31,46 @@ const asyncRoute=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
 export async function createApp(options={}){
  const production=options.production??process.env.NODE_ENV==='production';
  const env=options.env||process.env;const dataDir=options.dataDir||env.DATA_DIR||path.resolve('data/live');
+ const security=requestSecurity({production,origin:options.origin,env});
  if(production&&(!env.DATABASE_URL||!env.SUPABASE_URL))throw Error('Production requires persistent DATABASE_URL and SUPABASE_URL. See HOSTING.md.');
  const db=options.db||await openDatabase(dataDir,{url:env.DATABASE_URL});const storage=options.storage||createStorage(path.join(dataDir,'uploads'),env);
  const mailer=options.mailer||createMailer(env);
  const googleCalendar=options.googleCalendar||createGoogleCalendar(env);
  await storage.init?.();
- const app=express();app.disable('x-powered-by');if(production)app.set('trust proxy',1);
+ const app=express();app.disable('x-powered-by');app.set('trust proxy',security.trustProxy);
  app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",'Permissions-Policy':'camera=(), microphone=(), geolocation=()'});if(production)res.set('Strict-Transport-Security','max-age=31536000');next();});
+ app.use(security.middleware);
  app.use(express.json({limit:'128kb'}));
  app.use((req,res,next)=>{req.body??={};next();});
- app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');if(!['GET','HEAD','OPTIONS'].includes(req.method)){const expected=new URL(options.origin||env.SITE_URL||`${req.protocol}://${req.get('host')}`).origin;const local=`${req.protocol}://${req.get('host')}`;if(req.get('origin')!==expected&&req.get('origin')!==local)return res.status(403).json({error:'Không thể gửi từ trang này. Vui lòng tải lại trang rồi thử lại.'});}next();});
  const cookies=req=>Object.fromEntries((req.headers.cookie||'').split(';').map(p=>{const i=p.indexOf('=');return [p.slice(0,i).trim(),p.slice(i+1).trim()];}).filter(([k])=>k));
  const session=async(req,name)=>{const token=cookies(req)[name];if(!token)return;return db.get('SELECT * FROM sessions WHERE token=? AND expires>?',[digest(token),Date.now()]);};
  // Express middleware requires next(), unlike terminal route handlers.
  const requireAdmin=(req,res,next)=>{session(req,'studio_admin').then(s=>{if(!s?.admin_id)throw fail(401,'Vui lòng đăng nhập để vào trang quản trị.');req.admin=s.admin_id;next();}).catch(next);};
  const allowed=async(req,a)=>{if(a.status==='published')return true;if((await session(req,'studio_admin'))?.admin_id)return true;const s=await session(req,'gallery_'+a.id);return a.status==='private'&&s?.album_id===a.id;};
  const makeSession=async(res,{admin,album})=>{await db.run('DELETE FROM sessions WHERE expires<?',[Date.now()]);const token=randomBytes(32).toString('hex');const age=admin?12*3600000:7*86400000;await db.run('INSERT INTO sessions(token,admin_id,album_id,expires) VALUES(?,?,?,?)',[digest(token),admin||null,album||null,Date.now()+age]);res.cookie(admin?'studio_admin':'gallery_'+album,token,{httpOnly:true,sameSite:'strict',secure:production,maxAge:age,path:'/'});};
- const rate=async(req,key,max=10)=>{const k=digest(key+':'+req.ip);const time=Date.now();const row=await db.get('INSERT INTO rate_limits(key,count,expires) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.expires<? THEN 1 ELSE rate_limits.count+1 END,expires=CASE WHEN rate_limits.expires<? THEN ? ELSE rate_limits.expires END WHERE rate_limits.expires<? OR rate_limits.count<? RETURNING count',[k,time+900000,time,time,time+900000,time,max]);if(!row)throw fail(429,'Bạn đã thao tác nhiều lần liên tiếp. Vui lòng thử lại sau 15 phút.');await db.run('DELETE FROM rate_limits WHERE expires<?',[time]);};
+ let nextRateCleanup=0;
+ const rate=async(req,key,max=10)=>{
+  const k=digest(key+':'+req.ip),time=Date.now();
+  // Indexed, at most once per minute per process, including under concurrent traffic.
+  if(time>=nextRateCleanup){nextRateCleanup=time+60000;try{await db.run('DELETE FROM rate_limits WHERE expires<?',[time]);}catch(error){nextRateCleanup=0;throw error;}}
+  const row=await db.get('INSERT INTO rate_limits(key,count,expires) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.expires<? THEN 1 ELSE rate_limits.count+1 END,expires=CASE WHEN rate_limits.expires<? THEN ? ELSE rate_limits.expires END WHERE rate_limits.expires<? OR rate_limits.count<? RETURNING count',[k,time+900000,time,time,time+900000,time,max]);
+  if(!row)throw fail(429,'Bạn đã thao tác nhiều lần liên tiếp. Vui lòng thử lại sau 15 phút.');
+ };
  const settings=async()=>currentCopy(Object.fromEntries((await db.all('SELECT * FROM settings')).map(r=>[r.key,r.value])));
- const albumDTO=async(a,admin=false)=>{const photos=await db.all('SELECT * FROM photos WHERE album_id=? ORDER BY position,id',[a.id]);const selected=new Set((await db.all('SELECT photo_id FROM selections WHERE album_id=?',[a.id])).map(s=>s.photo_id));return {id:a.id,slug:a.slug,title:a.title,category:a.category,description:a.description,status:a.status,event_date:a.event_date,selection_status:a.selection_status,cover_id:a.cover_id,created:a.created,...(admin?{client_name:a.client_name,has_password:!!a.password}:{}),photos:photos.map(p=>({id:p.id,caption:p.caption,original:p.original,width:p.width,height:p.height,position:p.position,src:'/media/'+p.id,thumb:'/media/'+p.id+'?size=thumb',selected:selected.has(p.id)}))};};
- const portfolioCards=async()=>{
-  const config=await settings();
+ const albumDTOs=async(rows,admin=false)=>{
+  if(!rows.length)return [];
+  const ids=rows.map(a=>a.id),placeholders=ids.map(()=>'?').join(',');
+  const [photos,selections]=await Promise.all([
+   db.all('SELECT * FROM photos WHERE album_id IN ('+placeholders+') ORDER BY position,id',ids),
+   db.all('SELECT photo_id FROM selections WHERE album_id IN ('+placeholders+')',ids)
+  ]);
+  const selected=new Set(selections.map(s=>s.photo_id)),grouped=new Map();
+  for(const p of photos){const list=grouped.get(p.album_id)||[];list.push(p);grouped.set(p.album_id,list);}
+  return rows.map(a=>({id:a.id,slug:a.slug,title:a.title,category:a.category,description:a.description,status:a.status,event_date:a.event_date,selection_status:a.selection_status,cover_id:a.cover_id,created:a.created,...(admin?{client_name:a.client_name,has_password:!!a.password}:{}),photos:(grouped.get(a.id)||[]).map(p=>({id:p.id,caption:p.caption,original:p.original,width:p.width,height:p.height,position:p.position,src:'/media/'+p.id,thumb:'/media/'+p.id+'?size=thumb',selected:selected.has(p.id)}))}));
+ };
+ const albumDTO=async(a,admin=false)=>(await albumDTOs([a],admin))[0];
+ const portfolioCards=async(config=undefined)=>{
+  config??=await settings();
   const choices=[...parseSelection(config.heroSelection,defaultHeroSelection),...parseSelection(config.storySelection,defaultStorySelection)];
   const rows=await db.all("SELECT albums.*,(SELECT COUNT(*) FROM photos WHERE album_id=albums.id) AS photo_count FROM albums WHERE status='published' ORDER BY created DESC");
   if(!rows.length)return [];
@@ -66,14 +87,23 @@ export async function createApp(options={}){
  };
  app.get('/api/site',asyncRoute(async(req,res)=>res.json(await settings())));
  app.get('/api/health',async(req,res)=>{try{await db.get('SELECT key FROM settings LIMIT 1');res.json({ok:true});}catch{res.status(503).json({ok:false});}});
- app.get('/api/portfolio',asyncRoute(async(req,res)=>{if(req.query.view==='cards')return res.json(await portfolioCards());const rows=await db.all("SELECT * FROM albums WHERE status='published' ORDER BY created DESC");res.json(await Promise.all(rows.map(a=>albumDTO(a))));}));
+ app.get('/api/portfolio',asyncRoute(async(req,res)=>{if(req.query.view==='cards')return res.json(await portfolioCards());const rows=await db.all("SELECT * FROM albums WHERE status='published' ORDER BY created DESC");res.json(await albumDTOs(rows));}));
  app.get('/api/albums/:key',asyncRoute(async(req,res)=>{const a=await findAlbum(db,req.params.key);if(!a||!await allowed(req,a))throw fail(404,'Không tìm thấy bộ ảnh.');res.json(await albumDTO(a));}));
  app.get('/api/gallery/:id',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a)throw fail(404,'Bộ ảnh riêng không còn khả dụng. Bạn hãy liên hệ nhiếp ảnh gia để kiểm tra lại đường dẫn.');if(!await allowed(req,a))return res.json({locked:true});res.json(await albumDTO(a));}));
- app.post('/api/gallery/:id/unlock',asyncRoute(async(req,res)=>{await rate(req,'gallery:'+req.params.id,8);const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a||!verifyPassword(clean(req.body.password,200),a.password||''))throw fail(401,'Mật khẩu chưa đúng hoặc bộ ảnh riêng đã đóng. Bạn hãy kiểm tra lại mật khẩu hoặc liên hệ nhiếp ảnh gia.');await makeSession(res,{album:a.id});res.json({success:true});}));
+ app.post('/api/gallery/:id/unlock',asyncRoute(async(req,res)=>{
+  await rate(req,'gallery-attempt',60);
+  const invalid=()=>fail(401,'Mật khẩu chưa đúng hoặc bộ ảnh riêng đã đóng. Bạn hãy kiểm tra lại mật khẩu hoặc liên hệ nhiếp ảnh gia.');
+  if(!/^[a-f0-9]{32}$/.test(req.params.id))throw invalid();
+  const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);
+  if(!a)throw invalid();
+  await rate(req,'gallery:'+a.id,8);
+  if(!verifyPassword(clean(req.body.password,200),a.password||''))throw invalid();
+  await makeSession(res,{album:a.id});res.json({success:true});
+ }));
  app.post('/api/gallery/:id/logout',asyncRoute(async(req,res)=>{const token=cookies(req)['gallery_'+req.params.id];if(token)await db.run('DELETE FROM sessions WHERE token=?',[digest(token)]);res.clearCookie('gallery_'+req.params.id,{path:'/',httpOnly:true,sameSite:'strict',secure:production});res.json({success:true});}));
  app.put('/api/gallery/:id/selection/:photo',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a||!await allowed(req,a))throw fail(401,'Vui lòng nhập mật khẩu để mở bộ ảnh riêng.');const p=await db.get('SELECT id FROM photos WHERE id=? AND album_id=?',[req.params.photo,a.id]);if(!p)throw fail(404,'Không tìm thấy ảnh.');if(typeof req.body.selected!=='boolean')throw fail(422,'Chưa lưu được lựa chọn ảnh. Vui lòng tải lại trang rồi thử lại.');if(req.body.selected)await db.run('INSERT INTO selections(album_id,photo_id,updated) VALUES(?,?,?) ON CONFLICT(album_id,photo_id) DO UPDATE SET updated=excluded.updated',[a.id,p.id,now()]);else await db.run('DELETE FROM selections WHERE album_id=? AND photo_id=?',[a.id,p.id]);await db.run("UPDATE albums SET selection_status='draft' WHERE id=?",[a.id]);res.json({success:true});}));
  app.post('/api/gallery/:id/submit',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a||!await allowed(req,a))throw fail(401,'Vui lòng nhập mật khẩu để mở bộ ảnh riêng.');if(!await db.get('SELECT photo_id FROM selections WHERE album_id=? LIMIT 1',[a.id]))throw fail(422,'Vui lòng chọn ít nhất một ảnh trước khi gửi danh sách.');await db.run("UPDATE albums SET selection_status='submitted' WHERE id=?",[a.id]);res.json({success:true});}));
- app.get('/media/:id',asyncRoute(async(req,res)=>{const p=await db.get('SELECT photos.*,albums.status,albums.password FROM photos JOIN albums ON photos.album_id=albums.id WHERE photos.id=?',[req.params.id]);if(!p||!await allowed(req,{id:p.album_id,status:p.status}))throw fail(404,'Không tìm thấy ảnh.');const thumb=req.query.size==='thumb';res.set({'Content-Type':'image/webp','Cache-Control':p.status==='published'?'public,max-age=3600':'private,no-store','ETag':'"'+p.id+(thumb?'-thumb':'-full')+'"'});if(req.fresh)return res.status(304).end();if(req.method==='HEAD')return res.end();const buffer=await storage.get(p.filename+(thumb?'-thumb':'')+'.webp');res.send(buffer);}));
+ app.get('/media/:id',asyncRoute(async(req,res)=>{res.set('Cache-Control','private,no-store');const p=await db.get('SELECT photos.*,albums.status,albums.password FROM photos JOIN albums ON photos.album_id=albums.id WHERE photos.id=?',[req.params.id]);if(!p||!await allowed(req,{id:p.album_id,status:p.status}))throw fail(404,'Không tìm thấy ảnh.');const thumb=req.query.size==='thumb';res.set({'Content-Type':'image/webp','Cache-Control':p.status==='published'?'private,no-cache':'private,no-store','ETag':'"'+p.id+(thumb?'-thumb':'-full')+'"'});if(req.fresh)return res.status(304).end();if(req.method==='HEAD')return res.end();const buffer=await storage.get(p.filename+(thumb?'-thumb':'')+'.webp');res.send(buffer);}));
  app.get('/api/availability',asyncRoute(async(req,res)=>{const rows=await db.all("SELECT date FROM blocked_dates UNION SELECT date FROM inquiries WHERE status='confirmed' AND date<>''");const google=await googleCalendar.read();res.json({blocked:[...new Set([...rows.map(r=>r.date),...google.blocked])],today:today(),...(google.configured?{unavailable:!!google.unavailable,through:google.through}:{})});}));
  app.post('/api/inquiries',asyncRoute(async(req,res)=>{
   // A generous outer guard covers malformed traffic without charging the submission quota.
@@ -121,12 +151,12 @@ export async function createApp(options={}){
   }
  }));
  app.get('/api/admin/session',asyncRoute(async(req,res)=>{const admin=await session(req,'studio_admin');res.json({authenticated:!!admin?.admin_id,needsSetup:!await db.get('SELECT id FROM admins LIMIT 1')});}));
- app.post('/api/admin/setup',asyncRoute(async(req,res)=>{await rate(req,'setup',5);if(await db.get('SELECT id FROM admins LIMIT 1'))throw fail(409,'Tài khoản quản trị đã được tạo.');const local=['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);if((production||!local)&&(!env.SETUP_TOKEN||req.body.token!==env.SETUP_TOKEN))throw fail(403,'Vui lòng nhập mã thiết lập đã cấu hình trong SETUP_TOKEN.');const email=clean(req.body.email,150),password=clean(req.body.password,200);if(!validEmail(email)||password.length<12)throw fail(422,'Vui lòng nhập email hợp lệ và mật khẩu từ 12 ký tự.');const admin='owner';try{await db.run('INSERT INTO admins(id,email,password) VALUES(?,?,?)',[admin,email,hashPassword(password)]);}catch{throw fail(409,'Tài khoản quản trị đã được tạo. Vui lòng đăng nhập.');}await makeSession(res,{admin});res.status(201).json({success:true});}));
+ app.post('/api/admin/setup',asyncRoute(async(req,res)=>{await rate(req,'setup',5);if(await db.get('SELECT id FROM admins LIMIT 1'))throw fail(409,'Tài khoản quản trị đã được tạo.');if((!req.localSetup||env.SETUP_TOKEN)&&(!env.SETUP_TOKEN||req.body.token!==env.SETUP_TOKEN))throw fail(403,'Vui lòng nhập mã thiết lập đã cấu hình trong SETUP_TOKEN.');const email=clean(req.body.email,150),password=clean(req.body.password,200);if(!validEmail(email)||password.length<12)throw fail(422,'Vui lòng nhập email hợp lệ và mật khẩu từ 12 ký tự.');const admin='owner';try{await db.run('INSERT INTO admins(id,email,password) VALUES(?,?,?)',[admin,email,hashPassword(password)]);}catch{throw fail(409,'Tài khoản quản trị đã được tạo. Vui lòng đăng nhập.');}await makeSession(res,{admin});res.status(201).json({success:true});}));
  app.post('/api/admin/login',asyncRoute(async(req,res)=>{await rate(req,'login',8);const a=await db.get('SELECT * FROM admins WHERE email=?',[clean(req.body.email,150)]);if(!a||!verifyPassword(clean(req.body.password,200),a.password))throw fail(401,'Email hoặc mật khẩu chưa đúng.');await makeSession(res,{admin:a.id});res.json({success:true});}));
  app.post('/api/admin/logout',requireAdmin,asyncRoute(async(req,res)=>{const t=cookies(req).studio_admin;await db.run('DELETE FROM sessions WHERE token=?',[digest(t)]);res.clearCookie('studio_admin',{path:'/',httpOnly:true,sameSite:'strict',secure:production});res.json({success:true});}));
  app.use('/api/admin',requireAdmin);
  app.get('/api/admin/dashboard',asyncRoute(async(req,res)=>{const albums=await db.all('SELECT status,COUNT(*) AS count FROM albums GROUP BY status');const inquiries=await db.all('SELECT status,COUNT(*) AS count FROM inquiries GROUP BY status');const recent=await db.all('SELECT * FROM inquiries ORDER BY created DESC LIMIT 5');const selections=await db.all("SELECT id,title FROM albums WHERE status='private' AND selection_status='submitted'");const photos=await db.get('SELECT COUNT(*) AS count FROM photos');const s=await settings();const visible=await db.get("SELECT COUNT(*) AS count FROM albums WHERE status='published' AND EXISTS(SELECT 1 FROM photos WHERE photos.album_id=albums.id)");res.json({albums,inquiries,recent,selections,photos:photos.count,readiness:{contact:!!(s.email||s.phone),portfolio:Number(visible.count)>0,cloud:!!db.cloud&&!!storage.cloud,production}});}));
- app.get('/api/admin/albums',asyncRoute(async(req,res)=>{const rows=await db.all('SELECT * FROM albums ORDER BY created DESC');res.json(await Promise.all(rows.map(a=>albumDTO(a,true))));}));
+ app.get('/api/admin/albums',asyncRoute(async(req,res)=>{const rows=await db.all('SELECT * FROM albums ORDER BY created DESC');res.json(await albumDTOs(rows,true));}));
  app.post('/api/admin/albums',asyncRoute(async(req,res)=>{const title=clean(req.body.title,150),category=clean(req.body.category),status=clean(req.body.status)||'draft',password=clean(req.body.password,200);if((req.body.event_date&&!validDate(clean(req.body.event_date,10)))||!title||!categories.includes(category)||!albumStatuses.includes(status)||(status==='private'&&password.length<8))throw fail(422,'Vui lòng kiểm tra tên, thể loại, trạng thái và ngày chụp. Bộ ảnh riêng cần mật khẩu từ 8 ký tự.');const key=id();const slug=await reserveAlbumSlug(db,clean(req.body.slug,150)||title,key);await db.run('INSERT INTO albums(id,slug,title,category,description,status,password,client_name,event_date,created) VALUES(?,?,?,?,?,?,?,?,?,?)',[key,slug,title,category,clean(req.body.description,2000),status,password?hashPassword(password):null,clean(req.body.client_name,150),clean(req.body.event_date,10),now()]);res.status(201).json({id:key,slug});}));
  app.patch('/api/admin/albums/:id',asyncRoute(async(req,res)=>{const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');const title=clean(req.body.title,150),category=clean(req.body.category),status=clean(req.body.status),password=clean(req.body.password,200);if((req.body.event_date&&!validDate(clean(req.body.event_date,10)))||!title||!categories.includes(category)||!albumStatuses.includes(status)||(password&&password.length<8)||(status==='private'&&!password&&!a.password))throw fail(422,'Vui lòng kiểm tra tên, thể loại, trạng thái và ngày chụp. Mật khẩu mới cần từ 8 ký tự; bộ ảnh riêng phải có mật khẩu.');const cover=clean(req.body.cover_id)||a.cover_id;if(cover&&!await db.get('SELECT id FROM photos WHERE id=? AND album_id=?',[cover,a.id]))throw fail(422,'Ảnh bìa không thuộc bộ ảnh này. Vui lòng chọn ảnh khác.');const slug=await reserveAlbumSlug(db,req.body.slug===undefined?(a.slug||title):(clean(req.body.slug,150)||title),a.id);await db.run('UPDATE albums SET slug=?,title=?,category=?,description=?,status=?,password=?,client_name=?,event_date=?,cover_id=? WHERE id=?',[slug,title,category,clean(req.body.description,2000),status,password?hashPassword(password):a.password,clean(req.body.client_name,150),clean(req.body.event_date,10),cover,a.id]);if(password||status!==a.status)await db.run('DELETE FROM sessions WHERE album_id=?',[a.id]);res.json({success:true,slug});}));
  app.put('/api/admin/albums/:id/order',asyncRoute(async(req,res)=>{
@@ -148,8 +178,9 @@ export async function createApp(options={}){
   res.status(201).json({success:true});
  }));
  app.get('/portrait/:id',asyncRoute(async(req,res)=>{
+  res.set('Cache-Control','private,no-store');
   const s=await settings();if(!/^[a-f0-9]{32}$/.test(req.params.id)||s.portrait!==req.params.id)throw fail(404,'Không tìm thấy ảnh.');
-  res.type('webp').set('Cache-Control','public,max-age=3600').send(await storage.get(req.params.id+'.webp'));
+  res.type('webp').set('Cache-Control','private,no-cache').send(await storage.get(req.params.id+'.webp'));
  }));
  app.post('/api/admin/albums/:id/photos',upload.array('photos',8),asyncRoute(async(req,res)=>{
  const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');if(!req.files?.length)throw fail(422,'Vui lòng chọn ảnh JPEG, PNG hoặc WebP, dung lượng tối đa 8 MB mỗi ảnh.');
@@ -264,6 +295,8 @@ export async function createApp(options={}){
  const cfBeacon=cfToken?`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${escape(cfToken)}"}'></script>`:'';
  const page=asyncRoute(async(req,res)=>{
   const s=await settings();
+  const cards=['/','/portfolio'].includes(req.path)?await portfolioCards(s):undefined;
+  const hero=req.path==='/'?homeHeroSlides(cards,s.storySelection,s.heroSelection)[0]:undefined;
   const escape=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const titles={'/':s.brand+' · '+s.tagline,'/portfolio':'Bộ ảnh · '+s.brand,'/about':'Giới thiệu · '+s.brand,'/contact':'Liên hệ & tư vấn · '+s.brand,'/admin':'Quản trị · '+s.brand};
   let title=titles[req.path]||'Bộ ảnh · '+s.brand;
@@ -282,10 +315,10 @@ export async function createApp(options={}){
     description=a.description||s.intro;title=a.title+' · '+s.brand;
     imagePhoto=a.cover_id||(await db.get('SELECT id FROM photos WHERE album_id=? ORDER BY position,id LIMIT 1',[a.id]))?.id;
    }else privatePage=true;
-  }else if(!privatePage)imagePhoto=(await db.get("SELECT photos.id FROM photos JOIN albums ON photos.album_id=albums.id WHERE albums.status='published' ORDER BY CASE WHEN photos.id=albums.cover_id THEN 0 ELSE 1 END, albums.created DESC,photos.position LIMIT 1"))?.id;
-  if(req.path==='/'){const hero=selectHeroSlides(await portfolioCards(),s.heroSelection)[0];if(hero)imagePhoto=hero.wide.id;}
+  }else if(cards){const first=cards.find(a=>a.photos.length);imagePhoto=hero?.wide.id||first?.photos.find(p=>p.id===first.cover_id)?.id||first?.photos[0]?.id;}
+  else if(!privatePage)imagePhoto=(await db.get("SELECT photos.id FROM photos JOIN albums ON photos.album_id=albums.id WHERE albums.status='published' ORDER BY CASE WHEN photos.id=albums.cover_id THEN 0 ELSE 1 END, albums.created DESC,photos.position LIMIT 1"))?.id;
   const url=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');
-  if(privatePage)res.set('Cache-Control','private,no-store');
+  res.set('Cache-Control',privatePage?'private,no-store':'private,no-cache');
   const og=imagePhoto&&!privatePage?`<meta property="og:image" content="${escape(url+'/media/'+imagePhoto)}">`:'';
   const structuredData=!privatePage&&res.statusCode!==404?schemaOrgScript(buildSchemaOrg({site:s,album:matchedAlbum,url,imagePhoto,path:canonicalPath})):'';
   const analytics=!privatePage&&res.statusCode!==404?cfBeacon:'';
@@ -298,7 +331,7 @@ export async function createApp(options={}){
    }else if(req.path==='/contact'){
     initialBody=`<main id="main"><h1>Liên hệ &amp; tư vấn</h1><p>${escape(s.bookingNote||s.intro)}</p><p>${escape(inquiryNotice)}</p>${s.phone?`<p>Điện thoại: ${escape(s.phone)}</p>`:''}${s.email?`<p>Email: ${escape(s.email)}</p>`:''}${s.zalo?`<p><a href="${escape(s.zalo)}">Nhắn qua Zalo</a></p>`:''}</main>`;
    }else if(req.path==='/portfolio'){
-    const list=await db.all("SELECT slug,title FROM albums WHERE status='published' ORDER BY created DESC");
+    const list=cards;
     initialBody=`<main id="main"><h1>Bộ ảnh · ${escape(s.brand)}</h1><p>${escape(s.intro)}</p><ul>${list.map(a=>`<li><a href="/album/${a.slug}">${escape(a.title)}</a></li>`).join('')}</ul></main>`;
    }else if(matchedAlbum){
     initialBody=`<main id="main"><h1>${escape(matchedAlbum.title)}</h1><p>${escape(matchedAlbum.description||s.intro)}</p></main>`;
@@ -306,7 +339,10 @@ export async function createApp(options={}){
   }
   // Match the loading container independently of its user-facing wording.
   const bodyShell=initialBody?shell.replace(/<main id="main" class="loading">[\s\S]*?<\/main>/,()=>initialBody):shell;
-  const values={__TITLE__:escape(title),__DESCRIPTION__:escape(description),__CANONICAL__:escape(url+canonicalPath),__ROBOTS__:privatePage||res.statusCode===404?'noindex,nofollow':'index,follow',__OG_META__:og,__STRUCTURED_DATA__:structuredData,__ANALYTICS__:analytics};
+  // Only public data goes into HTML; escape script delimiters without enabling inline JS.
+  const pageData=!privatePage&&res.statusCode!==404?`<script type="application/json" id="page-data">${JSON.stringify({path:req.path,site:s,...(cards?{albums:cards}:{})}).replace(/</g,'\\u003c')}</script>`:'';
+  const preload=hero?[['(max-width:750px)',hero.tall,heroMobileSizes],['(min-width:750.01px)',hero.wide,heroDesktopSizes]].map(([media,photo,sizes])=>`<link rel="preload" as="image" fetchpriority="high" media="${media}" href="${escape(photo.thumb)}" imagesrcset="${escape(imageSources(photo))}" imagesizes="${sizes}">`).join(''):'';
+  const values={__TITLE__:escape(title),__DESCRIPTION__:escape(description),__CANONICAL__:escape(url+canonicalPath),__ROBOTS__:privatePage||res.statusCode===404?'noindex,nofollow':'index,follow',__OG_META__:og+preload,__STRUCTURED_DATA__:structuredData+pageData,__ANALYTICS__:analytics};
   res.send(bodyShell.replace(/__TITLE__|__DESCRIPTION__|__CANONICAL__|__ROBOTS__|__OG_META__|__STRUCTURED_DATA__|__ANALYTICS__/g,key=>values[key]));
  });
  app.get(['/', '/portfolio','/about','/contact','/admin','/album/:key','/gallery/:id'],page);

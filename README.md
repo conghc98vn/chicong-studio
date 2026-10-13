@@ -14,7 +14,9 @@ npm run dev
 - Website: http://localhost:4173
 - Quản trị: http://localhost:4173/admin
 
-Lần đầu bạn tự tạo tài khoản email và mật khẩu từ 12 ký tự. Mã thiết lập chỉ bắt buộc trên hosting hoặc khi truy cập từ máy khác. Không có mật khẩu mặc định. Dữ liệu local nằm trong `data/live/`: `studio.sqlite` và `uploads/`. Dừng app bằng Ctrl+C. Sửa mã nguồn server cần khởi động lại; sửa frontend chỉ cần tải lại trình duyệt.
+Lần đầu bạn tự tạo tài khoản email và mật khẩu từ 12 ký tự. Mã thiết lập bắt buộc trên hosting, khi truy cập từ máy khác, hoặc bất cứ khi nào đã đặt `SETUP_TOKEN`. Không có mật khẩu mặc định. Dữ liệu local nằm trong `data/live/`: `studio.sqlite` và `uploads/`. Dừng app bằng Ctrl+C. Sửa mã nguồn server cần khởi động lại; sửa frontend chỉ cần tải lại trình duyệt.
+
+Local mặc định chỉ nhận hostname `localhost`, `127.0.0.1` và `[::1]`. Để chạy `npm run dev:lan`, đặt `SITE_URL` đúng địa chỉ bạn mở, ví dụ `http://192.168.1.25:4173`, và cấu hình `SETUP_TOKEN` nếu chưa tạo admin. Khi đã đặt `SITE_URL`, các thao tác ghi chỉ nhận Origin đó.
 
 ## Quy trình đăng portfolio
 
@@ -36,7 +38,7 @@ Nếu upload có ảnh hỏng, các ảnh thành công vẫn được lưu và h
 4. Studio hiển thị số ảnh đã chọn và trạng thái khách đã gửi; có thể xuất danh sách tên file/chú thích dưới dạng CSV.
 5. Khách có thể chỉnh lựa chọn và gửi lại. Nhiều thiết bị dùng cùng gallery chia sẻ một danh sách lựa chọn. Đổi mật khẩu vô hiệu phiên gallery cũ; khách có thể bấm **Đóng gallery** để thoát.
 
-File media của gallery private yêu cầu session hợp lệ; có link ảnh đơn lẻ cũng không xem được nếu chưa đăng nhập. Gallery và admin có noindex. Không giữ ảnh gốc/RAW để giao file: ảnh web được tối ưu 2400px + thumbnail 900px.
+File media của gallery private yêu cầu session hợp lệ; có link ảnh đơn lẻ cũng không xem được nếu chưa đăng nhập. Ảnh công khai và chân dung dùng cache trình duyệt có kiểm tra lại với server (`private,no-cache`); gallery private dùng `private,no-store`. Khi ẩn album, request kiểm tra lại quyền trước khi trả 304. Gallery và admin có noindex. Không giữ ảnh gốc/RAW để giao file: ảnh web được tối ưu 2400px + thumbnail 900px.
 
 ## Liên hệ và đặt lịch
 
@@ -78,6 +80,10 @@ Nếu quên mật khẩu quản trị, chạy `npm run admin:reset` trong termin
 - `render.yaml`, `.env.example`: cấu hình hosting.
 
 Bản prototype trước nằm trong `legacy-prototype/`; thư mục WordPress gốc được giữ nguyên và không phục vụ trên website mới. Không đưa các thư mục này lên host/repository public.
+
+## Hiệu năng — 13/10/2026
+
+Đã tối ưu tải ảnh hero, kích thước ảnh theo hàng album, dữ liệu khởi tạo trang và truy vấn danh sách album. Xem [số đo trước/sau và phạm vi kiểm thử](docs/performance-review-2026-10-13.md). Các thay đổi chưa triển khai production tại thời điểm lập báo cáo.
 
 ## Kiểm tra
 

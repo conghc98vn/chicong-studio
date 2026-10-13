@@ -20,6 +20,16 @@ export function albumRows(photos) {
  return rows;
 }
 
+// Match the proportional desktop flex row, not the width of the entire album.
+export function albumPhotoSizes(row,photo){
+ const mobile='(max-width:380px) calc(100vw - 40px), (max-width:750px) calc(100vw - 48px)';
+ if(row.length===1)return `${mobile}, ${photo.width<photo.height?'min(46.28vw, 560px)':'min(80.1vw, 1000px)'}`;
+ const ratio=p=>p.width>0&&p.height>0?p.width/p.height:1;
+ const share=ratio(photo)/row.reduce((sum,p)=>sum+ratio(p),0);
+ const width=(1120-24*(row.length-1))*share;
+ return `${mobile}, min(calc(${(89*share).toFixed(3)}vw - ${(24*(row.length-1)*share).toFixed(3)}px), ${Math.ceil(width)}px)`;
+}
+
 export function initAlbumLayout(root){
  root.querySelectorAll('.album-photo-row .photo-item').forEach(item=>{
   const photo=item.querySelector('img');

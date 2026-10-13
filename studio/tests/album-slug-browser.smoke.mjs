@@ -36,16 +36,42 @@ try{
  assert.equal(await page.getByRole('link',{name:'Xem trên website'}).getAttribute('href'),'/album/anh-cuoi-da-lat');
  // Upload through the actual admin form, then configure the hero using its saved photo ID.
  const image=await sharp({create:{width:1200,height:800,channels:3,background:'#536e5c'}}).jpeg().toBuffer();
- await page.locator('[data-form=upload] input[type=file]').setInputFiles({name:'wedding.jpg',mimeType:'image/jpeg',buffer:image});
+ await page.locator('[data-form=upload] input[type=file]').setInputFiles(['first','second','third'].map(name=>({name:name+'.jpg',mimeType:'image/jpeg',buffer:image})));
  await page.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('.admin-photo-grid img')?.complete);
- const photo=await instance.db.get('SELECT id FROM photos WHERE album_id=?',[id]);
- await instance.db.run('UPDATE settings SET value=? WHERE key=?',[JSON.stringify([{albumId:id,wideId:photo.id,tallId:photo.id}]),'heroSelection']);
+ const photos=await instance.db.all('SELECT id FROM photos WHERE album_id=? ORDER BY position,id',[id]),photo=photos[0];
+ assert.equal(photos.length,3);
+ await instance.db.run('UPDATE settings SET value=? WHERE key=?',[JSON.stringify(photos.map(p=>({albumId:id,wideId:p.id,tallId:p.id}))),'heroSelection']);
  await instance.db.run('UPDATE settings SET value=? WHERE key=?',[JSON.stringify([{albumId:id,photoId:photo.id}]),'storySelection']);
+ const homeRequests=[];page.on('request',r=>homeRequests.push(new URL(r.url()).pathname));
+ await page.emulateMedia({reducedMotion:'reduce'});
  await page.goto(base+'/');await page.locator('.highlight-album').waitFor();
+ assert.ok(!homeRequests.includes('/api/site')&&!homeRequests.includes('/api/portfolio'),'Bootstrap avoids duplicate API reads');
+ assert.equal(await page.locator('.highlight-slide img[data-src]').count(),2);
+ assert.equal(await page.locator('.highlight-slide source[data-srcset]').count(),2);
+ await page.locator('[data-slide=next]').click();await page.waitForFunction(()=>document.querySelector('.highlight-count').textContent==='02 / 03');
+ assert.equal(await page.locator('.highlight-slide img[data-src]').count(),1);
+ await page.locator('[data-slide=prev]').click();await page.waitForFunction(()=>document.querySelector('.highlight-count').textContent==='01 / 03');
+ await page.emulateMedia({reducedMotion:'no-preference'});
+ await page.waitForFunction(()=>document.querySelector('.highlight-count').textContent==='02 / 03',null,{timeout:10000});
+ await page.emulateMedia({reducedMotion:'reduce'});
  assert.equal(await page.locator('.highlight-album').getAttribute('href'),'/album/anh-cuoi-da-lat');assert.equal(await page.locator('.album-card').first().getAttribute('href'),'/album/anh-cuoi-da-lat');
  await page.goto(base+'/portfolio');await page.locator('.album-card').first().click();await page.waitForURL(base+'/album/anh-cuoi-da-lat');await page.locator('h1').waitFor();
  assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),'https://chicongphoto.vn/album/anh-cuoi-da-lat');
+ // Declared image slots follow the actual row width at each layout breakpoint.
+ for(const width of [390,800,1440]){
+  await page.setViewportSize({width,height:1000});await page.reload();await page.locator('.photo-item').first().waitFor();
+  const second=page.locator('.photo-item img').nth(1);await second.scrollIntoViewIfNeeded();
+  await second.evaluate(image=>image.decode());
+  const size=await second.evaluate(image=>({slot:image.naturalWidth,actual:image.getBoundingClientRect().width,src:image.currentSrc}));
+  assert.ok(Math.abs(size.slot-size.actual)<3,'Image slot mismatch: '+JSON.stringify({width,...size}));
+  assert.ok(size.src.endsWith('?size=thumb'),'A small row uses its thumbnail');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ }
+ await page.locator('.photo-open').nth(1).click();await page.locator('#lightbox[open]').waitFor();
+ assert.ok(!(await page.locator('#lightbox img').getAttribute('src')).includes('?'),'Lightbox keeps full resolution');
+ await page.keyboard.press('Escape');
+
  await page.goto(base+'/album/'+id);assert.equal(page.url(),base+'/album/anh-cuoi-da-lat');
  await page.setViewportSize({width:390,height:844});await page.goto(base+'/admin#album/'+id);await page.getByRole('button',{name:'Thông tin bộ ảnh'}).click();
  await form.locator('[name=slug]').fill('a'.repeat(120));
@@ -54,5 +80,5 @@ try{
  assert.ok(overflow.scroll<=overflow.client+1,'Mobile dialog overflow: '+JSON.stringify(overflow));
  await form.locator('[name=slug]').fill('Đà Lạt trên điện thoại');await form.getByRole('button',{name:'Lưu thay đổi'}).click();await page.locator('#editor').waitFor({state:'hidden'});await page.waitForFunction(()=>document.querySelector('#toast')?.textContent==='Đã lưu bộ ảnh.');
  await page.getByRole('link',{name:'Xem trên website'}).waitFor();await page.waitForFunction(()=>document.querySelector('a[href^="/album/"]')?.getAttribute('href')==='/album/da-lat-tren-dien-thoai');assert.equal(await page.getByRole('link',{name:'Xem trên website'}).getAttribute('href'),'/album/da-lat-tren-dien-thoai');
- assert.deepEqual(errors,[]);console.log('PASS: Chrome desktop and mobile create/edit/preview/upload, homepage hero/cards, portfolio navigation, ID redirect, canonical and no page errors.');
+ assert.deepEqual(errors,[]);console.log('PASS: Chrome desktop and mobile create/edit/preview/upload, homepage bootstrap/deferred slides/manual navigation/autoplay/cards, responsive row image sizes/lightbox, portfolio navigation, ID redirect, canonical and no page errors.');
 }finally{await browser?.close();await new Promise(r=>server.close(r));await instance.db.close();await rm(dir,{recursive:true,force:true});}

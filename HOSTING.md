@@ -50,7 +50,7 @@ Mã khởi động không tạo album minh họa, không tạo mật khẩu admi
 
 ## 4. Tạo tài khoản studio
 
-Mở `https://…onrender.com/admin`. Tự nhập email, mật khẩu từ 12 ký tự và `SETUP_TOKEN`. Sau khi tạo xong, bạn có thể xóa biến `SETUP_TOKEN` khỏi Render; app không cho tạo thêm tài khoản qua endpoint thiết lập.
+Mở `/admin` trên đúng domain trong `SITE_URL`. Nếu dùng địa chỉ `https://…onrender.com/admin` để thiết lập, đặt `SITE_URL` tương ứng trước; khi chuyển sang tên miền chính, cập nhật lại `SITE_URL`. Production yêu cầu HTTPS và chỉ nhận thao tác ghi từ Origin đã cấu hình. Tự nhập email, mật khẩu từ 12 ký tự và `SETUP_TOKEN`. Sau khi tạo xong, bạn có thể xóa biến `SETUP_TOKEN` khỏi Render; app không cho tạo thêm tài khoản qua endpoint thiết lập.
 
 Với dịch vụ hiện tại, tài khoản local đã được chuyển và kiểm tra khớp hoàn toàn; `SETUP_TOKEN` đã xóa khỏi Render. Chỉ cần đăng nhập tài khoản studio cũ. Không dùng mật khẩu database Supabase để đăng nhập studio.
 
@@ -59,6 +59,14 @@ Trong **Website**, điền email, điện thoại, nội dung giới thiệu và
 ## 5. Đã nối và xác thực chicongphoto.vn
 
 Tên miền `chicongphoto.vn` đã được thêm vào Custom Domains của Render và trỏ bản ghi DNS qua Cloudflare. Biến môi trường `SITE_URL=https://chicongphoto.vn` và `CF_BEACON_TOKEN` đã cấu hình trên Render. HTTPS hoạt động bình thường, cookie và session admin không bị phân tán.
+
+### Proxy và triển khai bản vá bảo mật 13/10/2026
+
+`TRUST_PROXY` mặc định giữ một hop trên production và tắt ở local. Có thể đặt `false` khi truy cập trực tiếp không có reverse proxy, số hop đã xác minh, hoặc danh sách IP/CIDR proxy tin cậy theo cú pháp Express. Giá trị `true` bị từ chối. Trước khi thay đổi trên Render, cần kiểm tra IP thực tế Express nhận qua cả domain Cloudflare và đường truy cập trực tiếp Render. Không lấy thẳng `CF-Connecting-IP` hoặc IP đầu tiên trong `X-Forwarded-For` nếu chưa xác thực proxy gửi nó. Bản vá chưa chứng minh cấu hình một hop trên hosting hiện tại có lỗi, nên không tự đổi số hop.
+
+Migration thêm index `rate_limits_expires`, giữ nguyên dữ liệu. Unlock gallery giới hạn tổng 60 lần/IP/15 phút, đồng thời giữ giới hạn 8 lần/gallery/IP/15 phút cho gallery có thật. ID không tồn tại không tạo quota riêng; dọn bản ghi hết hạn tối đa mỗi phút khi có request.
+
+Ảnh công khai và chân dung chuyển sang `private,no-cache`, giữ ETag để phản hồi 304 sau khi kiểm tra quyền; ảnh private và phản hồi media bị từ chối dùng `private,no-store`. Cache một giờ từ phiên bản cũ có thể còn hiệu lực tối đa một giờ sau lần cuối nhận header cũ. Nếu đã cấu hình CDN cache ảnh, purge các URL ảnh cần thu hồi khi triển khai; không tạo quy tắc CDN ghi đè header mới. Thay đổi header không thu hồi bản ảnh người xem đã tải về.
 
 ## Đã kiểm chứng và vận hành thực tế
 
