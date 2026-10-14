@@ -1,5 +1,4 @@
 export const maxUploadBytes=8*1024*1024;
-const batchByteLimit=12*1024*1024;
 export function uploadIssue(file){
  if(file.size===0)return 'Tệp rỗng. Hãy xuất lại ảnh.';
  if(file.size>maxUploadBytes)return 'Ảnh vượt quá 8 MB. Hãy xuất JPEG sRGB, cạnh dài 2400–4096 px.';
@@ -19,12 +18,14 @@ export class UploadQueue {
   const pending=this.retryable;
   progress(this.done.size,this.files.length);
   for(let i=0;i<pending.length;){
-   const batch=[];let bytes=0;
-   while(i<pending.length&&batch.length<8){const file=pending[i],size=file.size||0;if(batch.length&&bytes+size>batchByteLimit)break;batch.push(file);bytes+=size;i++;}
+   // Acknowledge each photo separately: processing eight images on a small
+   // host can exceed proxy deadlines even when their compressed files are small.
+   const batch=[pending[i++]];
    let result;
    try{result=await send(batch,batch.map(file=>this.keys.get(file)));}catch(error){
     if(error.data?.results)result=error.data;
     else if(error.status)throw error;
+    else if(error.code==='REQUEST_TIMEOUT')throw Error('Máy chủ chưa xác nhận ảnh trong 3 phút. Giữ nguyên trang và bấm “Tải lại các ảnh còn lại”; ảnh đã lưu trong lượt này sẽ không bị tải trùng.');
     else throw Error('Kết nối bị gián đoạn. Giữ nguyên trang và bấm “Tải lại các ảnh còn lại” để tiếp tục. Hệ thống sẽ nhận diện những ảnh đã lưu trong lượt tải này.');
    }
    for(const item of result.results||[]){const file=batch[item.index];if(file){this.results.set(file,item);if(item.success)this.done.add(file);}}

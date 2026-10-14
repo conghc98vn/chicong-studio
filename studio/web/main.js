@@ -1,3 +1,4 @@
+import {api,uploadRequestTimeout} from './api-request.mjs';
 import {uploadReport,uploadSelection,photoSizeNote} from './upload-report.mjs';
 import {sectionPhotos,sectionOptions,sectionTabs,sectionManager,sectionBulkToolbar,weddingSections} from './album-sections.mjs';
 import {initBackToTop} from './back-to-top.mjs';
@@ -28,16 +29,7 @@ window.addEventListener('beforeunload',e=>{if(uploadBusy||sectionBusy){e.prevent
 const label=s=>`<p class="label">${s}</p>`;
 const button=(text,href,cls='')=>`<a class="btn ${cls}" href="${href}">${text}</a>`;
 const dateLabel=s=>s?new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(s+'T12:00:00')):'Chưa chọn ngày';
-async function api(url,options={}){
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
- try{
-  const response=await fetch(url,{credentials:'same-origin',...options,signal:controller.signal,headers:options.body instanceof FormData?options.headers:{'Content-Type':'application/json',...options.headers}});
-  const data=await response.json();
-  if(!response.ok)throw Object.assign(new Error(data.error||'Không thực hiện được yêu cầu.'),{status:response.status,data});
-  return data;
- }catch(error){if(error.status)throw error;throw Error('Không kết nối được máy chủ. Vui lòng thử lại.');}
- finally{clearTimeout(timer);}
-}
+
 const send=(url,data,method='POST')=>api(url,{method,body:JSON.stringify(data)});
 let clientGallery=false,pickBusy=false;
 const galleryDownloads=createGalleryDownloads({onExpired:async()=>{try{if($('#lightbox').open)$('#lightbox').close();await route();toast('Phiên xem bộ ảnh đã hết hạn. Vui lòng nhập lại mật khẩu.');}catch(error){toast(error.message);}},onSelectionChanged:async()=>{try{await route();$('[data-action=download-selected]')?.focus({preventScroll:true});toast('Đã cập nhật danh sách ảnh đã chọn.');}catch(error){toast(error.message);}}});
@@ -386,7 +378,7 @@ document.addEventListener('submit',async e=>{const form=e.target.closest('[data-
  const report=()=>{const html=uploadReport(queue);latestUploadReports.set(form.dataset.id,html);if($('[data-upload-report]'))$('[data-upload-report]').innerHTML=html;};
  input.disabled=true;if(destination)destination.disabled=true;uploadBusy=true;report();
  try{
- await queue.run(async (batch,keys)=>{const fd=new FormData();batch.forEach(file=>fd.append('photos',file));return api('/api/admin/albums/'+form.dataset.id+'/photos',{method:'POST',body:fd,headers:{'X-Upload-Keys':JSON.stringify(keys),...(queue.sectionId?{'X-Album-Section':queue.sectionId}:{})}});},(done,total)=>{submit.textContent=`Đang tải và tối ưu ${done}/${total} ảnh…`;report();});
+ await queue.run(async (batch,keys)=>{const fd=new FormData();batch.forEach(file=>fd.append('photos',file));return api('/api/admin/albums/'+form.dataset.id+'/photos',{method:'POST',body:fd,headers:{'X-Upload-Keys':JSON.stringify(keys),...(queue.sectionId?{'X-Album-Section':queue.sectionId}:{})}},{timeout:uploadRequestTimeout});},(done,total)=>{submit.textContent=`Đang tải và tối ưu ${done}/${total} ảnh…`;report();});
  if(queue.pending.length)throw Error(queue.retryable.length?'Xem chi tiết lỗi bên dưới. Bấm “Tải lại các ảnh còn lại” để tiếp tục.':'Xem chi tiết lỗi bên dưới. Hãy xuất lại các tệp lỗi và chọn ảnh mới; ảnh đã lưu vẫn được giữ.');
  input.value='';uploadQueues.delete(form);await refreshAdmin();toast(`Đã thêm ${files.length} ảnh.`);
  }catch(err){
