@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import {optimizePhoto,encodeDownloadJpeg,photoOptimization} from '../server/image-optimizer.mjs';
+import {optimizePhoto,encodeDownloadJpeg,photoOptimization,imagePolicy} from '../server/image-optimizer.mjs';
 import {uploadReport,photoSizeNote} from '../web/upload-report.mjs';
 
 test('Web images preserve orientation, dimensions and sRGB colour while stripping private metadata',async()=>{
@@ -46,7 +46,7 @@ test('Admin reports count all stored renditions and keep legacy download sizes u
 });
 test('Corrupt, truncated, unsupported, oversized and over-resolution files return actionable errors',async()=>{
  await assert.rejects(optimizePhoto(Buffer.alloc(0)),e=>e.code==='EMPTY_FILE'&&!e.retryable);
- await assert.rejects(optimizePhoto(Buffer.alloc(8*1024*1024+1)),e=>e.code==='FILE_TOO_LARGE'&&!e.retryable);
+ await assert.rejects(optimizePhoto(Buffer.alloc(imagePolicy.maxBytes+1)),e=>e.code==='FILE_TOO_LARGE'&&!e.retryable);
  await assert.rejects(optimizePhoto(Buffer.from('not a photo')),e=>e.code==='INVALID_IMAGE');
  await assert.rejects(optimizePhoto(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>')),e=>e.code==='UNSUPPORTED_FORMAT');
  const jpeg=await sharp({create:{width:1000,height:700,channels:3,background:'red'}}).jpeg().toBuffer();

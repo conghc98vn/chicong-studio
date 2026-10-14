@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {maxUploadBytes} from '../web/upload-policy.mjs';
 import {UploadQueue} from '../web/upload-queue.mjs';
 const ack=files=>({results:files.map((_,index)=>({index,success:true}))});
 test('Uploads are sequential per photo and retry skips every acknowledged file',async()=>{
@@ -18,9 +19,9 @@ test('An unacknowledged retry preserves each file key',async()=>{
  await q.run(async(batch,keys)=>{retried.push(...keys);return ack(batch);});assert.deepEqual(retried,files.map(f=>q.keys.get(f)));assert.deepEqual(retried.slice(0,1),firstKeys);assert.equal(q.done.size,10);
 });
 test('Lightroom files retain order and invalid files do not block good ones',async()=>{
- const files=[{name:'big.jpg',size:9*1024*1024,type:'image/jpeg'},...Array.from({length:4},(_,i)=>({name:i+'.jpg',size:7*1024*1024,type:'image/jpeg'})),{name:'empty.jpg',size:0}];
+ const files=[{name:'big.jpg',size:maxUploadBytes+1,type:'image/jpeg'},...Array.from({length:4},(_,i)=>({name:i+'.jpg',size:10*1024*1024,type:'image/jpeg'})),{name:'empty.jpg',size:0}];
  const q=new UploadQueue(files),batches=[];await q.run(async batch=>{batches.push(batch);return ack(batch);});
- assert.deepEqual(batches.map(b=>b.length),[1,1,1,1]);assert.equal(q.done.size,4);assert.equal(q.retryable.length,0);assert.equal(q.pending.length,2);assert.match(q.results.get(files[0]).error,/8 MB/);
+ assert.deepEqual(batches.map(b=>b.length),[1,1,1,1]);assert.equal(q.done.size,4);assert.equal(q.retryable.length,0);assert.equal(q.pending.length,2);assert.match(q.results.get(files[0]).error,/20 MB/);
 });
 test('Retry retains measurements, retries storage errors and skips permanent decode errors',async()=>{
  const files=[{name:'a.jpg'},{name:'b.jpg'},{name:'c.jpg'}],q=new UploadQueue(files),optimization={source_bytes:6000000,image_bytes:300000,thumb_bytes:50000,width:1600,height:2400};

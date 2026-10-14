@@ -1,3 +1,4 @@
+import {maxUploadBytes,uploadSizeLabel} from '../web/upload-policy.mjs';
 import {optimizePhoto,photoOptimization} from './image-optimizer.mjs';
 import {registerGalleryDownloads} from './gallery-download.mjs';
 import {registerSectionRoutes,validateSection} from './album-sections.mjs';
@@ -173,7 +174,7 @@ export async function createApp(options={}){
  if(order.length)await db.run('UPDATE photos SET position=CASE id '+order.map(()=>'WHEN ? THEN ?').join(' ')+' END WHERE album_id=? AND id IN ('+order.map(()=>'?').join(',')+')',[...order.flatMap((key,i)=>[key,i]),a.id,...order]);
  res.json({success:true});
  }));
- const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:8*1024*1024,files:8,fields:0},fileFilter:(req,file,cb)=>cb(['image/jpeg','image/png','image/webp'].includes(file.mimetype)?null:fail(422,'Vui lòng chọn ảnh định dạng JPEG, PNG hoặc WebP.'),true)});
+ const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:maxUploadBytes,files:8,fields:0},fileFilter:(req,file,cb)=>cb(['image/jpeg','image/png','image/webp'].includes(file.mimetype)?null:fail(422,'Vui lòng chọn ảnh định dạng JPEG, PNG hoặc WebP.'),true)});
  app.post('/api/admin/portrait',upload.single('portrait'),asyncRoute(async(req,res)=>{
   if(!req.file)throw fail(422,'Vui lòng chọn ảnh chân dung định dạng JPEG, PNG hoặc WebP.');
   let data;
@@ -188,9 +189,9 @@ export async function createApp(options={}){
   const s=await settings();if(!/^[a-f0-9]{32}$/.test(req.params.id)||s.portrait!==req.params.id)throw fail(404,'Không tìm thấy ảnh.');
   res.type('webp').set('Cache-Control','private,no-cache').send(await storage.get(req.params.id+'.webp'));
  }));
- const albumUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:8*1024*1024,files:8,fields:0}});
+ const albumUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:maxUploadBytes,files:8,fields:0}});
  app.post('/api/admin/albums/:id/photos',albumUpload.array('photos',8),asyncRoute(async(req,res)=>{
- const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');if(!req.files?.length)throw fail(422,'Vui lòng chọn ảnh JPEG, PNG hoặc WebP, dung lượng tối đa 8 MB mỗi ảnh.');
+ const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');if(!req.files?.length)throw fail(422,`Vui lòng chọn ảnh JPEG, PNG hoặc WebP, dung lượng tối đa ${uploadSizeLabel} mỗi ảnh.`);
  let keys=[];if(req.get('X-Upload-Keys')){try{keys=JSON.parse(req.get('X-Upload-Keys'));}catch{throw fail(422,'Không nhận diện được lượt tải ảnh này. Vui lòng chọn lại ảnh rồi thử tải lên.');}if(!Array.isArray(keys)||keys.length!==req.files.length||new Set(keys).size!==keys.length||keys.some(k=>typeof k!=='string'||! /^[a-f0-9-]{32,64}$/.test(k)))throw fail(422,'Không nhận diện được lượt tải ảnh này. Vui lòng chọn lại ảnh rồi thử tải lên.');}
  const sectionId=await validateSection(db,a.id,req.get('X-Album-Section')||null);
  const output=[],errors=[],results=[];
@@ -358,6 +359,6 @@ export async function createApp(options={}){
  });
  app.get(['/', '/portfolio','/about','/contact','/admin','/album/:key','/gallery/:id'],page);
  app.use((req,res)=>res.status(404).send(shell.replaceAll('__TITLE__','Không tìm thấy trang').replaceAll('__DESCRIPTION__','').replaceAll('__CANONICAL__','').replaceAll('__ROBOTS__','noindex').replaceAll('__OG_META__','').replaceAll('__STRUCTURED_DATA__','').replaceAll('__ANALYTICS__','')));
- app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const status=err instanceof multer.MulterError?422:err.status||500;if(status>=500)console.error('Request failed:',err.name);res.status(status).json({...(err.fields?{fields:err.fields}:{}),error:status>=500?'Hệ thống chưa xử lý được thao tác này. Vui lòng thử lại sau ít phút.':err instanceof multer.MulterError?'Mỗi lần tải tối đa 8 ảnh, dung lượng tối đa 8 MB mỗi ảnh.':err.message});});
+ app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const status=err instanceof multer.MulterError?422:err.status||500;if(status>=500)console.error('Request failed:',err.name);res.status(status).json({...(err.fields?{fields:err.fields}:{}),error:status>=500?'Hệ thống chưa xử lý được thao tác này. Vui lòng thử lại sau ít phút.':err instanceof multer.MulterError?`Mỗi lần tải tối đa 8 ảnh, dung lượng tối đa ${uploadSizeLabel} mỗi ảnh.`:err.message});});
  return {app,db,storage,mailer};
 }

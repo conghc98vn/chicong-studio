@@ -21,7 +21,7 @@ Local mặc định chỉ nhận hostname `localhost`, `127.0.0.1` và `[::1]`. 
 ## Quy trình đăng portfolio
 
 1. Mở **Portfolio → Tạo album**, nhập tên, thể loại và mô tả.
-2. Thêm ảnh JPEG/PNG/WebP, chọn nhiều ảnh cùng lúc, tối đa 8MB/ảnh. Giao diện tự chia lượt upload và hiển thị tiến trình.
+2. Thêm ảnh JPEG/PNG/WebP, chọn nhiều ảnh cùng lúc, tối đa 20MB/ảnh. Giao diện tự chia lượt upload và hiển thị tiến trình.
 3. Chọn ảnh bìa; sửa chú thích, sắp xếp thứ tự bằng ↑/↓. Toàn bộ thứ tự lưu trong một yêu cầu, tối đa 2.000 ảnh/bộ cho thao tác sắp xếp.
 4. Trong **Thông tin album**, đổi trạng thái từ bản nháp sang công khai.
 5. Dùng **Đã lưu trữ** để ẩn album mà vẫn giữ dữ liệu. Xóa từng ảnh sẽ xóa file web; luôn giữ bản gốc trên máy.
@@ -48,13 +48,13 @@ Các gói tối đa 50 ảnh, tải lần lượt; trên điện thoại mở ZI
 
 Ảnh mới dùng bản JPG tạo trực tiếp từ file upload. **Ảnh cũ chưa có JPG** được chuyển từ bản WebP lớn nhất, không dùng thumbnail và không thể phục hồi chi tiết đã mất. Chuyển ảnh cũ dùng encoder nhanh để giảm thời gian đợi, giữ quality 92, 2400px, 4:4:4 và ICC sRGB; dung lượng có thể lớn hơn bản mozjpeg tạo khi upload. Không truy cập Google Drive. Muốn tạo JPG từ nguồn cho ảnh cũ cần đưa lại nguồn vào một quy trình nhập riêng; tính năng này không tự ghép hoặc thay thế ảnh cũ.
 
-API `POST /api/gallery/:id/download` nhận 1–50 ID đang được chọn, kiểm tra phiên và quyền đúng album cả trước lẫn sau chuẩn bị. Mỗi lượt tối đa 100 MiB, một lượt đang xử lý/album và hai lượt/server. JPEG được đọc/tạo tuần tự vào thư mục tạm; ZIP được hoàn tất trước khi gửi, không gom cả album vào RAM server. Tệp tạm được xóa khi xong, hủy hoặc lỗi; giới hạn thời gian 3 phút. Trình duyệt nhận tối đa 100 MiB mỗi lượt và chỉ lưu khi nhận đủ tệp. Download dùng `private,no-store`; lỗi lưu trữ không trả ZIP thiếu ảnh. Supabase bucket vẫn riêng tư, tự bổ sung `image/jpeg` vào danh sách MIME nếu đang bị giới hạn. Giới hạn đối tượng lưu trữ tối thiểu 24 MiB để nhận JPG nhiều chi tiết có thể lớn hơn đầu vào; giữ nguyên giới hạn cao hơn hoặc không giới hạn. Giới hạn upload đầu vào vẫn 8 MiB.
+API `POST /api/gallery/:id/download` nhận 1–50 ID đang được chọn, kiểm tra phiên và quyền đúng album cả trước lẫn sau chuẩn bị. Mỗi lượt tối đa 100 MiB, một lượt đang xử lý/album và hai lượt/server. JPEG được đọc/tạo tuần tự vào thư mục tạm; ZIP được hoàn tất trước khi gửi, không gom cả album vào RAM server. Tệp tạm được xóa khi xong, hủy hoặc lỗi; giới hạn thời gian 3 phút. Trình duyệt nhận tối đa 100 MiB mỗi lượt và chỉ lưu khi nhận đủ tệp. Download dùng `private,no-store`; lỗi lưu trữ không trả ZIP thiếu ảnh. Supabase bucket vẫn riêng tư, tự bổ sung `image/jpeg` vào danh sách MIME nếu đang bị giới hạn. Giới hạn đối tượng lưu trữ tối thiểu 24 MiB để nhận JPG nhiều chi tiết có thể lớn hơn đầu vào; giữ nguyên giới hạn cao hơn hoặc không giới hạn. Giới hạn upload đầu vào là 20 MiB/ảnh (40 megapixel).
 
 Kiểm thử: `node --test studio/tests/gallery-download.test.mjs studio/tests/gallery-download-client.test.mjs`. Browser smoke: `node studio/tests/gallery-download-browser.smoke.mjs` với `STUDIO_PLAYWRIGHT_MODULE`, tùy chọn `STUDIO_AXE_MODULE`, `STUDIO_DOWNLOAD_SAMPLE_FILES`. Các bài kiểm thử dùng database/ảnh tạm riêng.
 
 ## Upload ảnh Lightroom và tối ưu dung lượng
 
-Chọn trực tiếp JPEG, PNG hoặc WebP đã xuất từ Lightroom (tối đa 8 MiB và 40 megapixel/ảnh). Hệ thống tự tạo bản WebP cạnh dài tối đa 2400 px, quality 88 và ảnh thu nhỏ tối đa 900 px, quality 80. Cả hai dùng effort 6 và smart chroma subsampling, được tạo trực tiếp từ đầu vào, tự xoay đúng chiều và chuyển về sRGB. Không phóng lớn, không thêm sharpening hoặc chỉnh màu sáng/tối; EXIF/GPS được loại bỏ. Không ép một mức KB cố định vì ảnh nhiều chi tiết cần nhiều dữ liệu hơn.
+Chọn trực tiếp JPEG, PNG hoặc WebP đã xuất từ Lightroom (tối đa 20 MiB và 40 megapixel/ảnh). Hệ thống tự tạo bản WebP cạnh dài tối đa 2400 px, quality 88 và ảnh thu nhỏ tối đa 900 px, quality 80. Cả hai dùng effort 6 và smart chroma subsampling, được tạo trực tiếp từ đầu vào, tự xoay đúng chiều và chuyển về sRGB. Không phóng lớn, không thêm sharpening hoặc chỉnh màu sáng/tối; EXIF/GPS được loại bỏ. Không ép một mức KB cố định vì ảnh nhiều chi tiết cần nhiều dữ liệu hơn.
 
 Ảnh mới còn được tạo một bản **JPG tải xuống** trực tiếp từ đầu vào: cạnh dài tối đa 2400 px, quality 92, mozjpeg, chroma 4:4:4 và ICC sRGB. Giữ đúng chiều, không phóng lớn, không giữ EXIF/GPS; ảnh có nền trong suốt được đặt trên nền trắng. Bản này ưu tiên chi tiết để chia sẻ, không thay thế file Lightroom để in/chỉnh sửa.
 

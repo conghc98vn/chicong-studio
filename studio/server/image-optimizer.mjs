@@ -1,5 +1,6 @@
 import sharp from 'sharp';
-export const imagePolicy=Object.freeze({maxBytes:8*1024*1024,maxPixels:40000000,edge:2400,quality:88,thumbEdge:900,thumbQuality:80,downloadEdge:2400,downloadQuality:92});
+import {maxUploadBytes,uploadSizeLabel} from '../web/upload-policy.mjs';
+export const imagePolicy=Object.freeze({maxBytes:maxUploadBytes,maxPixels:40000000,edge:2400,quality:88,thumbEdge:900,thumbQuality:80,downloadEdge:2400,downloadQuality:92});
 const invalid=(code,message)=>Object.assign(new Error(message),{code,retryable:false});
 // Shared by source uploads and legacy full-size WebP downloads. JPEG has no alpha;
 // a white backdrop keeps transparent PNG input from becoming black on download.
@@ -14,7 +15,7 @@ export async function encodeDownloadJpeg(buffer,{onDemand=false}={}){
 // No target byte ceiling: keep fine detail rather than repeatedly lowering quality.
 export async function optimizePhoto(buffer){
  if(!buffer.length)throw invalid('EMPTY_FILE','Tệp rỗng. Hãy xuất lại ảnh từ Lightroom.');
- if(buffer.length>imagePolicy.maxBytes)throw invalid('FILE_TOO_LARGE','Ảnh vượt quá 8 MB. Hãy xuất JPEG sRGB, cạnh dài 2400–4096 px rồi tải lại.');
+ if(buffer.length>imagePolicy.maxBytes)throw invalid('FILE_TOO_LARGE',`Ảnh vượt quá ${uploadSizeLabel}. Hãy xuất JPEG sRGB, cạnh dài 2400–4096 px rồi tải lại.`);
  const input=sharp(buffer,{limitInputPixels:imagePolicy.maxPixels,animated:false,failOn:'warning'});
  let meta;
  try{meta=await input.metadata();}catch(error){

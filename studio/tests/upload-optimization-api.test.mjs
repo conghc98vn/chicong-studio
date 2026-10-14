@@ -8,6 +8,8 @@ import pg from 'pg';
 import sharp from 'sharp';
 import {createApp} from '../server/app.mjs';
 import {openDatabase} from '../server/db.mjs';
+import {largeJpeg} from './fixtures/large-photo.mjs';
+import {maxUploadBytes} from '../web/upload-policy.mjs';
 async function fixture(storage){
  const dir=await mkdtemp(path.join(tmpdir(),'upload-quality-'));let pool,schema,url=null;
  if(process.env.STUDIO_TEST_POSTGRES_URL){pool=new pg.Pool({connectionString:process.env.STUDIO_TEST_POSTGRES_URL});schema='upload_test_'+randomBytes(8).toString('hex');await pool.query('CREATE SCHEMA '+schema);const target=new URL(process.env.STUDIO_TEST_POSTGRES_URL);target.searchParams.set('options','-c search_path='+schema);url=target.href;}
@@ -20,6 +22,23 @@ async function fixture(storage){
  return {dir,db,album,request,upload,url,close:async()=>{server.closeAllConnections();await new Promise(r=>server.close(r));await db.close();if(pool){await pool.query('DROP SCHEMA '+schema+' CASCADE');await pool.end();}await rm(dir,{recursive:true,force:true});}};
 }
 const sample=()=>sharp({create:{width:3000,height:2000,channels:3,background:'#bb7733'}}).jpeg().toBuffer();
+test('JPEG above 10 MiB uploads as album photo and portrait; files over 20 MiB are rejected without writes',async()=>{
+ const f=await fixture();try{
+  const bytes=await largeJpeg(),response=await f.upload([bytes]);assert.equal(response.status,201);
+  const result=(await response.json()).results[0];assert.equal(result.optimization.source_bytes,bytes.length);
+  assert.equal((await readdir(path.join(f.dir,'uploads'))).length,3);
+  for(const [suffix,format] of [['.webp','webp'],['-thumb.webp','webp'],['-download.jpg','jpeg']]){
+   const image=await sharp(await readFile(path.join(f.dir,'uploads',result.id+suffix))).metadata();assert.equal(image.format,format);assert.ok(Math.max(image.width,image.height)<=2400);
+  }
+  const portrait=new FormData();portrait.append('portrait',new Blob([bytes],{type:'image/jpeg'}),'portrait.jpg');
+  assert.equal((await f.request('/api/admin/portrait',portrait,'POST')).status,201);
+  const filesBefore=await readdir(path.join(f.dir,'uploads'));
+  const oversized=Buffer.alloc(maxUploadBytes+1),tooLarge=await f.upload([oversized]);assert.equal(tooLarge.status,422);assert.match((await tooLarge.json()).error,/20 MB/);
+  const invalidPortrait=new FormData();invalidPortrait.append('portrait',new Blob([oversized],{type:'image/jpeg'}),'large.jpg');
+  const rejected=await f.request('/api/admin/portrait',invalidPortrait,'POST');assert.equal(rejected.status,422);assert.match((await rejected.json()).error,/20 MB/);
+  assert.deepEqual(await readdir(path.join(f.dir,'uploads')),filesBefore);assert.equal((await f.db.all('SELECT id FROM photos')).length,1);
+ }finally{await f.close();}
+});
 test('Upload measurements match actual stored renditions, survive restart/retry and stay admin-only',async()=>{
  const f=await fixture();try{
   const bytes=await sample(),response=await f.upload([bytes]);assert.equal(response.status,201);const r=(await response.json()).results[0],o=r.optimization;

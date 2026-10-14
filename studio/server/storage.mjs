@@ -1,7 +1,7 @@
 import {mkdir,writeFile,readFile,unlink} from 'node:fs/promises';
 import path from 'node:path';
 // Derived 4:4:4 JPEGs can exceed their compressed source. This does not change
-// the separate 8 MiB input upload limit in image-optimizer.mjs.
+// the separate 20 MiB input upload limit in image-optimizer.mjs.
 export const derivedFileSizeLimit=24*1024*1024;
 function mediaType(name){
  if(/^[a-f0-9]{32}(-thumb)?\.webp$/.test(name))return 'image/webp';

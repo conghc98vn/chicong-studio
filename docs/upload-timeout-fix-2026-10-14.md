@@ -28,3 +28,10 @@ Log Render từ 21:30–21:40 giờ Việt Nam không ghi nhận crash/OOM; mẫ
 Render được cấu hình Auto-Deploy On Commit, nhưng lượt triển khai commit `ff1aefd` được Render ghi nhận với trigger `manual`; không có cơ sở kết luận lượt triển khai đó do auto-deploy. Theo yêu cầu người dùng muốn tự deploy, đã chuyển riêng dịch vụ chicong-photo-studio sang Off trên Dashboard và xác nhận qua API (`autoDeploy: no`, `autoDeployTrigger: off`) trước khi push hotfix. Không gọi deploy bản sửa.
 
 Sau khi deploy thủ công thành công, cần tải lại trang quản trị để nhận module JavaScript mới. Tab cũ vẫn chạy timeout 12 giây. Kiểm tra số ảnh đã lưu trước khi chọn lại file: mở lại trang sẽ tạo một lượt upload mới, không dùng các khóa retry của tab cũ. Tại thời điểm kiểm tra album của sự cố có 0 ảnh.
+
+## Bổ sung hỗ trợ ảnh Lightroom lớn
+
+- Nâng giới hạn đầu vào từ 8 lên 20 MiB/ảnh, dùng chung cấu hình giữa giao diện, Multer và bộ tối ưu; áp dụng cho ảnh album và ảnh chân dung. Giữ giới hạn 40 megapixel.
+- Ảnh vẫn gửi tuần tự, giữ timeout upload 180 giây; ảnh chân dung cũng dùng timeout upload này. Không thay đổi kích thước, chất lượng hay màu của các bản web/thumbnail/JPEG.
+- Kiểm tra bằng JPEG mã hóa thật lớn hơn 10 MiB qua API album, API chân dung và giao diện trình duyệt. Tệp vượt 20 MiB bị từ chối, không phát sinh bản ghi hoặc tệp lưu trữ.
+- Sau bổ sung: **154/154 test đạt**, không skip, gồm PostgreSQL 16. Browser upload đạt: JPEG >10 MiB cho album và chân dung, phản hồi chậm 13 giây, retry mất phản hồi, chặn quá dung lượng, responsive 320/390/768/1440 và accessibility.

@@ -5,6 +5,8 @@ import {mkdtemp,rm,mkdir,readFile,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
+import {maxUploadBytes} from '../web/upload-policy.mjs';
+import {largeJpeg} from './fixtures/large-photo.mjs';
 import {createApp} from '../server/app.mjs';
 const pw=await import(process.env.STUDIO_PLAYWRIGHT_MODULE||'playwright');
 const dir=await mkdtemp(path.join(tmpdir(),'upload-browser-')),app=await createApp({dataDir:dir,env:{}});
@@ -32,12 +34,21 @@ try{
  await upload.locator('input[type=file]').setInputFiles(samples[0]);await page.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();
  await page.locator('.upload-summary').filter({hasText:'Đã lưu 1/1'}).waitFor({timeout:30000});assert.ok(delayed);assert.equal(await page.locator('[data-form=upload] .form-error').textContent(),'');await page.unroute('**/api/admin/albums/*/photos');
  console.log('PASS: Slow upload response beyond 12 seconds is acknowledged without false network error');
+ // A real JPEG larger than 10 MiB must pass browser validation and server processing.
+ const large=await largeJpeg();await upload.locator('input[type=file]').setInputFiles({name:'large-lightroom.jpg',mimeType:'image/jpeg',buffer:large});await page.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();await page.locator('.upload-summary').filter({hasText:'Đã lưu 1/1'}).waitFor({timeout:60000});assert.equal((await app.db.get('SELECT source_bytes FROM photos WHERE album_id=? AND original=?',[album,'large-lightroom.jpg'])).source_bytes,large.length);
+ console.log('PASS: Real JPEG above 10 MiB uploads, optimizes and reports stored sizes');
  // A too-large file must never block a valid file or leave the user with a generic failure.
- const count=(await app.db.all('SELECT id FROM photos WHERE album_id=?',[album])).length;await page.locator('[data-form=upload] input[type=file]').setInputFiles([{name:'too-large.jpg',mimeType:'image/jpeg',buffer:Buffer.alloc(8*1024*1024+1)},samples[0]]);await page.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();await page.locator('.form-error').filter({hasText:'Đã lưu 1/2'}).waitFor();assert.match(await page.locator('.upload-file-error').textContent(),/8 MB/);assert.equal((await app.db.all('SELECT id FROM photos WHERE album_id=?',[album])).length,count+1);
+ const count=(await app.db.all('SELECT id FROM photos WHERE album_id=?',[album])).length;await page.locator('[data-form=upload] input[type=file]').setInputFiles([{name:'too-large.jpg',mimeType:'image/jpeg',buffer:Buffer.alloc(maxUploadBytes+1)},samples[0]]);await page.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();await page.locator('.form-error').filter({hasText:'Đã lưu 1/2'}).waitFor();assert.match(await page.locator('.upload-file-error').textContent(),/20 MB/);assert.equal((await app.db.all('SELECT id FROM photos WHERE album_id=?',[album])).length,count+1);
  console.log('PASS: Oversized file is skipped while valid input uploads');
  for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Overflow at '+width);await page.locator('.upload-report').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(evidence,`upload-result-${width}.png`)});}
  if(process.env.STUDIO_AXE_MODULE){const {default:AxeBuilder}=await import(process.env.STUDIO_AXE_MODULE);const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();await writeFile(path.join(evidence,'accessibility.json'),JSON.stringify({violations:result.violations,incomplete:result.incomplete},null,2));assert.deepEqual(result.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);}
  await page.reload();await page.locator('.manage-photo').first().waitFor();assert.equal(await page.locator('.photo-size').count(),count+1);
  await page.goto(base+'/album/'+album);await page.locator('.photo-open').first().click();const lightbox=page.locator('#lightbox img');await lightbox.waitFor({state:'visible'});await lightbox.evaluate(el=>el.decode());assert.ok(await lightbox.evaluate(el=>el.naturalWidth>0));await page.screenshot({path:path.join(evidence,'lightbox-real-photo.png')});
+ // Settings must accept the same large file and use the upload timeout too.
+ await page.goto(base+'/admin#settings');const portraitForm=page.locator('[data-form=portrait]');await portraitForm.waitFor();assert.match(await portraitForm.textContent(),/20 MB/);
+ await page.route('**/api/admin/portrait',async route=>{const response=await route.fetch();await new Promise(resolve=>setTimeout(resolve,13000));await route.fulfill({response});});
+ await portraitForm.locator('input[type=file]').setInputFiles({name:'large-portrait.jpg',mimeType:'image/jpeg',buffer:large});await portraitForm.getByRole('button',{name:'Tải ảnh chân dung lên',exact:true}).click();
+ await page.locator('.portrait-preview').waitFor({timeout:40000});await page.locator('.portrait-preview').evaluate(el=>el.decode());assert.equal(await page.locator('[data-form=portrait] .form-error').textContent(),'');await page.unroute('**/api/admin/portrait');
+ console.log('PASS: Settings accepts JPEG above 10 MiB with delayed acknowledgement and a decoded portrait preview');
  assert.deepEqual(errors,[]);console.log('PASS: 320/390/768/1440 responsive results, accessibility, metrics after reload, lightbox and no runtime errors');
 }finally{await browser?.close();server.closeAllConnections();await new Promise(r=>server.close(r));await app.db.close();await rm(dir,{recursive:true,force:true});}

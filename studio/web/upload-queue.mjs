@@ -1,7 +1,8 @@
-export const maxUploadBytes=8*1024*1024;
+import {maxUploadBytes,uploadSizeLabel} from './upload-policy.mjs';
+export {maxUploadBytes} from './upload-policy.mjs';
 export function uploadIssue(file){
  if(file.size===0)return 'Tệp rỗng. Hãy xuất lại ảnh.';
- if(file.size>maxUploadBytes)return 'Ảnh vượt quá 8 MB. Hãy xuất JPEG sRGB, cạnh dài 2400–4096 px.';
+ if(file.size>maxUploadBytes)return `Ảnh vượt quá ${uploadSizeLabel}. Hãy xuất JPEG sRGB, cạnh dài 2400–4096 px.`;
  if(file.type&&!['image/jpeg','image/png','image/webp','application/octet-stream'].includes(file.type))return 'Chỉ hỗ trợ JPEG, PNG và WebP. Hãy xuất JPEG từ Lightroom.';
  return null;
 }
