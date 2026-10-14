@@ -54,6 +54,8 @@ Kiểm thử: `node --test studio/tests/gallery-download.test.mjs studio/tests/g
 
 ## Upload ảnh Lightroom và tối ưu dung lượng
 
+Theo dõi upload: trang admin hiển thị phần trăm dữ liệu đang gửi và trạng thái chờ xác nhận lưu. Trên Render, mở **Logs → Live tail** và tìm `[upload]` hoặc **Mã kiểm tra** trong lỗi. Log production ghi thời gian/RAM cho từng bước nhận file, tạo ảnh và lưu storage/database; không ghi tên file hay thông tin đăng nhập. Xem [hướng dẫn chẩn đoán](docs/upload-production-diagnostics-2026-10-14.md). Gửi đủ dữ liệu không đồng nghĩa đã lưu ảnh; chỉ số “Đã lưu” tăng khi máy chủ xác nhận.
+
 Chọn trực tiếp JPEG, PNG hoặc WebP đã xuất từ Lightroom (tối đa 20 MiB và 40 megapixel/ảnh). Hệ thống tự tạo bản WebP cạnh dài tối đa 2400 px, quality 88 và ảnh thu nhỏ tối đa 900 px, quality 80. Cả hai dùng effort 6 và smart chroma subsampling, được tạo trực tiếp từ đầu vào, tự xoay đúng chiều và chuyển về sRGB. Không phóng lớn, không thêm sharpening hoặc chỉnh màu sáng/tối; EXIF/GPS được loại bỏ. Không ép một mức KB cố định vì ảnh nhiều chi tiết cần nhiều dữ liệu hơn.
 
 Ảnh mới còn được tạo một bản **JPG tải xuống** trực tiếp từ đầu vào: cạnh dài tối đa 2400 px, quality 92, mozjpeg, chroma 4:4:4 và ICC sRGB. Giữ đúng chiều, không phóng lớn, không giữ EXIF/GPS; ảnh có nền trong suốt được đặt trên nền trắng. Bản này ưu tiên chi tiết để chia sẻ, không thay thế file Lightroom để in/chỉnh sửa.

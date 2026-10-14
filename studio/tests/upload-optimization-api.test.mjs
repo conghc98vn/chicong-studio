@@ -10,10 +10,10 @@ import {createApp} from '../server/app.mjs';
 import {openDatabase} from '../server/db.mjs';
 import {largeJpeg} from './fixtures/large-photo.mjs';
 import {maxUploadBytes} from '../web/upload-policy.mjs';
-async function fixture(storage){
+async function fixture(storage,uploadLogger){
  const dir=await mkdtemp(path.join(tmpdir(),'upload-quality-'));let pool,schema,url=null;
  if(process.env.STUDIO_TEST_POSTGRES_URL){pool=new pg.Pool({connectionString:process.env.STUDIO_TEST_POSTGRES_URL});schema='upload_test_'+randomBytes(8).toString('hex');await pool.query('CREATE SCHEMA '+schema);const target=new URL(process.env.STUDIO_TEST_POSTGRES_URL);target.searchParams.set('options','-c search_path='+schema);url=target.href;}
- const db=await openDatabase(dir,{url});const instance=await createApp({db,dataDir:dir,env:{},storage,origin:'http://localhost'});
+ const db=await openDatabase(dir,{url});const instance=await createApp({db,dataDir:dir,env:{},storage,uploadLogger,origin:'http://localhost'});
  const server=instance.app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));const base='http://127.0.0.1:'+server.address().port;let cookie='';
  const request=(path,body,method='GET',headers={})=>fetch(base+path,{method,headers:{Origin:'http://localhost',Cookie:cookie,...(body instanceof FormData?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:body instanceof FormData?body:JSON.stringify(body)});
  const setup=await request('/api/admin/setup',{email:'upload@example.com',password:'upload-test-password'},'POST');cookie=setup.headers.get('set-cookie').split(';')[0];
@@ -74,5 +74,16 @@ test('Failed download rendition storage rolls back all files and a retry persist
   const bytes=await sample(),response=await f.upload([bytes]);assert.equal(response.status,422);const result=(await response.json()).results[0];assert.equal(result.code,'SAVE_FAILED');assert.equal(result.retryable,true);assert.equal(files.size,0);assert.equal((await f.db.all('SELECT * FROM photos')).length,0);
   broken=false;const retry=await f.upload([bytes]);assert.equal(retry.status,201);const saved=(await retry.json()).results[0];assert.equal(files.size,3);assert.equal(saved.optimization.download_bytes,files.get(saved.id+'-download.jpg').length);
   assert.equal((await f.request('/api/admin/photos/'+saved.id,{},'DELETE')).status,200);assert.equal(files.size,0);assert.equal((await f.db.all('SELECT * FROM photos')).length,0);
+ }finally{await f.close();}
+});
+
+test('Upload tracing identifies processing stages and failures without disclosing filenames or secrets',async()=>{
+ const events=[],storage={put:async()=>{throw Error('secret storage credentials');},remove:async()=>{}};
+ const f=await fixture(storage,event=>events.push(event));try{
+  const response=await f.upload([await sample()]);assert.equal(response.status,422);const traceId=response.headers.get('x-upload-id');assert.ok(traceId);
+  const stages=events.filter(e=>e.event==='stage').map(e=>e.stage);
+  for(const stage of ['authenticate','receive_body','validate','deduplicate','optimize_decode','optimize_webp','optimize_thumbnail','optimize_jpeg','store_webp','file_error','rollback'])assert.ok(stages.includes(stage),stage);
+  assert.ok(events.some(e=>e.event==='stage_error'&&e.stage==='store_webp'));assert.ok(events.some(e=>e.event==='response_finished'&&e.status===422));
+  assert.ok(events.every(e=>e.upload_id===traceId&&e.elapsed_ms>=0));assert.doesNotMatch(JSON.stringify(events),/secret|credentials|same\.jpg|Cookie|upload@example/);
  }finally{await f.close();}
 });

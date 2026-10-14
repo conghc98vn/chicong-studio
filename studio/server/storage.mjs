@@ -48,7 +48,7 @@ export function createStorage(dir,env=process.env){
    if(updated.file_size_limit!==null&&!(Number(updated.file_size_limit)>=derivedFileSizeLimit))throw Error('Storage bucket file size limit is too small for JPEG downloads');
   }
  },
- async put(name,buffer){const type=mediaType(name);if(cloud){const r=await fetch(url(name),{method:'POST',headers:{...headers,'Content-Type':type},body:buffer,signal:AbortSignal.timeout(30000)});if(!r.ok)throw Error('Storage upload failed');}else{await mkdir(dir,{recursive:true});await writeFile(path.join(dir,name),buffer);}},
+ async put(name,buffer){const type=mediaType(name);if(cloud){const r=await fetch(url(name),{method:'POST',headers:{...headers,'Content-Type':type},body:buffer,signal:AbortSignal.timeout(30000)});if(!r.ok)throw Object.assign(Error('Storage upload failed'),{storageStatus:r.status});}else{await mkdir(dir,{recursive:true});await writeFile(path.join(dir,name),buffer);}},
  async get(name,{signal}={}){mediaType(name);signal?.throwIfAborted();if(cloud){const timeout=AbortSignal.timeout(30000),requestSignal=signal?AbortSignal.any([signal,timeout]):timeout;const r=await fetch(url(name),{headers,signal:requestSignal});if(!r.ok)throw Error('Storage read failed');return Buffer.from(await r.arrayBuffer());}return readFile(path.join(dir,name),{signal});},
  async remove(name){mediaType(name);if(cloud){const r=await fetch(`${env.SUPABASE_URL}/storage/v1/object/${bucket}`,{method:'DELETE',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({prefixes:[name]}),signal:AbortSignal.timeout(30000)});if(!r.ok)throw Error('Storage deletion failed');}else await unlink(path.join(dir,name)).catch(e=>{if(e.code!=='ENOENT')throw e;});}
  };

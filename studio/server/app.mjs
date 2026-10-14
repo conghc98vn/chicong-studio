@@ -1,3 +1,4 @@
+import {uploadTrace,quietUploadTrace} from './upload-trace.mjs';
 import {maxUploadBytes,uploadSizeLabel} from '../web/upload-policy.mjs';
 import {optimizePhoto,photoOptimization} from './image-optimizer.mjs';
 import {registerGalleryDownloads} from './gallery-download.mjs';
@@ -44,12 +45,13 @@ export async function createApp(options={}){
  const app=express();app.disable('x-powered-by');app.set('trust proxy',security.trustProxy);
  app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",'Permissions-Policy':'camera=(), microphone=(), geolocation=()'});if(production)res.set('Strict-Transport-Security','max-age=31536000');next();});
  app.use(security.middleware);
+ app.use(uploadTrace(options.uploadLogger||(production?(entry=>console.info('[upload] '+JSON.stringify(entry))):(()=>{}))));
  app.use(express.json({limit:'128kb'}));
  app.use((req,res,next)=>{req.body??={};next();});
  const cookies=req=>Object.fromEntries((req.headers.cookie||'').split(';').map(p=>{const i=p.indexOf('=');return [p.slice(0,i).trim(),p.slice(i+1).trim()];}).filter(([k])=>k));
  const session=async(req,name)=>{const token=cookies(req)[name];if(!token)return;return db.get('SELECT * FROM sessions WHERE token=? AND expires>?',[digest(token),Date.now()]);};
  // Express middleware requires next(), unlike terminal route handlers.
- const requireAdmin=(req,res,next)=>{session(req,'studio_admin').then(s=>{if(!s?.admin_id)throw fail(401,'Vui lòng đăng nhập để vào trang quản trị.');req.admin=s.admin_id;next();}).catch(next);};
+ const requireAdmin=(req,res,next)=>{req.uploadTrace?.mark('authenticate');session(req,'studio_admin').then(s=>{if(!s?.admin_id)throw fail(401,'Vui lòng đăng nhập để vào trang quản trị.');req.admin=s.admin_id;req.uploadTrace?.mark('receive_body');next();}).catch(next);};
  const allowed=async(req,a)=>{if(a.status==='published')return true;if((await session(req,'studio_admin'))?.admin_id)return true;const s=await session(req,'gallery_'+a.id);return a.status==='private'&&s?.album_id===a.id;};
  const makeSession=async(res,{admin,album})=>{await db.run('DELETE FROM sessions WHERE expires<?',[Date.now()]);const token=randomBytes(32).toString('hex');const age=admin?12*3600000:7*86400000;await db.run('INSERT INTO sessions(token,admin_id,album_id,expires) VALUES(?,?,?,?)',[digest(token),admin||null,album||null,Date.now()+age]);res.cookie(admin?'studio_admin':'gallery_'+album,token,{httpOnly:true,sameSite:'strict',secure:production,maxAge:age,path:'/'});};
  let nextRateCleanup=0;
@@ -177,10 +179,11 @@ export async function createApp(options={}){
  const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:maxUploadBytes,files:8,fields:0},fileFilter:(req,file,cb)=>cb(['image/jpeg','image/png','image/webp'].includes(file.mimetype)?null:fail(422,'Vui lòng chọn ảnh định dạng JPEG, PNG hoặc WebP.'),true)});
  app.post('/api/admin/portrait',upload.single('portrait'),asyncRoute(async(req,res)=>{
   if(!req.file)throw fail(422,'Vui lòng chọn ảnh chân dung định dạng JPEG, PNG hoặc WebP.');
+  const trace=req.uploadTrace||quietUploadTrace;trace.file(0,req.file.buffer.length);trace.mark('optimize_portrait');
   let data;
   try{const image=sharp(req.file.buffer,{limitInputPixels:40000000});const meta=await image.metadata();if(!['jpeg','png','webp'].includes(meta.format))throw Error('Invalid portrait format');data=await image.rotate().resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).webp({quality:86}).toBuffer();}
   catch{throw fail(422,'Không đọc được ảnh chân dung. Vui lòng chọn ảnh JPEG, PNG hoặc WebP khác.');}
-  const key=id();await storage.put(key+'.webp',data);
+  const key=id();await trace.run('store_portrait',()=>storage.put(key+'.webp',data));trace.mark('database_insert');
   await db.run("INSERT INTO settings(key,value) VALUES('portrait',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[key]);
   res.status(201).json({success:true});
  }));
@@ -191,23 +194,28 @@ export async function createApp(options={}){
  }));
  const albumUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:maxUploadBytes,files:8,fields:0}});
  app.post('/api/admin/albums/:id/photos',albumUpload.array('photos',8),asyncRoute(async(req,res)=>{
+ const trace=req.uploadTrace||quietUploadTrace;trace.mark('validate');
  const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');if(!req.files?.length)throw fail(422,`Vui lòng chọn ảnh JPEG, PNG hoặc WebP, dung lượng tối đa ${uploadSizeLabel} mỗi ảnh.`);
  let keys=[];if(req.get('X-Upload-Keys')){try{keys=JSON.parse(req.get('X-Upload-Keys'));}catch{throw fail(422,'Không nhận diện được lượt tải ảnh này. Vui lòng chọn lại ảnh rồi thử tải lên.');}if(!Array.isArray(keys)||keys.length!==req.files.length||new Set(keys).size!==keys.length||keys.some(k=>typeof k!=='string'||! /^[a-f0-9-]{32,64}$/.test(k)))throw fail(422,'Không nhận diện được lượt tải ảnh này. Vui lòng chọn lại ảnh rồi thử tải lên.');}
  const sectionId=await validateSection(db,a.id,req.get('X-Album-Section')||null);
  const output=[],errors=[],results=[];
  for(const [fileIndex,file] of req.files.entries()){
+ trace.file(fileIndex,file.buffer.length);
  const key=id(),uploadKey=keys[fileIndex]||null,fileHash=createHash('sha256').update(file.buffer).digest('hex');
  const previous=async()=>uploadKey?db.get('SELECT id,upload_hash,source_bytes,image_bytes,thumb_bytes,download_bytes,width,height FROM photos WHERE album_id=? AND upload_key=?',[a.id,uploadKey]):undefined;
  const success=(photoId,reused=false,optimization=null)=>{output.push(photoId);results.push({index:fileIndex,success:true,id:photoId,reused,optimization});};
  let saved=false;
  try{
- const old=await previous();if(old){if(old.upload_hash!==fileHash)throw Object.assign(Error('Lượt tải này đã lưu một tệp khác. Hãy chọn lại ảnh để bắt đầu lượt mới.'),{code:'UPLOAD_CONFLICT',retryable:false});success(old.id,true,photoOptimization(old));continue;}
- const {data,thumbnail,download,optimization}=await optimizePhoto(file.buffer);
- await storage.put(key+'.webp',data);await storage.put(key+'-thumb.webp',thumbnail);await storage.put(key+'-download.jpg',download);
+ const old=await trace.run('deduplicate',previous);if(old){if(old.upload_hash!==fileHash)throw Object.assign(Error('Lượt tải này đã lưu một tệp khác. Hãy chọn lại ảnh để bắt đầu lượt mới.'),{code:'UPLOAD_CONFLICT',retryable:false});success(old.id,true,photoOptimization(old));continue;}
+ const {data,thumbnail,download,optimization}=await optimizePhoto(file.buffer,{runStage:(name,fn)=>trace.run('optimize_'+name,fn)});
+ await trace.run('store_webp',()=>storage.put(key+'.webp',data));await trace.run('store_thumbnail',()=>storage.put(key+'-thumb.webp',thumbnail));await trace.run('store_jpeg',()=>storage.put(key+'-download.jpg',download));
+ trace.mark('database_insert');
  await db.run('INSERT INTO photos(id,album_id,filename,original,caption,width,height,position,upload_key,upload_hash,section_id,source_bytes,image_bytes,thumb_bytes,download_bytes) SELECT ?,?,?,?,?,?,?,COALESCE(MAX(position),-1)+1,?,?,?,?,?,?,? FROM photos WHERE album_id=?',[key,a.id,key,clean(file.originalname,180),clean(file.originalname.replace(/\.[^.]+$/,''),180),optimization.width,optimization.height,uploadKey,fileHash,sectionId,optimization.source_bytes,optimization.image_bytes,optimization.thumb_bytes,optimization.download_bytes,a.id]);saved=true;
- success(key,false,optimization);await db.run('UPDATE albums SET cover_id=? WHERE id=? AND cover_id IS NULL',[key,a.id]);
+ trace.mark('saved');success(key,false,optimization);await db.run('UPDATE albums SET cover_id=? WHERE id=? AND cover_id IS NULL',[key,a.id]);
  }catch(error){
+ trace.mark('file_error');
  if(saved)continue; // A saved image must never lose its files if setting its cover fails.
+ trace.mark('rollback');
  await Promise.allSettled([storage.remove(key+'.webp'),storage.remove(key+'-thumb.webp'),storage.remove(key+'-download.jpg')]);
  const old=await previous();if(old?.upload_hash===fileHash){success(old.id,true,photoOptimization(old));continue;}
  errors.push(clean(file.originalname,180));results.push({index:fileIndex,success:false,code:error.retryable===false?error.code:'SAVE_FAILED',error:error.retryable===false?error.message:'Chưa lưu được ảnh vào kho dữ liệu. Vui lòng thử lại; nếu lỗi tiếp diễn, kiểm tra dung lượng lưu trữ.',retryable:error.retryable!==false});

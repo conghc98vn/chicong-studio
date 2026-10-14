@@ -26,6 +26,7 @@ export class UploadQueue {
    try{result=await send(batch,batch.map(file=>this.keys.get(file)));}catch(error){
     if(error.data?.results)result=error.data;
     else if(error.status)throw error;
+    else if(['UPLOAD_TIMEOUT','UPLOAD_NETWORK_ERROR','INVALID_RESPONSE'].includes(error.code))throw Error(error.message+' Giữ nguyên trang và bấm “Tải lại các ảnh còn lại” để tiếp tục.');
     else if(error.code==='REQUEST_TIMEOUT')throw Error('Máy chủ chưa xác nhận ảnh trong 3 phút. Giữ nguyên trang và bấm “Tải lại các ảnh còn lại”; ảnh đã lưu trong lượt này sẽ không bị tải trùng.');
     else throw Error('Kết nối bị gián đoạn. Giữ nguyên trang và bấm “Tải lại các ảnh còn lại” để tiếp tục. Hệ thống sẽ nhận diện những ảnh đã lưu trong lượt tải này.');
    }
