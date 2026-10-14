@@ -25,6 +25,6 @@ Log Render từ 21:30–21:40 giờ Việt Nam không ghi nhận crash/OOM; mẫ
 
 ## Triển khai
 
-Render thực tế bật Auto-Deploy On Commit, nên push main trước đó đã tự triển khai dù không gọi deploy thủ công. Theo yêu cầu người dùng muốn tự deploy, đã chuyển riêng dịch vụ chicong-photo-studio sang Off trên Dashboard và xác nhận qua API (`autoDeploy: no`, `autoDeployTrigger: off`) trước khi push hotfix. Không gọi deploy bản sửa.
+Render được cấu hình Auto-Deploy On Commit, nhưng lượt triển khai commit `ff1aefd` được Render ghi nhận với trigger `manual`; không có cơ sở kết luận lượt triển khai đó do auto-deploy. Theo yêu cầu người dùng muốn tự deploy, đã chuyển riêng dịch vụ chicong-photo-studio sang Off trên Dashboard và xác nhận qua API (`autoDeploy: no`, `autoDeployTrigger: off`) trước khi push hotfix. Không gọi deploy bản sửa.
 
 Sau khi deploy thủ công thành công, cần tải lại trang quản trị để nhận module JavaScript mới. Tab cũ vẫn chạy timeout 12 giây. Kiểm tra số ảnh đã lưu trước khi chọn lại file: mở lại trang sẽ tạo một lượt upload mới, không dùng các khóa retry của tab cũ. Tại thời điểm kiểm tra album của sự cố có 0 ảnh.
