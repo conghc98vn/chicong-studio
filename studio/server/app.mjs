@@ -1,8 +1,8 @@
 import {uploadTrace,quietUploadTrace} from './upload-trace.mjs';
 import {maxUploadBytes,uploadSizeLabel} from '../web/upload-policy.mjs';
-import {optimizePhoto,photoOptimization} from './image-optimizer.mjs';
+import {optimizePhoto,photoOptimization,encodeDownloadJpeg} from './image-optimizer.mjs';
 import {decodePreparedPhoto,isPreparedPhoto} from './prepared-photo.mjs';
-import {registerGalleryDownloads} from './gallery-download.mjs';
+import {registerGalleryDownloads,safeName} from './gallery-download.mjs';
 import {registerSectionRoutes,validateSection} from './album-sections.mjs';
 import {createGoogleCalendar} from './google-calendar.mjs';
 import {buildSchemaOrg,schemaOrgScript} from './schema-org.mjs';
@@ -97,6 +97,18 @@ export async function createApp(options={}){
  app.get('/api/health',async(req,res)=>{try{await db.get('SELECT key FROM settings LIMIT 1');res.json({ok:true});}catch{res.status(503).json({ok:false});}});
  app.get('/api/portfolio',asyncRoute(async(req,res)=>{if(req.query.view==='cards')return res.json(await portfolioCards());const rows=await db.all("SELECT * FROM albums WHERE status='published' ORDER BY created DESC");res.json(await albumDTOs(rows));}));
  app.get('/api/albums/:key',asyncRoute(async(req,res)=>{const a=await findAlbum(db,req.params.key);if(!a||!await allowed(req,a))throw fail(404,'Không tìm thấy bộ ảnh.');res.json(await albumDTO(a));}));
+ app.get('/api/albums/:key/photos/:photoId/download',asyncRoute(async(req,res)=>{
+  res.set('Cache-Control','private,no-store');
+  const a=await findAlbum(db,req.params.key);
+  if(!a||!await allowed(req,a))throw fail(404,'Không tìm thấy bộ ảnh.');
+  const p=await db.get('SELECT * FROM photos WHERE id=? AND album_id=?',[req.params.photoId,a.id]);
+  if(!p)throw fail(404,'Không tìm thấy ảnh.');
+  const data=p.download_bytes!=null?await storage.get(p.filename+'-download.jpg'):await encodeDownloadJpeg(await storage.get(p.filename+'.webp'),{onDemand:true});
+  const filename=safeName(p.original||p.caption)+'.jpg';
+  res.attachment(filename);
+  res.set({'Content-Type':'image/jpeg','Content-Length':String(data.length)});
+  res.send(data);
+ }));
  app.get('/api/gallery/:id',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a)throw fail(404,'Bộ ảnh riêng không còn khả dụng. Bạn hãy liên hệ nhiếp ảnh gia để kiểm tra lại đường dẫn.');if(!await allowed(req,a))return res.json({locked:true});res.json(await albumDTO(a));}));
  app.post('/api/gallery/:id/unlock',asyncRoute(async(req,res)=>{
   await rate(req,'gallery-attempt',60);

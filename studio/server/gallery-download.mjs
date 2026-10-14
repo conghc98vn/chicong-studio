@@ -8,7 +8,7 @@ import {encodeDownloadJpeg} from './image-optimizer.mjs';
 
 export const downloadPolicy=Object.freeze({maxPhotos:50,maxBytes:100*1024*1024,maxConcurrent:2});
 const fail=(status,message)=>Object.assign(new Error(message),{status});
-const safeName=value=>{
+export const safeName=value=>{
  const base=String(value||'anh').toWellFormed().normalize('NFC').split(/[\\/]/).at(-1)
   .replace(/\.[^.]*$/,'').replace(/[\x00-\x1f\x7f<>:"|?*\u202a-\u202e\u2066-\u2069]/g,'')
   .replace(/^[.\s]+|[.\s]+$/g,'');
@@ -99,6 +99,22 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
     clearTimeout(timeout);res.removeListener('close',disconnected);active.delete(album.id);
     if(directory)await rm(directory,{recursive:true,force:true});
    }
+  };
+  run().catch(next);
+ });
+ app.get('/api/gallery/:id/photos/:photoId/download',(req,res,next)=>{
+  const run=async()=>{
+   res.set('Cache-Control','private,no-store');
+   const album=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);
+   if(!album)throw fail(404,'Bộ ảnh riêng không còn khả dụng.');
+   if(!await allowed(req,album))throw fail(401,'Vui lòng nhập lại mật khẩu để tải ảnh.');
+   const photo=await db.get('SELECT * FROM photos WHERE id=? AND album_id=?',[req.params.photoId,album.id]);
+   if(!photo)throw fail(404,'Không tìm thấy ảnh.');
+   const data=photo.download_bytes!=null?await storage.get(photo.filename+'-download.jpg'):await encodeDownloadJpeg(await storage.get(photo.filename+'.webp'),{onDemand:true});
+   const filename=safeName(photo.original||photo.caption)+'.jpg';
+   res.attachment(filename);
+   res.set({'Content-Type':'image/jpeg','Content-Length':String(data.length)});
+   res.send(data);
   };
   run().catch(next);
  });

@@ -316,3 +316,20 @@ test('Disconnecting during selection lookup does not start archive work or occup
   const retry=await f.download([photo.id]);assert.equal(retry.status,200);assert.deepEqual(await bytes(retry),photo.jpeg);
  }finally{release.resolve();controller.abort();await f.close();}
 });
+
+test('Direct single photo download route validates session and serves high-res JPEG',async()=>{
+ const f=await fixture();
+ try{
+  const photo=await f.seed({original:'wedding ceremony.jpg',caption:'Lễ gia tiên'});
+  const unauth=await f.request('/api/gallery/'+f.album+'/photos/'+photo.id+'/download',undefined,{cookie:''});
+  assert.equal(unauth.status,401);
+  const res=await f.request('/api/gallery/'+f.album+'/photos/'+photo.id+'/download',undefined,{cookie:f.galleryCookie});
+  assert.equal(res.status,200);
+  assert.equal(res.headers.get('content-type'),'image/jpeg');
+  assert.match(res.headers.get('content-disposition')||'',/attachment/);
+  assert.deepEqual(await bytes(res),photo.jpeg);
+  const notFound=await f.request('/api/gallery/'+f.album+'/photos/'+id()+'/download',undefined,{cookie:f.galleryCookie});
+  assert.equal(notFound.status,404);
+ }finally{await f.close();}
+});
+
