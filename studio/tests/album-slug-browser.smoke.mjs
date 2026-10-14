@@ -44,6 +44,7 @@ try{
  await instance.db.run('UPDATE settings SET value=? WHERE key=?',[JSON.stringify(photos.map(p=>({albumId:id,wideId:p.id,tallId:p.id}))),'heroSelection']);
  await instance.db.run('UPDATE settings SET value=? WHERE key=?',[JSON.stringify([{albumId:id,photoId:photo.id}]),'storySelection']);
  const homeRequests=[];page.on('request',r=>homeRequests.push(new URL(r.url()).pathname));
+ await page.clock.install();
  await page.emulateMedia({reducedMotion:'reduce'});
  await page.goto(base+'/');await page.locator('.highlight-album').waitFor();
  assert.ok(!homeRequests.includes('/api/site')&&!homeRequests.includes('/api/portfolio'),'Bootstrap avoids duplicate API reads');
@@ -53,7 +54,8 @@ try{
  assert.equal(await page.locator('.highlight-slide img[data-src]').count(),1);
  await page.locator('[data-slide=prev]').click();await page.waitForFunction(()=>document.querySelector('.highlight-count').textContent==='01 / 03');
  await page.emulateMedia({reducedMotion:'no-preference'});
- await page.waitForFunction(()=>document.querySelector('.highlight-count').textContent==='02 / 03',null,{timeout:10000});
+ await page.clock.fastForward(12000);
+ assert.equal(await page.locator('.highlight-count').textContent(),'01 / 03','Hero stays manual when reduced motion is disabled');
  await page.emulateMedia({reducedMotion:'reduce'});
  assert.equal(await page.locator('.highlight-album').getAttribute('href'),'/album/anh-cuoi-da-lat');assert.equal(await page.locator('.album-card').first().getAttribute('href'),'/album/anh-cuoi-da-lat');
  await page.goto(base+'/portfolio');await page.locator('.album-card').first().click();await page.waitForURL(base+'/album/anh-cuoi-da-lat');await page.locator('h1').waitFor();
@@ -80,5 +82,5 @@ try{
  assert.ok(overflow.scroll<=overflow.client+1,'Mobile dialog overflow: '+JSON.stringify(overflow));
  await form.locator('[name=slug]').fill('Đà Lạt trên điện thoại');await form.getByRole('button',{name:'Lưu thay đổi'}).click();await page.locator('#editor').waitFor({state:'hidden'});await page.waitForFunction(()=>document.querySelector('#toast')?.textContent==='Đã lưu bộ ảnh.');
  await page.getByRole('link',{name:'Xem trên website'}).waitFor();await page.waitForFunction(()=>document.querySelector('a[href^="/album/"]')?.getAttribute('href')==='/album/da-lat-tren-dien-thoai');assert.equal(await page.getByRole('link',{name:'Xem trên website'}).getAttribute('href'),'/album/da-lat-tren-dien-thoai');
- assert.deepEqual(errors,[]);console.log('PASS: Chrome desktop and mobile create/edit/preview/upload, homepage bootstrap/deferred slides/manual navigation/autoplay/cards, responsive row image sizes/lightbox, portfolio navigation, ID redirect, canonical and no page errors.');
+ assert.deepEqual(errors,[]);console.log('PASS: Chrome desktop and mobile create/edit/preview/upload, homepage bootstrap/deferred slides/manual navigation/no autoplay/cards, responsive row image sizes/lightbox, portfolio navigation, ID redirect, canonical and no page errors.');
 }finally{await browser?.close();await new Promise(r=>server.close(r));await instance.db.close();await rm(dir,{recursive:true,force:true});}

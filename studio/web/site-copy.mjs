@@ -13,12 +13,17 @@ export const legacyCopy={
  about:'Mỗi bộ ảnh bắt đầu từ một cuộc trò chuyện. Chia sẻ với mình về điều bạn muốn lưu giữ, để cùng tạo nên một câu chuyện mang dấu ấn riêng.',
  bookingNote:'Gửi yêu cầu để trao đổi và xác nhận lịch chụp. Yêu cầu chưa phải là lịch hẹn đã được xác nhận.'
 };
-export const siteDefaults={
+const editorialDefaults={
  ...previousDefaults,
  tagline:'Wedding Photographer',
  intro:'Chí Công chụp ảnh cưới bằng film và máy số, lưu lại những khoảnh khắc tự nhiên bên gia đình và bạn bè. Xem các bộ ảnh và trao đổi về ngày cưới của hai bạn.',
  about:'Mình là Chí Công, chụp ảnh cưới bằng film và máy số. Mình ghi lại ngày cưới từ những phút chuẩn bị, lễ gia tiên đến khoảnh khắc hai bạn ở bên gia đình và bạn bè.\n\nVới mình, một bộ ảnh đáng nhớ bắt đầu từ sự thoải mái của hai bạn. Mình chú ý đến những cảm xúc tự nhiên, những người thân yêu và cả những chi tiết nhỏ dễ bị bỏ qua trong ngày.\n\nTrước buổi chụp, mình cùng hai bạn trao đổi về lịch trình và những điều muốn lưu giữ. Hai bạn cứ là chính mình và tận hưởng ngày cưới, phần ghi lại những khoảnh khắc ấy hãy để mình lo.',
  bookingNote:'Kể mình nghe dự định cho ngày cưới của hai bạn. Mình sẽ cùng hai bạn chọn cách chụp phù hợp và gửi báo giá riêng. Chưa chốt ngày hay ngân sách vẫn có thể trao đổi.'
+};
+export const siteDefaults={
+ ...editorialDefaults,
+ about:'Mình chụp ảnh cưới bằng film và máy số, từ những phút chuẩn bị đến lúc hai bạn ở bên gia đình và bạn bè.\n\nMình thích những cảm xúc tự nhiên và chi tiết nhỏ trong ngày. Hai bạn cứ thoải mái tận hưởng, mình sẽ ghi lại những điều ấy.',
+ bookingNote:'Hai bạn cứ chia sẻ dự định hoặc điều còn băn khoăn. Mình cùng trao đổi nhé.'
 };
 const earlierCopy={
  about:[
@@ -26,13 +31,14 @@ const earlierCopy={
   'Với hơn 5 năm trong lĩnh vực ảnh cưới và cơ hội đồng hành cùng hàng trăm cặp dâu rể, mình tin rằng một bộ ảnh đáng nhớ bắt đầu từ sự thoải mái của hai bạn. Mình là Chí Công, tập trung chụp ngày cưới: từ những phút chuẩn bị, lễ gia tiên đến khoảnh khắc bên gia đình và bạn bè. Mình muốn để hai bạn được là chính mình, còn những cảm xúc và chi tiết nhỏ trong ngày, hãy để mình ghi lại.'
  ],
  bookingNote:[
+  'Chia sẻ dự định hoặc câu hỏi của hai bạn. Mình sẽ phản hồi và gửi báo giá phù hợp.',
   'Kể mình nghe một chút về hai bạn và ngày cưới dự kiến. Chưa có đủ thông tin cũng không sao.',
   'Chia sẻ dự định và ngân sách của hai bạn qua form bên dưới. Mình sẽ trao đổi để tư vấn cách chụp phù hợp và gửi báo giá riêng. Chưa chốt ngày hay ngân sách cũng không sao.'
  ]
 };
 // Upgrade only exact shipped copy. Studio-authored text and intentional blanks stay intact.
 const copyHistory=Object.fromEntries(Object.keys(siteDefaults).map(key=>[
- key,[legacyCopy[key],previousDefaults[key],...(earlierCopy[key]||[])].filter(value=>value!==undefined)
+ key,[legacyCopy[key],previousDefaults[key],editorialDefaults[key],...(earlierCopy[key]||[])].filter(value=>value!==undefined)
 ]));
 export function currentCopy(values={}){
  const result={...siteDefaults,...values};

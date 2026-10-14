@@ -23,7 +23,7 @@ export function initPortfolioMotion(root) {
       play(entry.target, Math.min(sequence++ * 90, 180));
     }
   }, {threshold: 0.08});
-  root.querySelectorAll('.section-top, .medium-note > div, .note-section, .public-cta, .about-title, .about-intro, .about-art, .approach-section > h2, .approach-grid article').forEach(element => observer.observe(element));
+  root.querySelectorAll('.section-top, .note-section, .public-cta, .about-title, .about-intro, .about-art, .approach-section > h2, .approach-grid article').forEach(element => observer.observe(element));
   const stop = () => {
     observer.disconnect();
     active.forEach(animation => animation.cancel());

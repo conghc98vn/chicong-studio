@@ -16,16 +16,24 @@ export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
  CREATE TABLE IF NOT EXISTS admins(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,admin_id TEXT REFERENCES admins(id),album_id TEXT,expires BIGINT NOT NULL);
  CREATE TABLE IF NOT EXISTS albums(id TEXT PRIMARY KEY,title TEXT NOT NULL,category TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'draft',password TEXT,cover_id TEXT,client_name TEXT NOT NULL DEFAULT '',event_date TEXT NOT NULL DEFAULT '',selection_status TEXT NOT NULL DEFAULT 'draft',created TEXT NOT NULL DEFAULT '');
+ CREATE TABLE IF NOT EXISTS album_sections(id TEXT PRIMARY KEY,album_id TEXT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,title TEXT NOT NULL,position INTEGER NOT NULL DEFAULT 0);
+ CREATE INDEX IF NOT EXISTS sections_album_position ON album_sections(album_id,position);
  CREATE TABLE IF NOT EXISTS photos(id TEXT PRIMARY KEY,album_id TEXT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,filename TEXT NOT NULL,original TEXT NOT NULL DEFAULT '',caption TEXT NOT NULL DEFAULT '',width INTEGER NOT NULL,height INTEGER NOT NULL,position INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS selections(album_id TEXT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,photo_id TEXT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,updated TEXT NOT NULL,PRIMARY KEY(album_id,photo_id));
  CREATE TABLE IF NOT EXISTS inquiries(id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL,phone TEXT NOT NULL DEFAULT '',date TEXT NOT NULL DEFAULT '',service TEXT NOT NULL,message TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'new',created TEXT NOT NULL);
  CREATE UNIQUE INDEX IF NOT EXISTS one_confirmed_per_date ON inquiries(date) WHERE status='confirmed' AND date<>'';
  CREATE TABLE IF NOT EXISTS blocked_dates(date TEXT PRIMARY KEY,note TEXT NOT NULL DEFAULT '');
  CREATE TABLE IF NOT EXISTS rate_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires BIGINT NOT NULL);`);
- if(db.cloud){await db.exec(['settings','admins','sessions','albums','photos','selections','inquiries','blocked_dates','rate_limits'].map(t=>`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'));}
+ if(db.cloud){await db.exec(['settings','admins','sessions','albums','album_sections','photos','selections','inquiries','blocked_dates','rate_limits'].map(t=>`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'));}
  // Additive migration: existing albums, photos and sessions stay intact.
+ if(db.cloud)await db.exec('ALTER TABLE photos ADD COLUMN IF NOT EXISTS section_id TEXT REFERENCES album_sections(id) ON DELETE SET NULL;');
+ else if(!(await db.all('PRAGMA table_info(photos)')).some(c=>c.name==='section_id'))await db.exec('ALTER TABLE photos ADD COLUMN section_id TEXT REFERENCES album_sections(id) ON DELETE SET NULL;');
+ await db.exec('CREATE INDEX IF NOT EXISTS photos_section ON photos(section_id);');
  if(db.cloud){await db.exec("ALTER TABLE photos ADD COLUMN IF NOT EXISTS upload_key TEXT; ALTER TABLE photos ADD COLUMN IF NOT EXISTS upload_hash TEXT; ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''; ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS budget TEXT NOT NULL DEFAULT '';");}
  else{const columns=await db.all('PRAGMA table_info(photos)');for(const column of ['upload_key','upload_hash'])if(!columns.some(c=>c.name===column))await db.exec('ALTER TABLE photos ADD COLUMN '+column+' TEXT;');const inquiryColumns=await db.all('PRAGMA table_info(inquiries)');if(!inquiryColumns.some(c=>c.name==='budget'))await db.exec("ALTER TABLE inquiries ADD COLUMN budget TEXT NOT NULL DEFAULT '';");if(!inquiryColumns.some(c=>c.name==='notes'))await db.exec("ALTER TABLE inquiries ADD COLUMN notes TEXT NOT NULL DEFAULT '';");}
+ // Nullable byte counts preserve old records without inventing original sizes.
+ if(db.cloud)await db.exec(['source_bytes','image_bytes','thumb_bytes','download_bytes'].map(column=>'ALTER TABLE photos ADD COLUMN IF NOT EXISTS '+column+' INTEGER;').join(' '));
+ else{const columns=await db.all('PRAGMA table_info(photos)');for(const column of ['source_bytes','image_bytes','thumb_bytes','download_bytes'])if(!columns.some(c=>c.name===column))await db.exec('ALTER TABLE photos ADD COLUMN '+column+' INTEGER;');}
  // Request identity survives retries and server restarts; legacy requests remain valid.
  if(db.cloud)await db.exec('ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS request_key TEXT; ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS request_hash TEXT;');
  else{const columns=await db.all('PRAGMA table_info(inquiries)');for(const key of ['request_key','request_hash'])if(!columns.some(c=>c.name===key))await db.exec('ALTER TABLE inquiries ADD COLUMN '+key+' TEXT;');}

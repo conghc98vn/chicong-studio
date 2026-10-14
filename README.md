@@ -38,7 +38,49 @@ Nếu upload có ảnh hỏng, các ảnh thành công vẫn được lưu và h
 4. Studio hiển thị số ảnh đã chọn và trạng thái khách đã gửi; có thể xuất danh sách tên file/chú thích dưới dạng CSV.
 5. Khách có thể chỉnh lựa chọn và gửi lại. Nhiều thiết bị dùng cùng gallery chia sẻ một danh sách lựa chọn. Đổi mật khẩu vô hiệu phiên gallery cũ; khách có thể bấm **Đóng gallery** để thoát.
 
-File media của gallery private yêu cầu session hợp lệ; có link ảnh đơn lẻ cũng không xem được nếu chưa đăng nhập. Ảnh công khai và chân dung dùng cache trình duyệt có kiểm tra lại với server (`private,no-cache`); gallery private dùng `private,no-store`. Khi ẩn album, request kiểm tra lại quyền trước khi trả 304. Gallery và admin có noindex. Không giữ ảnh gốc/RAW để giao file: ảnh web được tối ưu 2400px + thumbnail 900px.
+File media của gallery private yêu cầu session hợp lệ; có link ảnh đơn lẻ cũng không xem được nếu chưa đăng nhập. Ảnh công khai và chân dung dùng cache trình duyệt có kiểm tra lại với server (`private,no-cache`); gallery private dùng `private,no-store`. Khi ẩn album, request kiểm tra lại quyền trước khi trả 304. Gallery và admin có noindex. Không giữ ảnh gốc/RAW để giao file: ảnh web được tối ưu 2400px + thumbnail 900px; ảnh upload mới có thêm bản JPG tải xuống tối đa 2400px.
+
+## Khách tải ảnh đã chọn
+
+Trong gallery đã mở bằng mật khẩu, bấm **Tải ảnh đã chọn**. Danh sách tải gồm toàn bộ ảnh đã chọn trong album, kể cả các phần đang bị ẩn bởi bộ lọc. Một ảnh tải thành JPG; nhiều ảnh được gom vào ZIP với tên file gốc đã làm sạch và số thứ tự để tránh trùng. Không cần bấm **Gửi lựa chọn** trước; tải xuống không thay đổi trạng thái gửi hay danh sách đã chọn.
+
+Các gói tối đa 50 ảnh, tải lần lượt; trên điện thoại mở ZIP bằng ứng dụng Tệp / Files rồi giải nén. Hộp tải có tiến độ nhận tệp, hủy và thử lại. Nếu vượt giới hạn dung lượng, bấm **Chia thành gói nhỏ hơn**; các ảnh đã chọn vẫn được giữ nguyên. Trình duyệt lưu vào mục Tải xuống; thông báo chuyển tệp cho trình duyệt không có nghĩa ảnh đã được lưu vào thư viện Ảnh. Nếu lựa chọn trên thiết bị khác thay đổi, bấm cập nhật danh sách; phiên hết hạn yêu cầu mở lại gallery.
+
+Ảnh mới dùng bản JPG tạo trực tiếp từ file upload. **Ảnh cũ chưa có JPG** được chuyển từ bản WebP lớn nhất, không dùng thumbnail và không thể phục hồi chi tiết đã mất. Chuyển ảnh cũ dùng encoder nhanh để giảm thời gian đợi, giữ quality 92, 2400px, 4:4:4 và ICC sRGB; dung lượng có thể lớn hơn bản mozjpeg tạo khi upload. Không truy cập Google Drive. Muốn tạo JPG từ nguồn cho ảnh cũ cần đưa lại nguồn vào một quy trình nhập riêng; tính năng này không tự ghép hoặc thay thế ảnh cũ.
+
+API `POST /api/gallery/:id/download` nhận 1–50 ID đang được chọn, kiểm tra phiên và quyền đúng album cả trước lẫn sau chuẩn bị. Mỗi lượt tối đa 100 MiB, một lượt đang xử lý/album và hai lượt/server. JPEG được đọc/tạo tuần tự vào thư mục tạm; ZIP được hoàn tất trước khi gửi, không gom cả album vào RAM server. Tệp tạm được xóa khi xong, hủy hoặc lỗi; giới hạn thời gian 3 phút. Trình duyệt nhận tối đa 100 MiB mỗi lượt và chỉ lưu khi nhận đủ tệp. Download dùng `private,no-store`; lỗi lưu trữ không trả ZIP thiếu ảnh. Supabase bucket vẫn riêng tư, tự bổ sung `image/jpeg` vào danh sách MIME nếu đang bị giới hạn. Giới hạn đối tượng lưu trữ tối thiểu 24 MiB để nhận JPG nhiều chi tiết có thể lớn hơn đầu vào; giữ nguyên giới hạn cao hơn hoặc không giới hạn. Giới hạn upload đầu vào vẫn 8 MiB.
+
+Kiểm thử: `node --test studio/tests/gallery-download.test.mjs studio/tests/gallery-download-client.test.mjs`. Browser smoke: `node studio/tests/gallery-download-browser.smoke.mjs` với `STUDIO_PLAYWRIGHT_MODULE`, tùy chọn `STUDIO_AXE_MODULE`, `STUDIO_DOWNLOAD_SAMPLE_FILES`. Các bài kiểm thử dùng database/ảnh tạm riêng.
+
+## Upload ảnh Lightroom và tối ưu dung lượng
+
+Chọn trực tiếp JPEG, PNG hoặc WebP đã xuất từ Lightroom (tối đa 8 MiB và 40 megapixel/ảnh). Hệ thống tự tạo bản WebP cạnh dài tối đa 2400 px, quality 88 và ảnh thu nhỏ tối đa 900 px, quality 80. Cả hai dùng effort 6 và smart chroma subsampling, được tạo trực tiếp từ đầu vào, tự xoay đúng chiều và chuyển về sRGB. Không phóng lớn, không thêm sharpening hoặc chỉnh màu sáng/tối; EXIF/GPS được loại bỏ. Không ép một mức KB cố định vì ảnh nhiều chi tiết cần nhiều dữ liệu hơn.
+
+Ảnh mới còn được tạo một bản **JPG tải xuống** trực tiếp từ đầu vào: cạnh dài tối đa 2400 px, quality 92, mozjpeg, chroma 4:4:4 và ICC sRGB. Giữ đúng chiều, không phóng lớn, không giữ EXIF/GPS; ảnh có nền trong suốt được đặt trên nền trắng. Bản này ưu tiên chi tiết để chia sẻ, không thay thế file Lightroom để in/chỉnh sửa.
+
+Sau upload, quản trị hiển thị số byte đầu vào, bản web, thumbnail, JPG tải xuống, kích thước và phần trăm giảm **tổng dung lượng lưu trữ**. Từng ảnh mới có số liệu bên dưới trong danh sách; số liệu vẫn còn sau tải lại trang. Ảnh cũ chưa có số liệu đầu vào sẽ không hiển thị con số suy đoán. Nếu các bản cộng lại lớn hơn đầu vào, báo cáo nói rõ thay vì hiển thị phần trăm tiết kiệm sai.
+
+File hỏng, rỗng, sai định dạng, ảnh động hoặc quá giới hạn được báo riêng. Các file hợp lệ vẫn được xử lý. Lỗi tạm thời có thể thử lại; ảnh đã được xác nhận lưu sẽ không được upload lại trong cùng lượt. Các nhóm upload tối đa 8 file và khoảng 12 MiB để tránh gửi hàng chục MB một lần. Nếu phản hồi bị mất, cùng mã upload trả lại ảnh và số liệu đã lưu. Giữ nguyên trang để thử lại; mở lại trang và chọn lại file tạo một lượt upload mới.
+
+Tối ưu diễn ra trên server: JPEG đầu vào vẫn phải được truyền lên qua mạng, nhưng chỉ WebP, thumbnail và JPG tải xuống được lưu; không giữ tệp nguồn. Tiếp tục giữ bản gốc trên ổ đĩa/Drive để giao ảnh chất lượng đầy đủ hoặc in. Để giảm thời gian truyền lên, có thể dùng preset Lightroom JPEG sRGB, quality 90, cạnh dài 2400 px; đây là lựa chọn thêm, không bắt buộc với file đã nằm trong giới hạn.
+
+Kiểm thử: `node --test studio/tests/image-optimizer.test.mjs studio/tests/upload-optimization-api.test.mjs studio/tests/upload-queue.test.mjs`. Kiểm tra UI: `node studio/tests/upload-browser.smoke.mjs` (cần Playwright; hỗ trợ `STUDIO_PLAYWRIGHT_MODULE`, `STUDIO_AXE_MODULE` và `STUDIO_UPLOAD_SAMPLE_FILES` là mảng JSON các đường dẫn ảnh thử). Tất cả dùng database và thư mục ảnh tạm riêng.
+
+## Chia album/gallery thành các phần
+
+Trong quản trị, mở bộ ảnh → **Các phần trong bộ ảnh**:
+
+1. Bấm **+ Thêm phần** để đặt tên, hoặc **Dùng mẫu ngày cưới** để thêm các phần thường dùng. Áp dụng lại mẫu sẽ bỏ qua các tên đã có.
+2. Kéo tay nắm để đổi thứ tự phần; nút **↑/↓** cũng dùng được trên điện thoại và bằng bàn phím.
+3. Chọn **Tải ảnh vào phần** trước khi upload, hoặc đổi mục **Phần** trên từng ảnh sau khi tải. Đổi bộ lọc vẫn giữ danh sách tệp đã chọn và phần đích upload. Lượt upload thử lại giữ nguyên phần đích ban đầu và không chuyển lại ảnh đã lưu.
+4. Đánh dấu nhiều ảnh (hoặc **Chọn tất cả ảnh đang hiển thị**), chọn phần đích và bấm **Chuyển phần**; tối đa 1.000 ảnh mỗi lượt. Chọn **Chưa phân loại** để bỏ gán phần. Khi đổi bộ lọc phần, danh sách đánh dấu được xóa để tránh chuyển nhầm ảnh ngoài màn hình.
+5. Lọc một phần rồi dùng **↑/↓** trên ảnh để đổi thứ tự trong phần đó.
+
+Album công khai và gallery riêng đều có thanh lọc theo phần, cuộn ngang trên điện thoại. **Tất cả** hiển thị theo thứ tự phần, rồi thứ tự ảnh; ảnh chưa phân loại ở cuối. Trình xem ảnh lớn chỉ duyệt các ảnh đang lọc và hiển thị tên phần. Trong gallery riêng, bộ lọc phần kết hợp được với **Xem ảnh đã chọn**; số trên từng tab đếm ảnh theo chế độ đang xem; tổng lựa chọn và nút gửi luôn áp dụng cho cả album.
+
+Xóa phần đưa ảnh về **Chưa phân loại**, vẫn giữ ảnh và lựa chọn của khách. CSV có thêm cột **Section**; JSON sao lưu có thêm `album_sections` và `photos.section_id`. Bộ ảnh không có phần tiếp tục dùng giao diện và thứ tự cũ. Migration chạy tự động khi khởi động server, bổ sung bảng/cột và giữ dữ liệu hiện có trên SQLite/PostgreSQL.
+
+Kiểm tra tính năng: `node --test studio/tests/album-sections.test.mjs`. Kiểm tra giao diện bằng Chrome: `node studio/tests/album-sections-browser.smoke.mjs` (cần Playwright, hoặc đặt `STUDIO_PLAYWRIGHT_MODULE` tới module đã cài). Kiểm tra thêm lỗi mạng, upload một phần, phiên hết hạn, bàn phím và responsive: `node studio/tests/album-sections-ux.smoke.mjs`. Có thể đặt `STUDIO_AXE_MODULE` tới module `@axe-core/playwright` để kiểm tra khả năng truy cập. Các kiểm thử tạo database và ảnh tạm riêng.
 
 ## Liên hệ và đặt lịch
 

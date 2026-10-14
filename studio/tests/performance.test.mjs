@@ -52,9 +52,9 @@ test('Public HTML reuses three queries, escapes embedded JSON and excludes priva
 test('Batched album reads preserve order and selections with constant query count and authorization',async()=>{
  const f=await fixture();try{
   assert.equal((await f.request('/api/admin/albums')).status,401);
-  f.reset();const publicRows=await(await f.request('/api/portfolio')).json();assert.equal(f.queries,3);assert.equal(publicRows.length,8);assert.equal(publicRows[0].id,'album7');
+  f.reset();const publicRows=await(await f.request('/api/portfolio')).json();assert.equal(f.queries,4);assert.equal(publicRows.length,8);assert.equal(publicRows[0].id,'album7');
   assert.doesNotMatch(JSON.stringify(publicRows),/album8|Private customer|private-hash/);
-  f.reset();const adminRows=await(await f.admin('/api/admin/albums')).json();assert.equal(f.queries,4);assert.equal(adminRows.length,9);
+  f.reset();const adminRows=await(await f.admin('/api/admin/albums')).json();assert.equal(f.queries,5);assert.equal(adminRows.length,9);
   for(const a of adminRows){assert.equal(a.client_name,'Private customer');assert.equal(a.has_password,true);assert.ok(!('password' in a));assert.deepEqual(a.photos.map(p=>p.position),[0,1,2]);assert.deepEqual(a.photos.map(p=>p.selected),[false,true,false]);}
   await f.db.run("UPDATE albums SET status='draft'");assert.deepEqual(await(await f.request('/api/portfolio')).json(),[]);
  }finally{await f.close();}
