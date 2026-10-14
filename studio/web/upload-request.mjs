@@ -18,7 +18,7 @@ export function uploadRequest(url,{body,headers={},onProgress=()=>{}},{xhrFactor
    let data;try{data=JSON.parse(xhr.responseText);}catch{}
    if(Array.isArray(data?.results))for(const item of data.results)if(item?.success===false)item.error=(item.error||'Chưa lưu được ảnh.')+' Mã kiểm tra: '+requestId+'.';
    if(xhr.status<200||xhr.status>=300)return finish(Object.assign(failure('UPLOAD_HTTP_ERROR',data?.error||`Máy chủ trả về lỗi HTTP ${xhr.status}.`),{status:xhr.status,data}));
-   if(!data||typeof data!=='object')return finish(failure('INVALID_RESPONSE','Máy chủ trả về phản hồi chưa đầy đủ.'));
+   if(!data||typeof data!=='object'||Array.isArray(data))return finish(failure('INVALID_RESPONSE','Máy chủ trả về phản hồi chưa đầy đủ.'));
    finish(null,data);
   };
   onProgress({phase:'sending',loaded:0,total:null});

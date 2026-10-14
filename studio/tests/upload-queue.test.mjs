@@ -49,3 +49,19 @@ test('Prepared files accept unknown browser MIME and report actual transfer byte
  assert.match(uploadReport(q),/Ảnh nguồn tương ứng:/);
  assert.doesNotMatch(uploadReport(q),/Tệp đầu vào đã lưu/);
 });
+test('Malformed acknowledgements stop the queue without falsely saving photos and retain retry keys',async()=>{
+ const malformed=[null,{},[],{results:[]},{results:[null]},{results:[{index:0,success:'true'}]},{results:[{index:'0',success:true}]},{results:[{index:-1,success:true}]},{results:[{index:1,success:true}]},{results:[{index:0,success:true},{index:0,success:true}]},{results:[{index:0,success:false,retryable:'false'}]}];
+ for(const response of malformed){
+  const files=[{name:'first.jpg'},{name:'second.jpg'}],queue=new UploadQueue(files);const keys=files.map(file=>queue.keys.get(file));let sends=0;
+  await assert.rejects(queue.run(async()=>{sends++;return response;}),error=>error.code==='INVALID_RESPONSE'&&/Giữ nguyên trang/.test(error.message));
+  assert.equal(sends,1);assert.equal(queue.done.size,0);assert.equal(queue.results.get(files[0]).retryable,true);assert.match(queue.results.get(files[0]).error,/chưa xác nhận/);assert.equal(queue.results.has(files[1]),false);
+  const retried=[];await queue.run(async(batch,retryKeys)=>{retried.push(...retryKeys);return ack(batch);});assert.deepEqual(retried,keys);assert.equal(queue.done.size,2);
+ }
+});
+test('Transport and HTTP failures are visible per file and retain status for session recovery',async()=>{
+ for(const error of [Object.assign(Error('Mạng bị ngắt. Mã kiểm tra: trace-id.'),{code:'UPLOAD_NETWORK_ERROR',requestId:'trace-id'}),Object.assign(Error('Vui lòng đăng nhập lại.'),{status:401,code:'UPLOAD_HTTP_ERROR'})]){
+  const file={name:'<img>.jpg'},queue=new UploadQueue([file]);
+  await assert.rejects(queue.run(async()=>{throw error;}),failure=>failure.status===error.status&&failure.requestId===error.requestId);
+  assert.equal(queue.results.get(file).success,false);assert.equal(queue.results.get(file).retryable,true);assert.match(uploadReport(queue),/upload-file-error/);assert.doesNotMatch(uploadReport(queue),/<img>/);assert.match(uploadReport(queue),error.status?/đăng nhập/:/trace-id/);
+ }
+});

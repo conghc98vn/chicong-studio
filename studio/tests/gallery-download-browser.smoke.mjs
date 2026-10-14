@@ -44,6 +44,9 @@ try{
  const browserName=process.env.STUDIO_BROWSER||'chromium';
  browser=await (pw[browserName]||pw.default[browserName]).launch({...(browserName==='chromium'?{channel:'chrome'}:{}),headless:true});
  const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true}),page=await context.newPage();page.setDefaultTimeout(20000);
+ // WebKit can resolve setViewportSize before the resize event/ResizeObserver
+ // updates masonry positions. Check overflow after that layout has painted.
+ const resize=async width=>{await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));};
  const errors=[],downloadPayloads=[];page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>{if(request.url().endsWith('/download')&&request.method()==='POST')downloadPayloads.push(request.postDataJSON());});
  const unlock=async()=>{await page.getByLabel('Mật khẩu bộ ảnh').fill('gallery-browser-password');await page.getByRole('button',{name:'Mở bộ ảnh',exact:true}).click();await page.locator('.client-toolbar').waitFor();};
  const open=async()=>{await page.locator('[data-action=download-selected]').click();await page.locator('#gallery-download').waitFor({state:'visible'});};
@@ -72,14 +75,14 @@ try{
 
  const accessibility=[];
  for(const width of [320,390,768,1440]){
-  await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Page overflow at '+width);
+  await resize(width);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Page overflow at '+width);
   assert.ok(await page.locator('#gallery-download').evaluate(element=>element.scrollWidth<=element.clientWidth),'Dialog overflow at '+width);
   await page.screenshot({path:path.join(evidence,`download-dialog-${width}.png`)});
   if(process.env.STUDIO_AXE_MODULE){const {default:AxeBuilder}=await import(process.env.STUDIO_AXE_MODULE);const scan=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();accessibility.push({width,violations:scan.violations,incomplete:scan.incomplete});assert.deepEqual(scan.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);}
  }
  await writeFile(path.join(evidence,'accessibility.json'),JSON.stringify(accessibility,null,2));
  await page.keyboard.press('Escape');await page.locator('#gallery-download').waitFor({state:'hidden'});assert.equal(await page.locator('[data-action=download-selected]').evaluate(el=>el===document.activeElement),true);
- for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Gallery overflow at '+width);await page.locator('.client-toolbar').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(evidence,`gallery-toolbar-${width}.png`)});}
+ for(const width of [320,390,768,1440]){await resize(width);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Gallery overflow at '+width);await page.locator('.client-toolbar').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(evidence,`gallery-toolbar-${width}.png`)});}
  console.log('PASS: Dialog and gallery at 320/390/768/1440, accessibility, Escape and restored focus');
 
  const endpoint='**/api/gallery/'+album+'/download';
@@ -109,7 +112,7 @@ try{
  await page.reload();await page.locator('.client-toolbar').waitFor();await open();assert.equal(await page.locator('[data-download-part]').count(),2);assert.match(await page.locator('#gallery-download').textContent(),/Ảnh 1–50/);assert.match(await page.locator('#gallery-download').textContent(),/Ảnh 51–51/);
  let downloadCount=0;page.on('download',()=>downloadCount++);const second=await download(1);assert.match(second.name,/\.jpg$/);assert.equal(downloadPayloads.at(-1).photos.length,1);assert.equal((await sharp(second.buffer).metadata()).format,'jpeg');assert.equal(downloadCount,1);
  const first=await download(0);assert.equal(zipEntries(first.buffer).length,50);assert.equal(downloadPayloads.at(-1).photos.length,50);assert.equal(downloadCount,2);
- await page.setViewportSize({width:320,height:1000});assert.ok(await page.locator('#gallery-download').evaluate(el=>el.scrollWidth<=el.clientWidth));await page.screenshot({path:path.join(evidence,'download-packages-320.png')});
+ await resize(320);assert.ok(await page.locator('#gallery-download').evaluate(el=>el.scrollWidth<=el.clientWidth));await page.screenshot({path:path.join(evidence,'download-packages-320.png')});
  assert.deepEqual(errors,[]);console.log('PASS: 51 selected photos split into manual 50-photo ZIP and one-photo JPG packages; no accidental additional downloads and no runtime errors');
  await writeFile(path.join(evidence,'browser-summary.json'),JSON.stringify({passed:true,sampleNames:samples.map(sample=>sample.name),zipBytes:zipped.buffer.length,singleJpegBytes:single.buffer.length,packages:[50,1],viewports:[320,390,768,1440],axeViolations:accessibility.reduce((n,r)=>n+r.violations.length,0),browserErrors:errors},null,2));
 }finally{await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await instance.db.close();await rm(dir,{recursive:true,force:true});}

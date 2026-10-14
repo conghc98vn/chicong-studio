@@ -1,8 +1,8 @@
 import {uploadTrace,quietUploadTrace} from './upload-trace.mjs';
 import {maxUploadBytes,uploadSizeLabel} from '../web/upload-policy.mjs';
-import {optimizePhoto,photoOptimization,encodeDownloadJpeg} from './image-optimizer.mjs';
+import {optimizePhoto,photoOptimization} from './image-optimizer.mjs';
 import {decodePreparedPhoto,isPreparedPhoto} from './prepared-photo.mjs';
-import {registerGalleryDownloads,safeName} from './gallery-download.mjs';
+import {registerGalleryDownloads} from './gallery-download.mjs';
 import {registerSectionRoutes,validateSection} from './album-sections.mjs';
 import {createGoogleCalendar} from './google-calendar.mjs';
 import {buildSchemaOrg,schemaOrgScript} from './schema-org.mjs';
@@ -68,13 +68,14 @@ export async function createApp(options={}){
   if(!rows.length)return [];
   const ids=rows.map(a=>a.id),placeholders=ids.map(()=>'?').join(',');
   const [photos,selections,sections]=await Promise.all([
-   db.all('SELECT * FROM photos WHERE album_id IN ('+placeholders+') ORDER BY position,id',ids),
+   db.all('SELECT id,album_id,caption,original,width,height,position,section_id'+(admin?',source_bytes,image_bytes,thumb_bytes,download_bytes':'')+' FROM photos WHERE album_id IN ('+placeholders+') ORDER BY position,id',ids),
    db.all('SELECT photo_id FROM selections WHERE album_id IN ('+placeholders+')',ids),
    db.all('SELECT id,album_id,title,position FROM album_sections WHERE album_id IN ('+placeholders+') ORDER BY position,id',ids)
   ]);
-  const selected=new Set(selections.map(s=>s.photo_id)),grouped=new Map();
+  const selected=new Set(selections.map(s=>s.photo_id)),grouped=new Map(),groupedSections=new Map();
   for(const p of photos){const list=grouped.get(p.album_id)||[];list.push(p);grouped.set(p.album_id,list);}
-  return rows.map(a=>({id:a.id,slug:a.slug,title:a.title,category:a.category,description:a.description,status:a.status,event_date:a.event_date,selection_status:a.selection_status,cover_id:a.cover_id,created:a.created,sections:sections.filter(s=>s.album_id===a.id).map(({album_id,...s})=>s),...(admin?{client_name:a.client_name,has_password:!!a.password}:{}),photos:(grouped.get(a.id)||[]).map(p=>({id:p.id,caption:p.caption,original:p.original,width:p.width,height:p.height,position:p.position,section_id:p.section_id,...(admin?{optimization:photoOptimization(p)}:{}),src:'/media/'+p.id,thumb:'/media/'+p.id+'?size=thumb',selected:selected.has(p.id)}))}));
+  for(const {album_id,...section} of sections){const list=groupedSections.get(album_id)||[];list.push(section);groupedSections.set(album_id,list);}
+  return rows.map(a=>({id:a.id,slug:a.slug,title:a.title,category:a.category,description:a.description,status:a.status,event_date:a.event_date,selection_status:a.selection_status,cover_id:a.cover_id,created:a.created,sections:groupedSections.get(a.id)||[],...(admin?{client_name:a.client_name,has_password:!!a.password}:{}),photos:(grouped.get(a.id)||[]).map(p=>({id:p.id,caption:p.caption,original:p.original,width:p.width,height:p.height,position:p.position,section_id:p.section_id,...(admin?{optimization:photoOptimization(p)}:{}),src:'/media/'+p.id,thumb:'/media/'+p.id+'?size=thumb',selected:selected.has(p.id)}))}));
  };
  const albumDTO=async(a,admin=false)=>(await albumDTOs([a],admin))[0];
  const portfolioCards=async(config=undefined)=>{
@@ -97,18 +98,6 @@ export async function createApp(options={}){
  app.get('/api/health',async(req,res)=>{try{await db.get('SELECT key FROM settings LIMIT 1');res.json({ok:true});}catch{res.status(503).json({ok:false});}});
  app.get('/api/portfolio',asyncRoute(async(req,res)=>{if(req.query.view==='cards')return res.json(await portfolioCards());const rows=await db.all("SELECT * FROM albums WHERE status='published' ORDER BY created DESC");res.json(await albumDTOs(rows));}));
  app.get('/api/albums/:key',asyncRoute(async(req,res)=>{const a=await findAlbum(db,req.params.key);if(!a||!await allowed(req,a))throw fail(404,'Không tìm thấy bộ ảnh.');res.json(await albumDTO(a));}));
- app.get('/api/albums/:key/photos/:photoId/download',asyncRoute(async(req,res)=>{
-  res.set('Cache-Control','private,no-store');
-  const a=await findAlbum(db,req.params.key);
-  if(!a||!await allowed(req,a))throw fail(404,'Không tìm thấy bộ ảnh.');
-  const p=await db.get('SELECT * FROM photos WHERE id=? AND album_id=?',[req.params.photoId,a.id]);
-  if(!p)throw fail(404,'Không tìm thấy ảnh.');
-  const data=p.download_bytes!=null?await storage.get(p.filename+'-download.jpg'):await encodeDownloadJpeg(await storage.get(p.filename+'.webp'),{onDemand:true});
-  const filename=safeName(p.original||p.caption)+'.jpg';
-  res.attachment(filename);
-  res.set({'Content-Type':'image/jpeg','Content-Length':String(data.length)});
-  res.send(data);
- }));
  app.get('/api/gallery/:id',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a)throw fail(404,'Bộ ảnh riêng không còn khả dụng. Bạn hãy liên hệ nhiếp ảnh gia để kiểm tra lại đường dẫn.');if(!await allowed(req,a))return res.json({locked:true});res.json(await albumDTO(a));}));
  app.post('/api/gallery/:id/unlock',asyncRoute(async(req,res)=>{
   await rate(req,'gallery-attempt',60);
@@ -124,7 +113,24 @@ export async function createApp(options={}){
  app.put('/api/gallery/:id/selection/:photo',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a||!await allowed(req,a))throw fail(401,'Vui lòng nhập mật khẩu để mở bộ ảnh riêng.');const p=await db.get('SELECT id FROM photos WHERE id=? AND album_id=?',[req.params.photo,a.id]);if(!p)throw fail(404,'Không tìm thấy ảnh.');if(typeof req.body.selected!=='boolean')throw fail(422,'Chưa lưu được lựa chọn ảnh. Vui lòng tải lại trang rồi thử lại.');if(req.body.selected)await db.run('INSERT INTO selections(album_id,photo_id,updated) VALUES(?,?,?) ON CONFLICT(album_id,photo_id) DO UPDATE SET updated=excluded.updated',[a.id,p.id,now()]);else await db.run('DELETE FROM selections WHERE album_id=? AND photo_id=?',[a.id,p.id]);await db.run("UPDATE albums SET selection_status='draft' WHERE id=?",[a.id]);res.json({success:true});}));
  app.post('/api/gallery/:id/submit',asyncRoute(async(req,res)=>{const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);if(!a||!await allowed(req,a))throw fail(401,'Vui lòng nhập mật khẩu để mở bộ ảnh riêng.');if(!await db.get('SELECT photo_id FROM selections WHERE album_id=? LIMIT 1',[a.id]))throw fail(422,'Vui lòng chọn ít nhất một ảnh trước khi gửi danh sách.');await db.run("UPDATE albums SET selection_status='submitted' WHERE id=?",[a.id]);res.json({success:true});}));
  registerGalleryDownloads(app,{db,storage,allowed});
- app.get('/media/:id',asyncRoute(async(req,res)=>{res.set('Cache-Control','private,no-store');const p=await db.get('SELECT photos.*,albums.status,albums.password FROM photos JOIN albums ON photos.album_id=albums.id WHERE photos.id=?',[req.params.id]);if(!p||!await allowed(req,{id:p.album_id,status:p.status}))throw fail(404,'Không tìm thấy ảnh.');const thumb=req.query.size==='thumb';res.set({'Content-Type':'image/webp','Cache-Control':p.status==='published'?'private,no-cache':'private,no-store','ETag':'"'+p.id+(thumb?'-thumb':'-full')+'"'});if(req.fresh)return res.status(304).end();if(req.method==='HEAD')return res.end();const buffer=await storage.get(p.filename+(thumb?'-thumb':'')+'.webp');res.send(buffer);}));
+ app.get('/media/:id',asyncRoute(async(req,res)=>{
+  res.set('Cache-Control','private,no-store');
+  const p=await db.get('SELECT photos.id,photos.album_id,photos.filename,albums.status FROM photos JOIN albums ON photos.album_id=albums.id WHERE photos.id=?',[req.params.id]);
+  if(!p||!await allowed(req,{id:p.album_id,status:p.status}))throw fail(404,'Không tìm thấy ảnh.');
+  if(req.aborted||res.destroyed)return;
+  const thumb=req.query.size==='thumb';
+  res.set({'Cache-Control':p.status==='published'?'private,no-cache':'private,no-store','ETag':'"'+p.id+(thumb?'-thumb':'-full')+'"'});
+  if(req.fresh)return res.status(304).end();
+  if(req.method==='HEAD')return res.type('webp').end();
+  // Scrolling/navigation can abandon many images. Stop the upstream read too.
+  const controller=new AbortController(),disconnected=()=>controller.abort();
+  res.once('close',disconnected);
+  try{
+   const buffer=await storage.get(p.filename+(thumb?'-thumb':'')+'.webp',{signal:controller.signal});
+   if(!res.destroyed)res.type('webp').send(buffer);
+  }catch(error){if(!res.destroyed){res.set('Cache-Control','private,no-store');res.removeHeader('ETag');throw error;}}
+  finally{res.removeListener('close',disconnected);}
+ }));
  app.get('/api/availability',asyncRoute(async(req,res)=>{const rows=await db.all("SELECT date FROM blocked_dates UNION SELECT date FROM inquiries WHERE status='confirmed' AND date<>''");const google=await googleCalendar.read();res.json({blocked:[...new Set([...rows.map(r=>r.date),...google.blocked])],today:today(),...(google.configured?{unavailable:!!google.unavailable,through:google.through}:{})});}));
  app.post('/api/inquiries',asyncRoute(async(req,res)=>{
   // A generous outer guard covers malformed traffic without charging the submission quota.

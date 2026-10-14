@@ -3,8 +3,10 @@ import {createReadStream,createWriteStream} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {pipeline} from 'node:stream/promises';
+import {Readable} from 'node:stream';
 import yazl from 'yazl';
 import {encodeDownloadJpeg} from './image-optimizer.mjs';
+import {findAlbum} from './album-slugs.mjs';
 
 export const downloadPolicy=Object.freeze({maxPhotos:50,maxBytes:100*1024*1024,maxConcurrent:2});
 const fail=(status,message)=>Object.assign(new Error(message),{status});
@@ -102,20 +104,55 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
   };
   run().catch(next);
  });
- app.get('/api/gallery/:id/photos/:photoId/download',(req,res,next)=>{
+ // Direct links use the same capacity budget as selected archives. In particular,
+ // legacy WebP conversion must not create unlimited sharp jobs on repeated clicks.
+ const singlePhoto=(privateGallery)=>(req,res,next)=>{
   const run=async()=>{
    res.set('Cache-Control','private,no-store');
-   const album=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);
-   if(!album)throw fail(404,'Bộ ảnh riêng không còn khả dụng.');
-   if(!await allowed(req,album))throw fail(401,'Vui lòng nhập lại mật khẩu để tải ảnh.');
-   const photo=await db.get('SELECT * FROM photos WHERE id=? AND album_id=?',[req.params.photoId,album.id]);
-   if(!photo)throw fail(404,'Không tìm thấy ảnh.');
-   const data=photo.download_bytes!=null?await storage.get(photo.filename+'-download.jpg'):await encodeDownloadJpeg(await storage.get(photo.filename+'.webp'),{onDemand:true});
+   const authorize=async()=>{
+    const album=privateGallery?await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]):await findAlbum(db,req.params.key);
+    if(!album)throw fail(404,'Không tìm thấy bộ ảnh.');
+    if(!await allowed(req,album))throw fail(privateGallery?401:404,privateGallery?'Vui lòng nhập lại mật khẩu để tải ảnh.':'Không tìm thấy bộ ảnh.');
+    const photo=await db.get('SELECT * FROM photos WHERE id=? AND album_id=?',[req.params.photoId,album.id]);
+    if(!photo)throw fail(404,'Không tìm thấy ảnh.');
+    return {album,photo};
+   };
+   const {album,photo}=await authorize();
+   if(req.aborted||res.destroyed)return;
+   if(Number(photo.download_bytes)>downloadPolicy.maxBytes)throw fail(413,'Tệp ảnh quá lớn để tải xuống. Vui lòng liên hệ nhiếp ảnh gia.');
    const filename=safeName(photo.original||photo.caption)+'.jpg';
-   res.attachment(filename);
-   res.set({'Content-Type':'image/jpeg','Content-Length':String(data.length)});
-   res.send(data);
+   if(req.method==='HEAD'){
+    res.attachment(filename).type('jpeg');
+    if(photo.download_bytes!=null)res.set('Content-Length',String(photo.download_bytes));
+    return res.end();
+   }
+   if(active.has(album.id)||active.size>=downloadPolicy.maxConcurrent){res.set('Retry-After','5');throw fail(429,'Đang chuẩn bị lượt tải khác. Vui lòng thử lại sau ít giây.');}
+   active.add(album.id);
+   const controller=new AbortController(),signal=controller.signal;
+   const disconnected=()=>controller.abort();
+   res.once('close',disconnected);
+   const timeout=setTimeout(()=>controller.abort(),180000);timeout.unref();
+   try{
+    signal.throwIfAborted();
+    const data=photo.download_bytes!=null?await storage.get(photo.filename+'-download.jpg',{signal}):await encodeDownloadJpeg(await storage.get(photo.filename+'.webp',{signal}),{onDemand:true});
+    signal.throwIfAborted();
+    if(data.length>downloadPolicy.maxBytes)throw fail(413,'Tệp ảnh quá lớn để tải xuống. Vui lòng liên hệ nhiếp ảnh gia.');
+    // Storage or conversion can take time; access may have been revoked meanwhile.
+    await authorize();signal.throwIfAborted();
+    res.attachment(filename);
+    res.set({'Content-Type':'image/jpeg','Content-Length':String(data.length)});
+    // Keep the slot until the response finishes, rather than only until res.send().
+    await pipeline(Readable.from([data]),res,{signal});
+   }catch(error){
+    if(res.destroyed)return;
+    if(error.status)throw error;
+    throw fail(503,'Chưa chuẩn bị được ảnh để tải xuống. Vui lòng thử lại sau ít phút.');
+   }finally{
+    clearTimeout(timeout);res.removeListener('close',disconnected);active.delete(album.id);
+   }
   };
   run().catch(next);
- });
+ };
+ app.get('/api/gallery/:id/photos/:photoId/download',singlePhoto(true));
+ app.get('/api/albums/:key/photos/:photoId/download',singlePhoto(false));
 }

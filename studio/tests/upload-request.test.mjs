@@ -15,7 +15,7 @@ test('Timeout identifies an unfinished transfer versus a missing acknowledgement
  for(const sent of [false,true]){const {xhr,promise}=fixture();if(sent)xhr.upload.onload();const check=assert.rejects(promise,e=>e.code==='UPLOAD_TIMEOUT'&&e.uploadSent===sent&&e.requestId==='trace-id'&&e.message.includes(sent?'Đã gửi dữ liệu':'Chưa gửi xong'));xhr.ontimeout();await check;}
 });
 test('HTTP, malformed response and connection failures remain distinguishable',async()=>{
- for(const [status,body,code]of [[502,'<html>bad gateway</html>','UPLOAD_HTTP_ERROR'],[422,JSON.stringify({error:'invalid',results:[{index:0,success:false}]}),'UPLOAD_HTTP_ERROR'],[200,'bad json','INVALID_RESPONSE']]){
+ for(const [status,body,code]of [[502,'<html>bad gateway</html>','UPLOAD_HTTP_ERROR'],[422,JSON.stringify({error:'invalid',results:[{index:0,success:false}]}),'UPLOAD_HTTP_ERROR'],[200,'bad json','INVALID_RESPONSE'],[200,'[]','INVALID_RESPONSE'],[200,'null','INVALID_RESPONSE']]){
   const {xhr,promise}=fixture();const check=assert.rejects(promise,e=>e.code===code&&e.message.includes('trace-id')&&!e.message.includes('<html>')&&(status!==422||e.data.results.length===1));xhr.status=status;xhr.responseText=body;xhr.onload();await check;
  }
  for(const event of ['onerror','onabort']){const {xhr,promise}=fixture(),check=assert.rejects(promise,e=>e.code==='UPLOAD_NETWORK_ERROR');xhr[event]();await check;}

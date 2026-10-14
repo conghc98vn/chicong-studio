@@ -333,3 +333,130 @@ test('Direct single photo download route validates session and serves high-res J
  }finally{await f.close();}
 });
 
+const direct=(f,photo,{kind='gallery',target=f.album,cookie=f.galleryCookie,...options}={})=>f.request(`/api/${kind}/${target}/photos/${photo}/download`,undefined,{cookie,...options});
+
+test('Direct downloads allow unselected photos, preserve public slug access, and never cross album boundaries',async()=>{
+ const f=await fixture();try{
+  const photo=await f.seed({selected:false}),other=await f.createAlbum(),foreign=await f.seed({target:other});
+  for(const kind of ['gallery','albums']){
+   const response=await direct(f,photo.id,{kind});assert.equal(response.status,200);privateResponse(response);assert.deepEqual(await bytes(response),photo.jpeg);
+   f.reads.length=0;
+   assert.equal((await direct(f,foreign.id,{kind})).status,404);assert.deepEqual(f.reads,[]);
+   assert.equal((await direct(f,photo.id,{kind,cookie:''})).status,kind==='gallery'?401:404);assert.deepEqual(f.reads,[]);
+  }
+  await f.db.run("UPDATE albums SET status='published' WHERE id=?",[f.album]);
+  const {slug}=await f.db.get('SELECT slug FROM albums WHERE id=?',[f.album]);
+  const response=await direct(f,photo.id,{kind:'albums',target:slug,cookie:''});assert.equal(response.status,200);privateResponse(response);assert.deepEqual(await bytes(response),photo.jpeg);
+  assert.deepEqual(await f.db.all('SELECT * FROM selections WHERE album_id=?',[f.album]),[]);
+ }finally{await f.close();}
+});
+
+test('Direct HEAD requests authorize but never read or convert stored and legacy images',async()=>{
+ const f=await fixture();try{
+  for(const legacy of [false,true]){
+   const photo=await f.seed({legacy});
+   for(const kind of ['gallery','albums']){
+    const response=await direct(f,photo.id,{kind,method:'HEAD'});assert.equal(response.status,200);privateResponse(response);
+    assert.equal(response.headers.get('content-type'),'image/jpeg');
+    assert.equal(response.headers.get('content-length'),legacy?null:String(photo.jpeg.length));
+    assert.equal((await bytes(response)).length,0);
+   }
+  }
+  assert.deepEqual(f.reads,[]);
+ }finally{await f.close();}
+});
+
+test('Direct downloads share archive capacity and return Retry-After until active reads complete', {timeout:30000},async()=>{
+ const f=await fixture(),release=deferred();try{
+  const photo=await f.seed(),secondAlbum=await f.createAlbum(),thirdAlbum=await f.createAlbum();
+  const second=await f.seed({target:secondAlbum}),third=await f.seed({target:thirdAlbum});
+  const secondCookie=await f.unlock(secondAlbum),thirdCookie=await f.unlock(thirdAlbum),started=deferred(),startedSecond=deferred();
+  f.setReadHook(async name=>{if(name===photo.id+'-download.jpg'){started.resolve();await release.promise;}if(name===second.id+'-download.jpg'){startedSecond.resolve();await release.promise;}});
+  const pending=direct(f,photo.id);await started.promise;
+  for(const request of [()=>direct(f,photo.id,{kind:'albums'}),()=>f.download([photo.id])]){
+   const response=await request();assert.equal(response.status,429);privateResponse(response);assert.equal(response.headers.get('retry-after'),'5');
+  }
+  const pendingSecond=f.download([second.id],{target:secondAlbum,cookie:secondCookie});await startedSecond.promise;
+  assert.equal((await direct(f,third.id,{target:thirdAlbum,cookie:thirdCookie})).status,429);
+  release.resolve();
+  for(const response of await Promise.all([pending,pendingSecond])){assert.equal(response.status,200);await response.arrayBuffer();}
+  assert.equal((await direct(f,third.id,{target:thirdAlbum,cookie:thirdCookie})).status,200);
+ }finally{release.resolve();await f.close();}
+});
+
+test('Direct downloads recheck logout, photo deletion and album closure after delayed storage reads', {timeout:30000},async()=>{
+ const f=await fixture();let release;try{
+  for(const kind of ['gallery','albums'])for(const action of ['logout','delete','close']){
+   const photo=await f.seed(),cookie=await f.unlock(),started=deferred();release=deferred();
+   f.setReadHook(async()=>{started.resolve();await release.promise;});
+   const pending=direct(f,photo.id,{kind,cookie});await started.promise;
+   if(action==='logout')await f.request('/api/gallery/'+f.album+'/logout',{}, {cookie});
+   else if(action==='delete')await f.db.run('DELETE FROM photos WHERE id=?',[photo.id]);
+   else await f.db.run("UPDATE albums SET status='archived' WHERE id=?",[f.album]);
+   release.resolve();const response=await pending;
+   assert.equal(response.status,kind==='gallery'&&action==='logout'?401:404,kind+' '+action);privateResponse(response);
+   assert.match(response.headers.get('content-type'),/json/);assert.equal(response.headers.get('content-disposition'),null);
+   await f.db.run("UPDATE albums SET status='private' WHERE id=?",[f.album]);
+  }
+  await f.db.run("UPDATE albums SET status='published' WHERE id=?",[f.album]);
+  const photo=await f.seed(),started=deferred();release=deferred();
+  f.setReadHook(async()=>{started.resolve();await release.promise;});
+  const pending=direct(f,photo.id,{kind:'albums',cookie:''});await started.promise;
+  await f.db.run("UPDATE albums SET status='private' WHERE id=?",[f.album]);
+  release.resolve();assert.equal((await pending).status,404);
+ }finally{release?.resolve();await f.close();}
+});
+
+test('Direct download abort cancels upstream read and a storage failure releases capacity for retry', {timeout:30000},async()=>{
+ const f=await fixture(),controller=new AbortController();try{
+  const photo=await f.seed(),started=deferred(),stopped=deferred();
+  f.setReadHook(async(name,{signal})=>{
+   assert.ok(signal instanceof AbortSignal);started.resolve();
+   await new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{stopped.resolve();reject(signal.reason);},{once:true}));
+  });
+  const pending=direct(f,photo.id,{signal:controller.signal});await started.promise;controller.abort();
+  await assert.rejects(pending,{name:'AbortError'});await stopped.promise;
+  f.setReadHook(async()=>{});f.files.delete(photo.id+'-download.jpg');
+  const failed=await direct(f,photo.id);assert.equal(failed.status,503);privateResponse(failed);assert.match(failed.headers.get('content-type'),/json/);assert.doesNotMatch(await failed.text(),/credential|private storage/);
+  f.files.set(photo.id+'-download.jpg',photo.jpeg);
+  const retried=await direct(f,photo.id);assert.equal(retried.status,200);assert.deepEqual(await bytes(retried),photo.jpeg);
+ }finally{controller.abort();await f.close();}
+});
+
+test('Direct legacy downloads convert the full image and reject oversized stored metadata before reading',async()=>{
+ const f=await fixture();try{
+  const photo=await f.seed({legacy:true,width:1200,height:800});
+  const response=await direct(f,photo.id);assert.equal(response.status,200);
+  const metadata=await sharp(await bytes(response)).metadata();assert.equal(metadata.format,'jpeg');assert.equal(metadata.width,1200);assert.equal(metadata.height,800);
+  assert.deepEqual(f.reads,[photo.id+'.webp']);f.reads.length=0;
+  await f.db.run('UPDATE photos SET download_bytes=? WHERE id=?',[101*1024*1024,photo.id]);
+  const oversized=await direct(f,photo.id);assert.equal(oversized.status,413);privateResponse(oversized);assert.equal(oversized.headers.get('content-disposition'),null);assert.deepEqual(f.reads,[]);
+ }finally{await f.close();}
+});
+
+test('Abandoning a gallery image cancels its storage read without affecting subsequent views', {timeout:30000},async()=>{
+ const f=await fixture(),controller=new AbortController();try{
+  const photo=await f.seed(),started=deferred(),stopped=deferred();
+  f.setReadHook(async(name,{signal})=>{
+   assert.ok(signal instanceof AbortSignal);started.resolve();
+   await new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{stopped.resolve();reject(signal.reason);},{once:true}));
+  });
+  const pending=f.request('/media/'+photo.id,undefined,{cookie:f.galleryCookie,signal:controller.signal});await started.promise;controller.abort();
+  await assert.rejects(pending,{name:'AbortError'});await stopped.promise;
+  f.setReadHook(async()=>{});
+  const response=await f.request('/media/'+photo.id,undefined,{cookie:f.galleryCookie});assert.equal(response.status,200);privateResponse(response);assert.deepEqual(await bytes(response),photo.full);
+ }finally{controller.abort();await f.close();}
+});
+
+test('Failed media reads return uncached sanitized JSON and remain retriable',async()=>{
+ const f=await fixture();try{
+  const photo=await f.seed();f.files.delete(photo.id+'.webp');
+  for(const status of ['private','published']){
+   await f.db.run('UPDATE albums SET status=? WHERE id=?',[status,f.album]);
+   const response=await f.request('/media/'+photo.id,undefined,{cookie:f.galleryCookie});assert.equal(response.status,500);privateResponse(response);
+   assert.match(response.headers.get('content-type'),/application\/json/);assert.doesNotMatch(await response.text(),/credential|private storage/);
+  }
+  f.files.set(photo.id+'.webp',photo.full);
+  const retry=await f.request('/media/'+photo.id);assert.equal(retry.status,200);assert.deepEqual(await bytes(retry),photo.full);
+ }finally{await f.close();}
+});

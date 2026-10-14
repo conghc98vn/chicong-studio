@@ -59,6 +59,21 @@ test('Batched album reads preserve order and selections with constant query coun
   await f.db.run("UPDATE albums SET status='draft'");assert.deepEqual(await(await f.request('/api/portfolio')).json(),[]);
  }finally{await f.close();}
 });
+test('A 1500-photo private gallery stays at five queries and excludes storage and upload data',async t=>{
+ const f=await fixture();try{
+  for(let start=3;start<1500;start+=100){
+   const rows=Array.from({length:Math.min(100,1500-start)},(_,index)=>[(start+index).toString(16).padStart(32,'0'),'album8','private-storage-object','Upload '+(start+index)+'.jpg',2400,1600,start+index,'private-upload-hash']);
+   await f.db.run('INSERT INTO photos(id,album_id,filename,original,width,height,position,upload_hash) VALUES '+rows.map(()=>'(?,?,?,?,?,?,?,?)').join(','),rows.flat());
+  }
+  f.reset();const start=performance.now(),response=await f.admin('/api/gallery/album8'),body=await response.text(),duration=performance.now()-start;
+  assert.equal(response.status,200);assert.match(response.headers.get('cache-control'),/no-store/);assert.equal(f.queries,5);
+  const album=JSON.parse(body);assert.equal(album.photos.length,1500);assert.equal(album.photos.at(-1).position,1499);assert.equal(album.photos.filter(p=>p.selected).length,1);
+  assert.doesNotMatch(body,/private-storage-object|private-upload-hash|private-hash|Private customer|optimization|source_bytes/);
+  assert.ok(Buffer.byteLength(body)<650*1024,'Gallery metadata stays below 650 KiB for 1500 photos');
+  t.diagnostic(`1500 photos: ${Buffer.byteLength(body)} bytes, 5 queries, ${duration.toFixed(1)} ms on local test fixture`);
+  f.reset();const locked=await f.request('/api/gallery/album8');assert.deepEqual(await locked.json(),{locked:true});assert.equal(f.queries,1);
+ }finally{await f.close();}
+});
 test('Bootstrap data is consumed once and malformed or wrong-page data falls back to API',()=>{
  for(const [text,expected] of [[JSON.stringify({path:'/',site:{brand:'Studio'},albums:[]}),true],['{broken',false],[JSON.stringify({path:'/admin',site:{}}),false],[JSON.stringify({path:'/',site:[]}),false]]){
   let removed=false;const node={textContent:text,remove(){removed=true;}},doc={getElementById:()=>removed?null:node};

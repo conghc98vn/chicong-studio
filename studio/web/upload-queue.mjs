@@ -6,6 +6,23 @@ export function uploadIssue(file){
  if(!isPreparedPhotoFile(file)&&file.type&&!['image/jpeg','image/png','image/webp','application/octet-stream'].includes(file.type))return 'Chỉ hỗ trợ JPEG, PNG, WebP và gói .ccphoto đã chuẩn bị trên máy.';
  return null;
 }
+const retryNote=' Giữ nguyên trang và bấm “Tải lại các ảnh còn lại” để tiếp tục.';
+function transferFailure(error){
+ let message;
+ if(error.status)message=error.message;
+ else if(['UPLOAD_TIMEOUT','UPLOAD_NETWORK_ERROR','INVALID_RESPONSE'].includes(error.code))message=error.message+retryNote;
+ else if(error.code==='REQUEST_TIMEOUT')message='Máy chủ chưa xác nhận ảnh trong 3 phút.'+retryNote+' Ảnh đã lưu trong lượt này sẽ không bị tải trùng.';
+ else message='Kết nối bị gián đoạn.'+retryNote+' Hệ thống sẽ nhận diện những ảnh đã lưu trong lượt tải này.';
+ return Object.assign(Error(message),{code:error.code,status:error.status,requestId:error.requestId});
+}
+function validAcknowledgements(result,count){
+ if(!Array.isArray(result?.results)||result.results.length!==count)return false;
+ const indexes=new Set();
+ return result.results.every(item=>{
+  if(!item||!Number.isInteger(item.index)||item.index<0||item.index>=count||indexes.has(item.index)||typeof item.success!=='boolean'||(item.retryable!==undefined&&typeof item.retryable!=='boolean'))return false;
+  indexes.add(item.index);return true;
+ });
+}
 // File identity and keys survive batch resizing and lost responses.
 export class UploadQueue {
  constructor(files,keyFactory=()=>crypto.randomUUID()){
@@ -23,14 +40,21 @@ export class UploadQueue {
    // host can exceed proxy deadlines even when their compressed files are small.
    const batch=[pending[i++]];
    let result;
-   try{result=await send(batch,batch.map(file=>this.keys.get(file)));}catch(error){
-    if(error.data?.results)result=error.data;
-    else if(error.status)throw error;
-    else if(['UPLOAD_TIMEOUT','UPLOAD_NETWORK_ERROR','INVALID_RESPONSE'].includes(error.code))throw Error(error.message+' Giữ nguyên trang và bấm “Tải lại các ảnh còn lại” để tiếp tục.');
-    else if(error.code==='REQUEST_TIMEOUT')throw Error('Máy chủ chưa xác nhận ảnh trong 3 phút. Giữ nguyên trang và bấm “Tải lại các ảnh còn lại”; ảnh đã lưu trong lượt này sẽ không bị tải trùng.');
-    else throw Error('Kết nối bị gián đoạn. Giữ nguyên trang và bấm “Tải lại các ảnh còn lại” để tiếp tục. Hệ thống sẽ nhận diện những ảnh đã lưu trong lượt tải này.');
+   try{
+    try{result=await send(batch,batch.map(file=>this.keys.get(file)));}catch(error){
+     if(Array.isArray(error.data?.results))result=error.data;
+     else throw error;
+    }
+    // A 2xx status alone is not evidence that a photo was stored. Stop at an
+    // incomplete or inconsistent acknowledgement, preserving the same retry key.
+    if(!validAcknowledgements(result,batch.length))throw Object.assign(Error('Máy chủ chưa xác nhận đầy đủ kết quả lưu ảnh.'),{code:'INVALID_RESPONSE'});
+   }catch(error){
+    const failure=transferFailure(error);
+    this.results.set(batch[0],{index:0,success:false,retryable:true,error:failure.message,code:failure.code});
+    progress(this.done.size,this.files.length);
+    throw failure;
    }
-   for(const item of result.results||[]){const file=batch[item.index];if(file){this.results.set(file,item);if(item.success)this.done.add(file);}}
+   for(const item of result.results){const file=batch[item.index];this.results.set(file,item);if(item.success)this.done.add(file);}
    progress(this.done.size,this.files.length);
   }
  }

@@ -37,3 +37,52 @@ export function initAlbumLayout(root){
   item.style.flex=String(width>0&&height>0?width/height:1)+' 1 0%';
  });
 }
+
+export function clientGridCols() {
+ return typeof window !== 'undefined' && window.innerWidth <= 750 ? 2 : 3;
+}
+
+// Pixel geometry keeps the DOM in album order, reserves offscreen image space,
+// and changes positions on resize without replacing focused buttons or images.
+export function clientMasonryLayout(photos, width, columns=3, gap=16) {
+ const count=Math.max(1,Math.min(Math.floor(columns)||1,photos.length||1));
+ const cardWidth=Math.max(1,(width-gap*(count-1))/count);
+ const heights=Array(count).fill(0);
+ const items=photos.map(photo=>{
+  const ratio=Number(photo.height)/Number(photo.width);
+  const height=Math.ceil(cardWidth*(Number.isFinite(ratio)&&ratio>0?ratio:2/3))+24;
+  const column=heights.indexOf(Math.min(...heights));
+  const top=heights[column];heights[column]+=height+gap;
+  return {left:column*(cardWidth+gap),top,width:cardWidth,height};
+ });
+ return {items,columns:count,height:Math.max(0,...heights)- (items.length?gap:0)};
+}
+let stopClientLayout=()=>{};
+export function initClientLayout(root) {
+ stopClientLayout();
+ const grid=root?.querySelector('.client-masonry');
+ if(!grid)return;
+ const cards=[...grid.querySelectorAll('.photo-item')];
+ const photos=cards.map(card=>{const img=card.querySelector('img');return {width:Number(img.getAttribute('width')),height:Number(img.getAttribute('height'))};});
+ let previous='';
+ const layout=()=>{
+  const width=grid.clientWidth,gap=innerWidth<=750?8:16,columns=clientGridCols();
+  if(!width)return;
+  const key=[width,gap,columns].join(':');if(key===previous)return;
+  const active=document.activeElement?.closest('.photo-item');
+  const anchor=previous&&!document.querySelector('#lightbox[open]')?(grid.contains(active)?active:cards.find(card=>{const rect=card.getBoundingClientRect();return rect.bottom>80&&rect.top<innerHeight-110;})):null;
+  const before=anchor?.getBoundingClientRect().top;previous=key;
+  const result=clientMasonryLayout(photos,width,columns,gap);
+  grid.dataset.columns=result.columns;grid.style.height=result.height+'px';
+  result.items.forEach((item,i)=>{
+   const card=cards[i];
+   card.style.cssText=`left:${item.left}px;top:${item.top}px;width:${item.width}px;height:${item.height}px`;
+   card.querySelector('img').sizes=Math.ceil(item.width)+'px';
+  });
+  if(anchor)window.scrollBy({top:anchor.getBoundingClientRect().top-before,behavior:'instant'});
+ };
+ layout();
+ const observer=new ResizeObserver(layout);observer.observe(grid);
+ window.addEventListener('resize',layout);
+ stopClientLayout=()=>{observer.disconnect();window.removeEventListener('resize',layout);};
+}

@@ -15,7 +15,7 @@ let responseFault=null;
 // Faults happen after the real server has received and saved the multipart body.
 // WebKit route.fetch omits file payloads, so it cannot simulate this reliably.
 const server=createServer((req,res)=>{
- const fault=responseFault;if(fault&&req.method==='POST'&&req.url.endsWith(fault.path)){responseFault=null;const end=res.end.bind(res);res.end=(...args)=>{fault.status=res.statusCode;if(fault.mode==='drop'){res.flushHeaders();res.write(' ');setTimeout(()=>res.destroy(),10);}else setTimeout(()=>end(...args),13000);return res;};}
+ const fault=responseFault;if(fault&&req.method==='POST'&&req.url.endsWith(fault.path)){responseFault=null;const end=res.end.bind(res);res.end=(...args)=>{fault.status=res.statusCode;if(fault.mode==='drop'){res.flushHeaders();res.write(' ');setTimeout(()=>res.destroy(),10);}else if(fault.mode==='incomplete'){res.removeHeader('Content-Length');end(JSON.stringify({uploaded:1,results:[]}));}else setTimeout(()=>end(...args),13000);return res;};}
  app.app(req,res);
 }).listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));const base='http://127.0.0.1:'+server.address().port;
 const evidence=path.resolve('output/upload-review');await mkdir(evidence,{recursive:true});let browser;
@@ -36,6 +36,14 @@ try{
  assert.equal(lostFault.status,201);const before=await app.db.all('SELECT id FROM photos WHERE album_id=?',[album]);await page.getByRole('button',{name:'Tải lại các ảnh còn lại',exact:true}).click();await page.locator('.upload-summary').filter({hasText:'Đã lưu 1/1'}).waitFor();
  assert.equal((await app.db.all('SELECT id FROM photos WHERE album_id=?',[album])).length,before.length);assert.match(await page.locator('.upload-report').textContent(),/Bản web/);
  console.log('PASS: Lost response retry keeps one photo and its size report');
+ // Even valid 2xx JSON must identify the acknowledged file; otherwise retain the
+ // selection/key and stop before uploading the next file in the chosen batch.
+ const incompleteFault={path:'/photos',mode:'incomplete'};responseFault=incompleteFault;
+ const beforeIncomplete=(await app.db.all('SELECT id FROM photos WHERE album_id=?',[album])).length;
+ await upload.locator('input[type=file]').setInputFiles([samples[0],{...samples[0],name:'next-after-ack.jpg'}]);await page.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();
+ await upload.locator('.form-error').filter({hasText:'chưa xác nhận đầy đủ'}).waitFor();assert.equal(incompleteFault.status,201);assert.equal((await app.db.all('SELECT id FROM photos WHERE album_id=?',[album])).length,beforeIncomplete+1);assert.match(await page.locator('.upload-file-error').textContent(),/chưa xác nhận đầy đủ/);assert.match(await page.locator('.upload-summary').textContent(),/Đã lưu 0\/2/);
+ await page.getByRole('button',{name:'Tải lại các ảnh còn lại',exact:true}).click();await page.locator('.upload-summary').filter({hasText:'Đã lưu 2/2'}).waitFor();assert.equal((await app.db.all('SELECT id FROM photos WHERE album_id=?',[album])).length,beforeIncomplete+2);
+ console.log('PASS: Incomplete 2xx acknowledgement stops the queue and retry retains both file identities without duplication');
  // Slow hosting: a saved upload can take longer than the normal 12-second API budget.
  const delayedFault={path:'/photos',mode:'delay'};responseFault=delayedFault;
  await upload.locator('input[type=file]').setInputFiles(samples[0]);await page.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();
