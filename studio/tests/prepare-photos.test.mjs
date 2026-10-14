@@ -6,7 +6,7 @@ import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {spawnSync} from 'node:child_process';
 import sharp from 'sharp';
-import {preparePhotos,parseArguments,parseDraggedPath} from '../tools/prepare-photos.mjs';
+import {preparePhotos,parseArguments,parseDraggedPath,parseDraggedPaths} from '../tools/prepare-photos.mjs';
 import {decodePreparedPhoto} from '../server/prepared-photo.mjs';
 
 const sha=buffer=>createHash('sha256').update(buffer).digest('hex');
@@ -167,13 +167,54 @@ test('an all-failed run still produces a diagnostic report and a nonzero exit co
 test('CLI parses quoted paths and Finder escapes as text without shell evaluation',()=>{
  assert.deepEqual(parseArguments(['/folder with spaces','--output','/new folder','--dry-run']),{input:'/folder with spaces',output:'/new folder',dryRun:true});
  assert.throws(()=>parseArguments(['--output']),/đường dẫn/);
- assert.throws(()=>parseArguments(['/one','/two']),/một thư mục/);
+ assert.throws(()=>parseArguments(['--output','-x']),/đường dẫn/);
+ assert.deepEqual(parseArguments(['/one','/two']),{inputs:['/one','/two']});
+ assert.deepEqual(parseArguments(['--','/one','/two']),{inputs:['/one','/two']});
  assert.equal(parseDraggedPath('/Users/me/Lễ\\ cưới\\ 2026'),'/Users/me/Lễ cưới 2026');
  assert.equal(parseDraggedPath("'/Users/me/Lễ cưới 2026'"),'/Users/me/Lễ cưới 2026');
  assert.equal(parseDraggedPath('/Users/me/\"$(touch\\ x)\"'),'/Users/me/$(touch x)');
  assert.throws(()=>parseDraggedPath('/one /two'),/Chỉ kéo một/);
+ assert.deepEqual(parseDraggedPaths('/Users/me/01\\ Trang\\ trí /Users/me/02\\ Tiệc'),['/Users/me/01 Trang trí','/Users/me/02 Tiệc']);
  const help=spawnSync(process.execPath,['studio/tools/prepare-photos.mjs','--help'],{encoding:'utf8'});
  assert.equal(help.status,0);assert.match(help.stdout,/2400 px/);assert.doesNotMatch(help.stdout,/\n\+/);
  const invalid=spawnSync(process.execPath,['studio/tools/prepare-photos.mjs','--unknown'],{encoding:'utf8'});
  assert.equal(invalid.status,1);assert.match(invalid.stderr,/Không nhận ra tùy chọn/);
+});
+
+test('multiple sources sharing same parent preserve timeline structure and deduplicate nested inputs',async t=>{
+ const root=await temporary(t),album=path.join(root,'album 2026');
+ const part1=path.join(album,'01 Trang trí'),part2=path.join(album,'02 Nhà gái');
+ await mkdir(part1,{recursive:true});await mkdir(part2,{recursive:true});
+ const original=await fixture();
+ await writeFile(path.join(part1,'p1.jpg'),original);
+ await writeFile(path.join(part2,'p2.jpg'),original);
+ const summary=await preparePhotos({inputs:[part1,part2]});
+ assert.equal(summary.output,path.join(root,'album 2026_WEB_UPLOAD'));
+ assert.equal(summary.total,2);assert.equal(summary.created,2);
+ assert.ok(await stat(path.join(summary.output,'01 Trang trí','p1.jpg.ccphoto')));
+ assert.ok(await stat(path.join(summary.output,'02 Nhà gái','p2.jpg.ccphoto')));
+
+ const dedup=await preparePhotos({inputs:[album,part1]});
+ assert.equal(dedup.total,2);assert.equal(dedup.skipped,2);
+});
+
+test('multiple sources with different parents require --output; name collisions are rejected',async t=>{
+ const root=await temporary(t);
+ const parentA=path.join(root,'parentA','sec1'),parentB=path.join(root,'parentB','sec2');
+ await mkdir(parentA,{recursive:true});await mkdir(parentB,{recursive:true});
+ const original=await fixture();
+ await writeFile(path.join(parentA,'photo.jpg'),original);
+ await writeFile(path.join(parentB,'photo.jpg'),original);
+ await assert.rejects(preparePhotos({inputs:[parentA,parentB]}),/nhiều thư mục cha khác nhau/);
+ await assert.rejects(preparePhotos({input:'a',inputs:['b']}),/không dùng cả hai/);
+
+ const output=path.join(root,'unified_output');
+ const summary=await preparePhotos({inputs:[parentA,parentB],output});
+ assert.equal(summary.created,2);assert.equal(summary.output,output);
+ assert.ok(await stat(path.join(output,'sec1','photo.jpg.ccphoto')));
+ assert.ok(await stat(path.join(output,'sec2','photo.jpg.ccphoto')));
+
+ const colliding=path.join(root,'other','sec1');await mkdir(colliding,{recursive:true});
+ await writeFile(path.join(colliding,'photo.jpg'),original);
+ await assert.rejects(preparePhotos({inputs:[parentA,colliding],output:path.join(root,'colliding_out')}),/trùng nhau/);
 });

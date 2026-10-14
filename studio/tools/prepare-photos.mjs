@@ -104,17 +104,45 @@ async function writePackage(target,buffer,previous,signal){
 }
 
 /** Prepare local photos without uploading or changing the source files. */
-export async function preparePhotos({input,output,dryRun=false,onProgress=()=>{},signal}={}){
- if(!input)throw new Error('Thiếu đường dẫn thư mục ảnh. Dùng --help để xem hướng dẫn.');
- const requestedSource=path.resolve(input);
- const sourceInfo=await lstat(requestedSource).catch(error=>{if(error.code==='ENOENT')throw new Error(`Không tìm thấy đường dẫn: ${requestedSource}`);throw error;});
- if(sourceInfo.isSymbolicLink())throw new Error('Hãy chọn thư mục hoặc ảnh gốc, không chọn liên kết tượng trưng.');
- const source=await realpath(requestedSource);
- const sourceName=sourceInfo.isDirectory()?path.basename(source):path.basename(source,path.extname(source));
+export async function preparePhotos({input,inputs,output,dryRun=false,onProgress=()=>{},signal}={}){
+ if(input!==undefined&&inputs!==undefined)throw new Error('Chọn input hoặc inputs, không dùng cả hai cùng lúc.');
+ const requested=inputs??(input?[input]:[]);
+ if(!Array.isArray(requested)||!requested.length||requested.some(value=>typeof value!=='string'||!value.trim()))throw new Error('Thiếu đường dẫn thư mục ảnh. Dùng --help để xem hướng dẫn.');
+ const sources=[];
+ for(const value of requested){
+  const requestedSource=path.resolve(value);
+  const info=await lstat(requestedSource).catch(error=>{if(error.code==='ENOENT')throw new Error(`Không tìm thấy đường dẫn: ${requestedSource}`);throw error;});
+  if(info.isSymbolicLink())throw new Error('Hãy chọn thư mục hoặc ảnh gốc, không chọn liên kết tượng trưng.');
+  const source=await realpath(requestedSource);
+  if(!sources.some(item=>item.source===source))sources.push({source,info});
+ }
+ // Dragging both a parent and its children must not encode the same photo twice.
+ const roots=sources.filter(item=>!sources.some(other=>other!==item&&other.info.isDirectory()&&isWithin(other.source,item.source)));
+ const parents=new Set(roots.map(item=>path.dirname(item.source)));
+ if(roots.length>1&&parents.size>1&&!output)throw new Error('Các nguồn nằm ở nhiều thư mục cha khác nhau. Hãy dùng --output để chọn nơi lưu chung, hoặc kéo một thư mục cha chứa tất cả các phần.');
+ const source=roots.length===1?roots[0].source:parents.size===1?[...parents][0]:null;
+ const sourceName=roots.length===1&&!roots[0].info.isDirectory()?path.basename(source,path.extname(source)):source&&path.basename(source);
  const destination=await checkedOutputPath(output||path.join(path.dirname(source),`${sourceName}_WEB_UPLOAD`));
- if(destination===source||sourceInfo.isDirectory()&&isWithin(source,destination))throw new Error('Thư mục kết quả phải nằm ngoài thư mục ảnh gốc. Công cụ không ghi vào thư mục nguồn.');
- const {files,errors,ignored}=await discoverPhotos(source,sourceInfo);
- const summary={tool:'chicong-prepare-photos',policyVersion:preparedPolicyVersion,startedAt:new Date().toISOString(),input:source,output:destination,dryRun,total:files.length,created:0,updated:0,skipped:0,failed:errors.length,ignored,sourceBytes:0,preparedBytes:0,interrupted:false,files:[...errors]};
+ for(const root of roots){
+  if(destination===root.source||root.info.isDirectory()&&(isWithin(root.source,destination)||isWithin(destination,root.source)))throw new Error('Thư mục kết quả phải nằm ngoài thư mục ảnh gốc và không bao quanh thư mục nguồn. Công cụ không ghi vào thư mục nguồn.');
+ }
+ const files=[],errors=[];let ignored=0;
+ const outputNames=new Set();
+ for(const root of roots){
+  const prefix=roots.length>1&&root.info.isDirectory()?path.basename(root.source):'';
+  const found=await discoverPhotos(root.source,root.info);
+  for(const file of found.files){
+   const relative=path.join(prefix,file.relative);
+   // Default macOS volumes fold case and Unicode normalization. Detect these
+   // collisions before any write, including separate roots with the same name.
+   const key=relative.normalize('NFC').toLocaleLowerCase('en-US');
+   if(outputNames.has(key))throw new Error(`Các nguồn có tên ảnh hoặc phần trùng nhau: ${relative}. Hãy đổi tên thư mục phần hoặc xử lý riêng từng nguồn.`);
+   outputNames.add(key);files.push({...file,relative});
+  }
+  errors.push(...found.errors.map(item=>({...item,file:path.join(prefix,item.file)})));
+  ignored+=found.ignored;
+ }
+ const summary={tool:'chicong-prepare-photos',policyVersion:preparedPolicyVersion,startedAt:new Date().toISOString(),input:source,inputs:roots.map(item=>item.source),output:destination,dryRun,total:files.length,created:0,updated:0,skipped:0,failed:errors.length,ignored,sourceBytes:0,preparedBytes:0,interrupted:false,files:[...errors]};
  const started=Date.now();
  onProgress({type:'start',total:files.length,output:destination,dryRun});
  for(const [index,file]of files.entries()){
@@ -175,7 +203,7 @@ export async function preparePhotos({input,output,dryRun=false,onProgress=()=>{}
 }
 
 export function parseArguments(args){
- const options={};
+ const options={},sources=[];
  for(let index=0;index<args.length;index++){
   const argument=args[index];
   if(argument==='--help'||argument==='-h')options.help=true;
@@ -183,35 +211,42 @@ export function parseArguments(args){
   else if(argument==='--interactive')options.interactive=true;
   else if(argument==='--output'||argument==='-o'){
    const value=args[++index];
-   if(!value||value.startsWith('--'))throw new Error('Cần đường dẫn thư mục sau --output.');
+   if(!value||value.startsWith('-'))throw new Error('Cần đường dẫn thư mục sau --output.');
    options.output=value;
   }else if(argument==='--'){
-   const rest=args.slice(index+1);
-   if(options.input||rest.length!==1)throw new Error('Mỗi lần chỉ chọn một thư mục hoặc một ảnh nguồn.');
-   options.input=rest[0];break;
+   sources.push(...args.slice(index+1));break;
   }else if(argument.startsWith('-'))throw new Error(`Không nhận ra tùy chọn: ${argument}`);
-  else if(options.input)throw new Error('Mỗi lần chỉ chọn một thư mục hoặc một ảnh nguồn. Đặt đường dẫn có khoảng trắng trong dấu nháy.');
-  else options.input=argument;
+  else sources.push(argument);
  }
+ if(sources.length===1)options.input=sources[0];
+ else if(sources.length>1)options.inputs=sources;
  return options;
 }
 
-// Finder escapes spaces when a path is dragged into Terminal. Parse that one
-// argument as text only: never eval a path or execute shell substitutions.
-export function parseDraggedPath(value){
+// Finder escapes spaces when paths are dragged into Terminal. Parse the paths
+// as text only: never eval them or execute shell substitutions.
+export function parseDraggedPaths(value){
  const text=value.trim();
- let result='',quote=null,escaped=false,ended=false;
+ const paths=[];
+ let result='',quote=null,escaped=false,started=false;
  for(const character of text){
   if(escaped){result+=character;escaped=false;continue;}
-  if(character==='\\'&&quote!=="'"){escaped=true;continue;}
+  if(character==='\\'&&quote!=="'"){escaped=true;started=true;continue;}
   if(quote){if(character===quote)quote=null;else result+=character;continue;}
-  if(character==='"'||character==="'"){if(ended)throw new Error('Chỉ kéo một thư mục hoặc một ảnh vào Terminal.');quote=character;continue;}
-  if(/\s/u.test(character)){if(result)ended=true;continue;}
-  if(ended)throw new Error('Chỉ kéo một thư mục hoặc một ảnh vào Terminal.');
-  result+=character;
+  if(character==='"'||character==="'"){quote=character;started=true;continue;}
+  if(/\s/u.test(character)){if(started){paths.push(result);result='';started=false;}continue;}
+  result+=character;started=true;
  }
  if(quote||escaped)throw new Error('Đường dẫn chưa đầy đủ. Hãy kéo lại thư mục vào Terminal.');
- return result;
+ if(started)paths.push(result);
+ if(paths.some(item=>!item))throw new Error('Đường dẫn trống. Hãy kéo lại thư mục vào Terminal.');
+ return paths;
+}
+
+export function parseDraggedPath(value){
+ const paths=parseDraggedPaths(value);
+ if(paths.length>1)throw new Error('Chỉ kéo một thư mục hoặc một ảnh vào Terminal.');
+ return paths[0]||'';
 }
 
 const size=bytes=>`${(bytes/1000000).toFixed(2)} MB`;
@@ -219,10 +254,14 @@ const help=`Chuẩn bị ảnh ChiCong trên máy tính; không tải ảnh lên
 
 Cách dùng:
   npm run photos:prepare -- "/đường/dẫn/thư mục ảnh"
+  npm run photos:prepare -- "/album/01 Trang trí" "/album/02 Nhà gái"
   npm run photos:prepare -- "/đường/dẫn/ảnh.jpg" --output "/thư mục kết quả"
   npm run photos:prepare -- "/thư mục ảnh" --dry-run
 
-Mặc định tạo thư mục <tên nguồn>_WEB_UPLOAD cạnh thư mục nguồn.
+Chọn thư mục cha để xử lý tất cả các phần, hoặc chọn nhiều thư mục cùng lúc.
+Một nguồn: tạo <tên nguồn>_WEB_UPLOAD cạnh nguồn.
+Nhiều nguồn cùng cha: tạo <tên thư mục cha>_WEB_UPLOAD cạnh thư mục cha.
+Các nguồn khác cha cần --output; tên phần không được trùng nhau.
 Giữ nguyên ảnh gốc và cấu trúc các phần; mỗi ảnh tạo một tệp .ccphoto.
 Gói gồm ảnh web 2400 px, ảnh nhỏ 900 px và JPG 2400 px cho khách tải.
 Chạy lại sẽ bỏ qua ảnh không đổi. Ảnh nguồn đã đổi sẽ được xử lý lại.
@@ -242,14 +281,22 @@ async function writeReport(summary){
 export async function main(args=process.argv.slice(2)){
  const options=parseArguments(args);
  if(options.help){console.log(help);return 0;}
- if(options.interactive&&!options.input){
+ if(options.interactive&&!options.input&&!options.inputs){
   console.log('CHICONG — CHUẨN BỊ ẢNH ĐỂ TẢI LÊN WEB\nẢnh gốc được giữ nguyên. Không có ảnh nào tự động tải lên mạng.\n');
   const prompt=createInterface({input:process.stdin,output:process.stdout});
   try{
-   const answer=await prompt.question('Kéo một thư mục ảnh (hoặc một ảnh) vào đây rồi nhấn Enter:\n> ');
+   const answer=await prompt.question('Kéo một hoặc nhiều thư mục ảnh (hoặc ảnh) vào đây rồi nhấn Enter:\n> ');
    // A manually pasted absolute path may contain unescaped spaces.
    const plain=answer.trim();
-   options.input=await access(plain).then(()=>plain,()=>parseDraggedPath(answer));
+   const single=await access(plain).then(()=>plain,()=>null);
+   if(single){
+    options.input=single;
+   }else{
+    const paths=parseDraggedPaths(plain);
+    if(paths.length===1)options.input=paths[0];
+    else if(paths.length>1)options.inputs=paths;
+    else throw new Error('Đường dẫn trống. Hãy kéo lại thư mục vào Terminal.');
+   }
   }finally{prompt.close();}
  }
  const controller=new AbortController();

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Double-click in Finder, then drag one source folder into the Terminal window.
+# Double-click in Finder, then drag source folder(s) into the Terminal window.
 set -u
 chicong_script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)" || exit 1
 chicong_project_dir="$(cd "$chicong_script_dir/.." && pwd)" || exit 1

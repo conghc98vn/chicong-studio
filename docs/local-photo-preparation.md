@@ -4,7 +4,7 @@ Công cụ xử lý cả thư mục ảnh đã xuất Lightroom. Ảnh gốc đ�
 
 ## Cách dùng hằng ngày
 
-1. Mở `scripts/prepare-photos.command` bằng cách nhấp đúp trong Finder. Kéo **một thư mục ảnh** từ Finder vào cửa sổ Terminal, rồi nhấn Enter. Có thể chọn thư mục timeline gồm các thư mục section bên trong.
+1. Mở `scripts/prepare-photos.command` bằng cách nhấp đúp trong Finder. Kéo **thư mục ảnh (hoặc kéo cùng lúc nhiều thư mục phần ảnh)** từ Finder vào cửa sổ Terminal, rồi nhấn Enter. Có thể chọn thư mục timeline gồm các thư mục section bên trong, hoặc kéo trực tiếp các thư mục section.
 2. Đợi công cụ báo hoàn tất. Đường dẫn thư mục kết quả được in cuối màn hình. Mỗi ảnh có một tệp, ví dụ `CC - 0546.jpg.ccphoto`; cấu trúc các section được giữ nguyên.
 3. Mở bộ ảnh trong admin website, chọn đúng **Tải ảnh vào phần**, rồi chọn các tệp `.ccphoto` trong thư mục tương ứng và bấm **Tải ảnh lên**. Lặp lại cho các phần khác. Công cụ không tự tạo hoặc gán section theo tên thư mục.
 
@@ -39,6 +39,7 @@ Cần Node.js từ 22.13 và thư viện của project đã cài bằng `npm ci`
 
 ```sh
 npm run photos:prepare -- "/đường/dẫn/01_Phan_Loai_Timeline"
+npm run photos:prepare -- "/album/01_Trang_tri" "/album/02_Nha_gai"
 npm run photos:prepare -- "/đường/dẫn/01_Phan_Loai_Timeline" --output "/đường/dẫn/anh-web"
 npm run photos:prepare -- "/đường/dẫn/01_Phan_Loai_Timeline" --dry-run
 ```
