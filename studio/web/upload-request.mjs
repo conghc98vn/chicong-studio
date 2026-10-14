@@ -1,4 +1,5 @@
 import {uploadRequestTimeout} from './api-request.mjs';
+import {isPreparedPhotoFile} from './upload-policy.mjs';
 // XHR exposes upload byte progress; fetch does not. 100% means sent by the
 // browser, not stored by the application. Only the JSON acknowledgement counts.
 export function uploadRequest(url,{body,headers={},onProgress=()=>{}},{xhrFactory=()=>new XMLHttpRequest(),requestId=crypto.randomUUID(),timeout=uploadRequestTimeout}={}){
@@ -25,7 +26,7 @@ export function uploadRequest(url,{body,headers={},onProgress=()=>{}},{xhrFactor
  });
 }
 export function uploadProgressText(name,progress){
- if(progress.phase==='processing')return `${name}: đã gửi dữ liệu, đang chờ máy chủ xử lý và xác nhận lưu ảnh…`;
+ if(progress.phase==='processing')return `${name}: đã gửi dữ liệu, đang chờ máy chủ ${isPreparedPhotoFile({name})?'kiểm tra và lưu ảnh':'xử lý và xác nhận lưu ảnh'}…`;
  const percent=progress.total?` ${Math.min(100,Math.floor(progress.loaded/progress.total*100))}%`:'';
  return `${name}: đang gửi${percent}…`;
 }

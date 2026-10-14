@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {maxUploadBytes} from '../web/upload-policy.mjs';
-import {UploadQueue} from '../web/upload-queue.mjs';
+import {UploadQueue,uploadIssue} from '../web/upload-queue.mjs';
+import {uploadSelection,uploadReport} from '../web/upload-report.mjs';
 const ack=files=>({results:files.map((_,index)=>({index,success:true}))});
 test('Uploads are sequential per photo and retry skips every acknowledged file',async()=>{
  const files=Array.from({length:66},()=>({name:'same.jpg',size:6*1024*1024,type:'image/jpeg'})),q=new UploadQueue(files);let n=0;
@@ -32,4 +33,19 @@ test('Timeout explains uncertain acknowledgement and preserves identity for retr
  const files=[{name:'a.jpg'}],q=new UploadQueue(files),key=q.keys.get(files[0]);
  await assert.rejects(q.run(async()=>{throw Object.assign(Error('timeout'),{code:'REQUEST_TIMEOUT'});}),/3 phút/);assert.equal(q.done.size,0);assert.equal(q.keys.get(files[0]),key);
  await q.run(async(batch,keys)=>{assert.deepEqual(keys,[key]);return ack(batch);});assert.equal(q.done.size,1);
+});
+test('Prepared files accept unknown browser MIME and report actual transfer bytes alongside originals',async()=>{
+ const files=[{name:'Ảnh cưới.jpg.CCPHOTO',type:'application/x-ccphoto',size:1000000},{name:'source.jpg',type:'image/jpeg',size:6000000}];
+ assert.equal(uploadIssue(files[0]),null);
+ assert.match(uploadSelection(files),/7 MB cần tải lên/);
+ assert.match(uploadSelection(files),/1 ảnh đã chuẩn bị trên máy; không nén lại/);
+ assert.doesNotMatch(uploadSelection(files),/trước tối ưu/);
+ const q=new UploadQueue(files);await q.run(async batch=>ack(batch));assert.equal(q.done.size,2);
+ assert.match(uploadIssue({...files[0],size:maxUploadBytes+1}),/Gói ảnh vượt quá/);
+ assert.match(uploadIssue({...files[0],size:0}),/Tệp rỗng/);
+ assert.match(uploadIssue({name:'photo.gif',size:100,type:'image/gif'}),/Chỉ hỗ trợ/);
+ const metrics={source_bytes:6000000,image_bytes:300000,thumb_bytes:50000,download_bytes:650000,width:1600,height:2400};
+ q.results.set(files[0],{success:true,optimization:metrics});
+ assert.match(uploadReport(q),/Ảnh nguồn tương ứng:/);
+ assert.doesNotMatch(uploadReport(q),/Tệp đầu vào đã lưu/);
 });

@@ -1,9 +1,9 @@
-import {maxUploadBytes,uploadSizeLabel} from './upload-policy.mjs';
+import {maxUploadBytes,uploadSizeLabel,isPreparedPhotoFile} from './upload-policy.mjs';
 export {maxUploadBytes} from './upload-policy.mjs';
 export function uploadIssue(file){
  if(file.size===0)return 'Tệp rỗng. Hãy xuất lại ảnh.';
- if(file.size>maxUploadBytes)return `Ảnh vượt quá ${uploadSizeLabel}. Hãy xuất JPEG sRGB, cạnh dài 2400–4096 px.`;
- if(file.type&&!['image/jpeg','image/png','image/webp','application/octet-stream'].includes(file.type))return 'Chỉ hỗ trợ JPEG, PNG và WebP. Hãy xuất JPEG từ Lightroom.';
+ if(file.size>maxUploadBytes)return isPreparedPhotoFile(file)?`Gói ảnh vượt quá ${uploadSizeLabel}. Hãy kiểm tra báo cáo của công cụ chuẩn bị ảnh.`:`Ảnh vượt quá ${uploadSizeLabel}. Hãy xuất JPEG sRGB, cạnh dài 2400–4096 px.`;
+ if(!isPreparedPhotoFile(file)&&file.type&&!['image/jpeg','image/png','image/webp','application/octet-stream'].includes(file.type))return 'Chỉ hỗ trợ JPEG, PNG, WebP và gói .ccphoto đã chuẩn bị trên máy.';
  return null;
 }
 // File identity and keys survive batch resizing and lost responses.

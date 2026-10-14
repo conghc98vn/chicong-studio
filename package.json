@@ -9,7 +9,8 @@
     "start": "node --env-file-if-exists=.env studio/server/start.mjs",
     "test": "node --test studio/tests/*.test.mjs",
     "check": "node studio/tests/check-syntax.mjs",
-    "admin:reset": "node --env-file-if-exists=.env studio/server/reset-admin.mjs"
+    "admin:reset": "node --env-file-if-exists=.env studio/server/reset-admin.mjs",
+    "photos:prepare": "node studio/tools/prepare-photos.mjs"
   },
   "engines": {
     "node": ">=22.13.0"

@@ -1,6 +1,7 @@
 import {uploadTrace,quietUploadTrace} from './upload-trace.mjs';
 import {maxUploadBytes,uploadSizeLabel} from '../web/upload-policy.mjs';
 import {optimizePhoto,photoOptimization} from './image-optimizer.mjs';
+import {decodePreparedPhoto,isPreparedPhoto} from './prepared-photo.mjs';
 import {registerGalleryDownloads} from './gallery-download.mjs';
 import {registerSectionRoutes,validateSection} from './album-sections.mjs';
 import {createGoogleCalendar} from './google-calendar.mjs';
@@ -195,7 +196,7 @@ export async function createApp(options={}){
  const albumUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:maxUploadBytes,files:8,fields:0}});
  app.post('/api/admin/albums/:id/photos',albumUpload.array('photos',8),asyncRoute(async(req,res)=>{
  const trace=req.uploadTrace||quietUploadTrace;trace.mark('validate');
- const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');if(!req.files?.length)throw fail(422,`Vui lòng chọn ảnh JPEG, PNG hoặc WebP, dung lượng tối đa ${uploadSizeLabel} mỗi ảnh.`);
+ const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');if(!req.files?.length)throw fail(422,`Vui lòng chọn ảnh JPEG, PNG, WebP hoặc gói .ccphoto, dung lượng tối đa ${uploadSizeLabel} mỗi ảnh.`);
  let keys=[];if(req.get('X-Upload-Keys')){try{keys=JSON.parse(req.get('X-Upload-Keys'));}catch{throw fail(422,'Không nhận diện được lượt tải ảnh này. Vui lòng chọn lại ảnh rồi thử tải lên.');}if(!Array.isArray(keys)||keys.length!==req.files.length||new Set(keys).size!==keys.length||keys.some(k=>typeof k!=='string'||! /^[a-f0-9-]{32,64}$/.test(k)))throw fail(422,'Không nhận diện được lượt tải ảnh này. Vui lòng chọn lại ảnh rồi thử tải lên.');}
  const sectionId=await validateSection(db,a.id,req.get('X-Album-Section')||null);
  const output=[],errors=[],results=[];
@@ -207,10 +208,11 @@ export async function createApp(options={}){
  let saved=false;
  try{
  const old=await trace.run('deduplicate',previous);if(old){if(old.upload_hash!==fileHash)throw Object.assign(Error('Lượt tải này đã lưu một tệp khác. Hãy chọn lại ảnh để bắt đầu lượt mới.'),{code:'UPLOAD_CONFLICT',retryable:false});success(old.id,true,photoOptimization(old));continue;}
- const {data,thumbnail,download,optimization}=await optimizePhoto(file.buffer,{runStage:(name,fn)=>trace.run('optimize_'+name,fn)});
+ const prepared=/\.ccphoto$/i.test(file.originalname)||isPreparedPhoto(file.buffer);
+ const {data,thumbnail,download,optimization,originalName=file.originalname}=prepared?await trace.run('prepared_validate',()=>decodePreparedPhoto(file.buffer)):await optimizePhoto(file.buffer,{runStage:(name,fn)=>trace.run('optimize_'+name,fn)});
  await trace.run('store_webp',()=>storage.put(key+'.webp',data));await trace.run('store_thumbnail',()=>storage.put(key+'-thumb.webp',thumbnail));await trace.run('store_jpeg',()=>storage.put(key+'-download.jpg',download));
  trace.mark('database_insert');
- await db.run('INSERT INTO photos(id,album_id,filename,original,caption,width,height,position,upload_key,upload_hash,section_id,source_bytes,image_bytes,thumb_bytes,download_bytes) SELECT ?,?,?,?,?,?,?,COALESCE(MAX(position),-1)+1,?,?,?,?,?,?,? FROM photos WHERE album_id=?',[key,a.id,key,clean(file.originalname,180),clean(file.originalname.replace(/\.[^.]+$/,''),180),optimization.width,optimization.height,uploadKey,fileHash,sectionId,optimization.source_bytes,optimization.image_bytes,optimization.thumb_bytes,optimization.download_bytes,a.id]);saved=true;
+ await db.run('INSERT INTO photos(id,album_id,filename,original,caption,width,height,position,upload_key,upload_hash,section_id,source_bytes,image_bytes,thumb_bytes,download_bytes) SELECT ?,?,?,?,?,?,?,COALESCE(MAX(position),-1)+1,?,?,?,?,?,?,? FROM photos WHERE album_id=?',[key,a.id,key,clean(originalName,180),clean(originalName.replace(/\.[^.]+$/,''),180),optimization.width,optimization.height,uploadKey,fileHash,sectionId,optimization.source_bytes,optimization.image_bytes,optimization.thumb_bytes,optimization.download_bytes,a.id]);saved=true;
  trace.mark('saved');success(key,false,optimization);await db.run('UPDATE albums SET cover_id=? WHERE id=? AND cover_id IS NULL',[key,a.id]);
  }catch(error){
  trace.mark('file_error');

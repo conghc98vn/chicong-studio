@@ -7,6 +7,8 @@ test('Upload tracks sending separately from processing and only resolves on ackn
  const {xhr,promise,body,progress}=fixture();assert.equal(xhr.method,'POST');assert.equal(xhr.body,body);assert.equal(xhr.timeout,180000);assert.equal(xhr.headers['X-Upload-Keys'],'["file-key"]');assert.equal(xhr.headers['X-Upload-Id'],'trace-id');assert.equal(xhr.headers['Content-Type'],undefined);
  xhr.upload.onprogress({loaded:50,total:100,lengthComputable:true});assert.equal(progress.at(-1).phase,'sending');assert.match(uploadProgressText('a.jpg',progress.at(-1)),/50%/);
  xhr.upload.onload();assert.equal(progress.at(-1).phase,'processing');assert.match(uploadProgressText('a.jpg',progress.at(-1)),/chờ máy chủ/);
+ assert.match(uploadProgressText('a.jpg.ccphoto',progress.at(-1)),/kiểm tra và lưu ảnh/);
+ assert.doesNotMatch(uploadProgressText('a.jpg.ccphoto',progress.at(-1)),/tối ưu/);
  xhr.status=201;xhr.responseText=JSON.stringify({uploaded:1,results:[{index:0,success:true}]});xhr.onload();assert.equal((await promise).uploaded,1);assert.equal(xhr.upload.onload,null);assert.equal(xhr.ontimeout,null);
 });
 test('Timeout identifies an unfinished transfer versus a missing acknowledgement',async()=>{

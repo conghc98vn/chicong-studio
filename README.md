@@ -21,7 +21,7 @@ Local mặc định chỉ nhận hostname `localhost`, `127.0.0.1` và `[::1]`. 
 ## Quy trình đăng portfolio
 
 1. Mở **Portfolio → Tạo album**, nhập tên, thể loại và mô tả.
-2. Thêm ảnh JPEG/PNG/WebP, chọn nhiều ảnh cùng lúc, tối đa 20MB/ảnh. Giao diện tự chia lượt upload và hiển thị tiến trình.
+2. Thêm ảnh JPEG/PNG/WebP hoặc gói `.ccphoto` đã chuẩn bị trên Mac, chọn nhiều ảnh cùng lúc, tối đa 20MB/ảnh. Giao diện tự chia lượt upload và hiển thị tiến trình.
 3. Chọn ảnh bìa; sửa chú thích, sắp xếp thứ tự bằng ↑/↓. Toàn bộ thứ tự lưu trong một yêu cầu, tối đa 2.000 ảnh/bộ cho thao tác sắp xếp.
 4. Trong **Thông tin album**, đổi trạng thái từ bản nháp sang công khai.
 5. Dùng **Đã lưu trữ** để ẩn album mà vẫn giữ dữ liệu. Xóa từng ảnh sẽ xóa file web; luôn giữ bản gốc trên máy.
@@ -64,7 +64,11 @@ Sau upload, quản trị hiển thị số byte đầu vào, bản web, thumbnai
 
 File hỏng, rỗng, sai định dạng, ảnh động hoặc quá giới hạn được báo riêng. Các file hợp lệ vẫn được xử lý. Lỗi tạm thời có thể thử lại; ảnh đã được xác nhận lưu sẽ không được upload lại trong cùng lượt. Giao diện gửi lần lượt một ảnh mỗi request và chờ tối đa 3 phút để truyền, tối ưu và lưu ảnh; các API thông thường vẫn có timeout 12 giây. Nếu hết thời gian chờ, trạng thái là chưa được xác nhận, không khẳng định ảnh chưa lưu. Nếu phản hồi bị mất, cùng mã upload trả lại ảnh và số liệu đã lưu. Giữ nguyên trang để thử lại; mở lại trang và chọn lại file tạo một lượt upload mới.
 
-Tối ưu diễn ra trên server: JPEG đầu vào vẫn phải được truyền lên qua mạng, nhưng chỉ WebP, thumbnail và JPG tải xuống được lưu; không giữ tệp nguồn. Tiếp tục giữ bản gốc trên ổ đĩa/Drive để giao ảnh chất lượng đầy đủ hoặc in. Để giảm thời gian truyền lên, có thể dùng preset Lightroom JPEG sRGB, quality 90, cạnh dài 2400 px; đây là lựa chọn thêm, không bắt buộc với file đã nằm trong giới hạn.
+**Chuẩn bị trên Mac để tải nhanh hơn:** mở `scripts/prepare-photos.command`, kéo thư mục ảnh Lightroom vào Terminal rồi nhấn Enter; hoặc chạy `npm run photos:prepare -- "/đường/dẫn/thư mục"`. Công cụ tạo một thư mục kết quả riêng, giữ cấu trúc các phần, với một tệp `.ccphoto` cho mỗi ảnh. Trong admin, chọn phần tương ứng rồi tải các tệp `.ccphoto` trong phần đó. [Hướng dẫn đầy đủ](docs/local-photo-preparation.md).
+
+Mỗi gói chứa đủ WebP, thumbnail và JPG được tạo trực tiếp từ ảnh nguồn với cùng thông số chất lượng ở trên. Máy chủ kiểm tra định dạng, kích thước, checksum và giải mã ảnh rồi lưu nguyên các bản này, không nén lại. Thông tin dung lượng ảnh nguồn được giữ để báo cáo mức giảm; số MB cần tải lên là dung lượng gói thực tế. Gói không chứa ảnh Lightroom gốc. Chỉ dùng gói với phiên bản website đã hỗ trợ `.ccphoto`; website cũ sẽ từ chối.
+
+Nếu tải JPEG/PNG/WebP trực tiếp, quá trình tối ưu vẫn diễn ra trên server và tệp đầu vào vẫn phải truyền lên qua mạng. Cả hai cách chỉ lưu WebP, thumbnail và JPG tải xuống; tiếp tục giữ bản gốc trên ổ đĩa/Drive để giao ảnh chất lượng đầy đủ hoặc in.
 
 Kiểm thử: `node --test studio/tests/image-optimizer.test.mjs studio/tests/upload-optimization-api.test.mjs studio/tests/upload-queue.test.mjs`. Kiểm tra UI: `node studio/tests/upload-browser.smoke.mjs` (cần Playwright; hỗ trợ `STUDIO_PLAYWRIGHT_MODULE`, `STUDIO_AXE_MODULE` và `STUDIO_UPLOAD_SAMPLE_FILES` là mảng JSON các đường dẫn ảnh thử). Tất cả dùng database và thư mục ảnh tạm riêng.
 

@@ -10,6 +10,8 @@ import {createApp} from '../server/app.mjs';
 import {openDatabase} from '../server/db.mjs';
 import {largeJpeg} from './fixtures/large-photo.mjs';
 import {maxUploadBytes} from '../web/upload-policy.mjs';
+import {encodePreparedPhoto} from '../server/prepared-photo.mjs';
+import {optimizePhoto} from '../server/image-optimizer.mjs';
 async function fixture(storage,uploadLogger){
  const dir=await mkdtemp(path.join(tmpdir(),'upload-quality-'));let pool,schema,url=null;
  if(process.env.STUDIO_TEST_POSTGRES_URL){pool=new pg.Pool({connectionString:process.env.STUDIO_TEST_POSTGRES_URL});schema='upload_test_'+randomBytes(8).toString('hex');await pool.query('CREATE SCHEMA '+schema);const target=new URL(process.env.STUDIO_TEST_POSTGRES_URL);target.searchParams.set('options','-c search_path='+schema);url=target.href;}
@@ -85,5 +87,33 @@ test('Upload tracing identifies processing stages and failures without disclosin
   for(const stage of ['authenticate','receive_body','validate','deduplicate','optimize_decode','optimize_webp','optimize_thumbnail','optimize_jpeg','store_webp','file_error','rollback'])assert.ok(stages.includes(stage),stage);
   assert.ok(events.some(e=>e.event==='stage_error'&&e.stage==='store_webp'));assert.ok(events.some(e=>e.event==='response_finished'&&e.status===422));
   assert.ok(events.every(e=>e.upload_id===traceId&&e.elapsed_ms>=0));assert.doesNotMatch(JSON.stringify(events),/secret|credentials|same\.jpg|Cookie|upload@example/);
+ }finally{await f.close();}
+});
+
+test('Prepared uploads store exact local renditions, keep section/name and deduplicate without reencoding',async()=>{
+ const events=[],f=await fixture(undefined,event=>events.push(event));try{
+  const bytes=await sample(),optimized=await optimizePhoto(bytes),bundle=encodePreparedPhoto({originalName:'CC - 0001.jpg',sourceHash:'b'.repeat(64),...optimized});
+  const sectionResponse=await f.request('/api/admin/albums/'+f.album+'/sections',{title:'Chi tiết'},'POST');assert.equal(sectionResponse.status,201);const section=(await sectionResponse.json()).id;
+  const send=(name='CC - 0001.jpg.ccphoto',key='c'.repeat(32))=>{const form=new FormData();form.append('photos',new Blob([bundle],{type:'application/octet-stream'}),name);return f.request('/api/admin/albums/'+f.album+'/photos',form,'POST',{'X-Upload-Keys':JSON.stringify([key]),'X-Album-Section':section});};
+  const response=await send();assert.equal(response.status,201);const saved=(await response.json()).results[0];assert.deepEqual(saved.optimization,optimized.optimization);
+  for(const [suffix,data] of [['.webp',optimized.data],['-thumb.webp',optimized.thumbnail],['-download.jpg',optimized.download]])assert.deepEqual(await readFile(path.join(f.dir,'uploads',saved.id+suffix)),data);
+  const photo=await f.db.get('SELECT original,caption,section_id FROM photos WHERE id=?',[saved.id]);assert.deepEqual({...photo},{original:'CC - 0001.jpg',caption:'CC - 0001',section_id:section});
+  const again=(await(await send()).json()).results[0];assert.equal(again.id,saved.id);assert.equal(again.reused,true);assert.equal((await f.db.all('SELECT id FROM photos')).length,1);
+  const stages=events.filter(e=>e.event==='stage').map(e=>e.stage);assert.ok(stages.includes('prepared_validate'));assert.ok(!stages.some(stage=>stage.startsWith('optimize_')));
+  const disguised=await send('ordinary.jpg','d'.repeat(32));assert.equal(disguised.status,201);assert.equal((await f.db.all('SELECT id FROM photos')).length,2);
+ }finally{await f.close();}
+});
+
+test('Malformed prepared files fail permanently; interrupted storage rolls back and retries safely',async()=>{
+ const files=new Map();let failStorage=true;
+ const storage={put:async(key,data)=>{files.set(key,data);if(failStorage&&key.endsWith('-download.jpg'))throw Error('private storage problem');},remove:async key=>files.delete(key),get:async key=>files.get(key)};
+ const f=await fixture(storage);try{
+  const source=await sample(),bundle=encodePreparedPhoto({originalName:'sample.jpg',sourceHash:'e'.repeat(64),...await optimizePhoto(source)});
+  const send=(bytes,key='f'.repeat(32))=>{const form=new FormData();form.append('photos',new Blob([bytes]),'sample.jpg.ccphoto');return f.request('/api/admin/albums/'+f.album+'/photos',form,'POST',{'X-Upload-Keys':JSON.stringify([key])});};
+  const invalid=await send(source);assert.equal(invalid.status,422);const rejected=(await invalid.json()).results[0];assert.equal(rejected.code,'PREPARED_INVALID');assert.equal(rejected.retryable,false);assert.equal(files.size,0);
+  const corrupted=Buffer.from(bundle);corrupted[corrupted.length-20]^=1;assert.equal((await(await send(corrupted)).json()).results[0].code,'PREPARED_CHECKSUM');assert.equal(files.size,0);
+  const failed=(await(await send(bundle)).json()).results[0];assert.equal(failed.code,'SAVE_FAILED');assert.equal(failed.retryable,true);assert.equal(files.size,0);assert.equal((await f.db.all('SELECT id FROM photos')).length,0);
+  failStorage=false;const response=await send(bundle);assert.equal(response.status,201);const saved=(await response.json()).results[0];assert.equal(files.size,3);
+  const replay=(await(await send(bundle)).json()).results[0];assert.equal(replay.id,saved.id);assert.equal(replay.reused,true);assert.equal((await f.db.all('SELECT id FROM photos')).length,1);
  }finally{await f.close();}
 });
