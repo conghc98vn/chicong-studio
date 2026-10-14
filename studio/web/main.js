@@ -103,13 +103,15 @@ function albumPage(client=false){
  const count=album.photos.filter(p=>p.selected).length;
  const copy=client?null:albumDescription(album);
  const introduction=client?
-  `${label('BỘ ẢNH RIÊNG CỦA BẠN')}<h1 id="album-heading">${esc(album.title)}</h1><p>${esc(album.description)}</p><div class="album-line"><span>${album.photos.length} ảnh${album.event_date?' · '+dateLabel(album.event_date):''}</span><button class="link-btn" data-action="lock-gallery">Đóng bộ ảnh</button></div>`:
+  `${label('BỘ ẢNH RIÊNG CỦA BẠN')}<h1 id="album-heading">${esc(album.title)}</h1>${album.description?`<p>${esc(album.description)}</p>`:''}<div class="album-line"><span>${album.photos.length} ảnh${album.event_date?' · '+dateLabel(album.event_date):''}</span></div>`:
   `<h1 id="album-heading">${esc(album.title)}</h1>${copy.intro?`<p class="album-description">${esc(copy.intro)}</p>`:''}`;
  publicPage(`<section class="page-width album-title ${client?'page-title':'portfolio-album-title'}" aria-labelledby="album-heading">${introduction}</section>
  <section class="page-width photo-section ${client?'client-photos':'editorial-photos'}">
- ${client?`<div class="client-toolbar"><div><strong>${count} ảnh đã chọn</strong><p>Bấm ♡ để chọn hoặc bỏ chọn ảnh. Thay đổi được lưu tự động. Khi chọn xong, bấm “Gửi lựa chọn” để báo cho studio.</p></div><button class="small-btn" data-action="selected-only" aria-pressed="${selectedOnly}">${selectedOnly?'Xem tất cả':'Xem ảnh đã chọn'}</button><button class="small-btn" data-action="download-selected" ${!count||pickBusy?'disabled':''}>Tải ảnh đã chọn</button><button class="btn" data-action="submit-picks" ${!count?'disabled':''}>${album.selection_status==='submitted'?'Gửi lại lựa chọn':'Gửi lựa chọn'}</button></div>${album.selection_status==='submitted'?'<p class="success-note">Studio đã nhận danh sách ảnh bạn chọn. Bạn vẫn có thể thay đổi và gửi lại lựa chọn.</p>':''}`:''}
+ ${client?`<div class="client-intro"><p>Bấm ♡ trên mỗi ảnh để chọn. Lựa chọn được lưu tự động. Khi hoàn tất, bấm “Gửi lựa chọn” để báo cho studio.</p></div>`:''}
+ ${album.selection_status==='submitted'?'<p class="success-note">Studio đã nhận danh sách ảnh bạn chọn. Bạn vẫn có thể thay đổi và gửi lại lựa chọn.</p>':''}
  ${sectionTabs(album,sectionFilter,false,selectedOnly,client)}<p class="sr-only" role="status">${visible.length} ảnh đang hiển thị</p>
  ${visible.length?photosMarkup(visible,client):`<div class="empty-state">${selectedOnly?'Chưa có ảnh được chọn trong mục này.':sectionFilter!=='all'?'Phần này chưa có ảnh.':'Bộ ảnh đang được chuẩn bị.'}</div>`}
+ ${client?`<div class="client-toolbar" role="region" aria-label="Thao tác chọn ảnh"><div class="client-toolbar-main"><strong>${count} ảnh đã chọn</strong><button class="btn" data-action="submit-picks" ${!count?'disabled':''}>${album.selection_status==='submitted'?'Gửi lại lựa chọn':'Gửi lựa chọn'}</button></div><div class="client-toolbar-sub"><button class="small-btn" data-action="selected-only" aria-pressed="${selectedOnly}">${selectedOnly?'Xem tất cả':'Xem ảnh đã chọn'}</button><button class="small-btn" data-action="download-selected" ${!count||pickBusy?'disabled':''}>Tải ảnh đã chọn</button></div></div>`:''}
  ${copy?.credit?`<p class="album-credit">${esc(copy.credit)}</p>`:''}</section>${client?'':relatedStories()}`);
  alignSectionTabs();
 }
@@ -217,13 +219,81 @@ function closeMobileMenu(restoreFocus=false){const trigger=$('[data-action=menu]
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMobileMenu(true);});
 document.addEventListener('click',e=>{if(!e.target.closest('.public-nav'))closeMobileMenu();});
 function lightPhotos(){return album?.photos?sectionPhotos(album,sectionFilter,selectedOnly):[];}
-function showLight(index){const photos=lightPhotos();if(!photos.length)return;lightIndex=(index+photos.length)%photos.length;const p=photos[lightIndex];if($('#lightbox img').getAttribute('src')!==p.src){$('#lightbox').classList.add('image-loading');$('#lightbox').classList.remove('image-error');$('#lightbox img').src=p.src;}$('#lightbox img').alt=p.caption;$('#lightbox figcaption').textContent=`${p.caption}${album.sections?.length?' · '+(album.sections.find(s=>s.id===p.section_id)?.title||'Chưa phân loại'):''} · ${lightIndex+1} / ${photos.length}`;const pick=$('#lightbox-pick');pick.hidden=!clientGallery;pick.dataset.photo=p.id;pick.disabled=pickBusy;pick.setAttribute('aria-pressed',String(!!p.selected));pick.textContent=p.selected?'Bỏ chọn ảnh này':'Chọn ảnh này';$('#lightbox-selection').textContent=clientGallery?`${album.photos.filter(p=>p.selected).length} ảnh đã chọn · Lựa chọn được lưu tự động`:'';if(!$('#lightbox').open)$('#lightbox').showModal();document.body.classList.add('modal-open');}
+function preloadLightNeighbors(photos,index){
+ if(photos.length<=1)return;
+ const next=photos[(index+1)%photos.length],prev=photos[(index-1+photos.length)%photos.length];
+ [next,prev].forEach(p=>{
+  if(!p?.src)return;
+  const im=new Image();
+  if(Math.max(p.width||0,p.height||0)>900){im.srcset=photoSources(p);im.sizes='(max-width:750px) 100vw, min(96vw, 1200px)';}
+  im.src=p.src;
+ });
+}
+function showLight(index){
+ const photos=lightPhotos();
+ if(!photos.length)return;
+ lightIndex=(index+photos.length)%photos.length;
+ const p=photos[lightIndex];
+ const lightImg=$('#lightbox img');
+ const srcChanged=lightImg.getAttribute('src')!==p.src;
+ if(srcChanged){
+  $('#lightbox').classList.add('image-loading');
+  $('#lightbox').classList.remove('image-error');
+  if(Math.max(p.width||0,p.height||0)>900){
+   lightImg.srcset=photoSources(p);
+   lightImg.sizes='(max-width:750px) 100vw, min(96vw, 1200px)';
+  }else{
+   lightImg.removeAttribute('srcset');
+   lightImg.removeAttribute('sizes');
+  }
+  lightImg.src=p.src;
+  if(lightImg.complete)$('#lightbox').classList.remove('image-loading');
+ }
+ lightImg.alt=p.caption;
+ $('#lightbox figcaption').textContent=`${p.caption}${album.sections?.length?' · '+(album.sections.find(s=>s.id===p.section_id)?.title||'Chưa phân loại'):''} · ${lightIndex+1} / ${photos.length}`;
+ const pick=$('#lightbox-pick');
+ pick.hidden=!clientGallery;
+ pick.dataset.photo=p.id;
+ pick.disabled=pickBusy;
+ pick.setAttribute('aria-pressed',String(!!p.selected));
+ pick.textContent=p.selected?'Bỏ chọn ảnh này':'Chọn ảnh này';
+ $('#lightbox-selection').textContent=clientGallery?`${album.photos.filter(p=>p.selected).length} ảnh đã chọn · Lựa chọn được lưu tự động`:'';
+ if(!$('#lightbox').open)$('#lightbox').showModal();
+ document.body.classList.add('modal-open');
+ preloadLightNeighbors(photos,lightIndex);
+}
 const lightImage=$('#lightbox img');
 lightImage.addEventListener('load',()=>$('#lightbox').classList.remove('image-loading'));
 lightImage.addEventListener('error',()=>{$('#lightbox').classList.remove('image-loading');$('#lightbox').classList.add('image-error');$('#lightbox figcaption').textContent='Chưa tải được ảnh. Hãy chuyển sang ảnh khác rồi thử lại.';});
 $('#lightbox').addEventListener('close',()=>document.body.classList.remove('modal-open'));
 $('#lightbox').addEventListener('click',e=>{if(e.target===$('#lightbox'))$('#lightbox').close();});
-document.addEventListener('keydown',e=>{if($('#lightbox').open){if(!pickBusy&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();showLight(lightIndex+(e.key==='ArrowLeft'?-1:1));}}});
+document.addEventListener('keydown',e=>{if($('#lightbox').open){if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();showLight(lightIndex+(e.key==='ArrowLeft'?-1:1));}}});
+let lightGesture=null;
+const resetLightGesture=()=>{
+ const id=lightGesture?.id;lightGesture=null;
+ if(id!==undefined&&$('#lightbox').hasPointerCapture?.(id)){try{$('#lightbox').releasePointerCapture(id);}catch{}}
+};
+$('#lightbox').addEventListener('pointerdown',e=>{
+ if(!e.isPrimary||e.button!==0||e.target.closest('button,a,input,select'))return;
+ lightGesture={id:e.pointerId,x:e.clientX,y:e.clientY,axis:null};
+ try{$('#lightbox').setPointerCapture(e.pointerId);}catch{}
+});
+$('#lightbox').addEventListener('pointermove',e=>{
+ if(!lightGesture||lightGesture.id!==e.pointerId)return;
+ const dx=e.clientX-lightGesture.x,dy=e.clientY-lightGesture.y;
+ if(!lightGesture.axis&&Math.max(Math.abs(dx),Math.abs(dy))>8){
+  if(Math.abs(dy)>=Math.abs(dx)){resetLightGesture();return;}
+  lightGesture.axis='horizontal';
+ }
+});
+$('#lightbox').addEventListener('pointerup',e=>{
+ if(!lightGesture||lightGesture.id!==e.pointerId)return;
+ const dx=e.clientX-lightGesture.x,dy=e.clientY-lightGesture.y;
+ resetLightGesture();
+ if(Math.abs(dx)>=44&&Math.abs(dx)>Math.abs(dy)*1.25)showLight(lightIndex+(dx<0?1:-1));
+});
+$('#lightbox').addEventListener('pointercancel',resetLightGesture);
+$('#lightbox').addEventListener('lostpointercapture',resetLightGesture);
 function alignSectionTabs(){
  const bar=$('.section-tabs'),active=bar?.querySelector('[aria-pressed=true]');if(!bar||!active)return;
  const parent=bar.getBoundingClientRect(),child=active.getBoundingClientRect();
@@ -327,7 +397,7 @@ document.addEventListener('drop',async event=>{
  try{await saveSection(()=>send('/api/admin/albums/'+a.id+'/sections/order',{sections:order},'PUT'));}catch(error){toast(error.message);}
 });
 
-document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;if(sectionBusy){toast('Đang lưu phần ảnh. Vui lòng đợi một chút.');return;}if(uploadBusy){toast('Đang tải ảnh lên. Hãy đợi hoàn tất trước khi chuyển trang.');return;}const action=el.dataset.action;if(pickBusy&&['section-filter','submit-picks','selected-only','download-selected','lock-gallery','next-photo','prev-photo','open-photo'].includes(action)){toast('Đang lưu lựa chọn. Vui lòng đợi một chút.');return;}try{
+document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;if(sectionBusy){toast('Đang lưu phần ảnh. Vui lòng đợi một chút.');return;}if(uploadBusy){toast('Đang tải ảnh lên. Hãy đợi hoàn tất trước khi chuyển trang.');return;}const action=el.dataset.action;if(pickBusy&&['section-filter','submit-picks','selected-only','download-selected','lock-gallery','open-photo'].includes(action)){toast('Đang lưu lựa chọn. Vui lòng đợi một chút.');return;}try{
  if(action==='hide-portrait'){await send('/api/admin/settings',{portrait:''},'PATCH');await refreshAdmin();toast('Đã ẩn ảnh chân dung.');}
  if(action==='back-to-top'){window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});$('.public-nav .wordmark')?.focus({preventScroll:true});}
  if(action==='menu'){const open=el.getAttribute('aria-expanded')!=='true';el.setAttribute('aria-expanded',String(open));$('#nav-links').classList.toggle('open',open);}
@@ -340,7 +410,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  try{await send(`/api/gallery/${album.id}/selection/${p.id}`,{selected:!p.selected},'PUT');p.selected=!p.selected;album.selection_status='draft';
  if(selectedOnly)albumPage(true);else{const count=album.photos.filter(p=>p.selected).length;$('.client-toolbar strong').textContent=`${count} ảnh đã chọn`;const submit=$('[data-action=submit-picks]');submit.disabled=!count;submit.textContent='Gửi lựa chọn';$('.success-note')?.remove();const gridPick=$(`.pick[data-photo="${p.id}"]`);if(gridPick){gridPick.classList.toggle('picked',p.selected);gridPick.setAttribute('aria-pressed',String(p.selected));gridPick.setAttribute('aria-label',`${p.selected?'Bỏ chọn':'Chọn'} ảnh ${p.caption}`);gridPick.textContent=p.selected?'♥':'♡';}}
  }finally{pickBusy=false;el.disabled=false;syncDownloadButton();}
- if(wasOpen&&$('#lightbox').open){const photos=lightPhotos();if(!photos.length){$('#lightbox').close();$('[data-action=selected-only]')?.focus();}else showLight(selectedOnly?Math.min(lightIndex,photos.length-1):photos.findIndex(x=>x.id===p.id));}
+ if(wasOpen&&$('#lightbox').open){const photos=lightPhotos();if(!photos.length){$('#lightbox').close();$('[data-action=selected-only]')?.focus();}else if(selectedOnly){showLight(Math.min(lightIndex,photos.length-1));}else{const cur=photos[lightIndex];if(cur){const pickBtn=$('#lightbox-pick');pickBtn.dataset.photo=cur.id;pickBtn.disabled=pickBusy;pickBtn.setAttribute('aria-pressed',String(!!cur.selected));pickBtn.textContent=cur.selected?'Bỏ chọn ảnh này':'Chọn ảnh này';$('#lightbox-selection').textContent=clientGallery?`${album.photos.filter(p=>p.selected).length} ảnh đã chọn · Lựa chọn được lưu tự động`:'';}}}
  }
 
  if(action==='download-selected')galleryDownloads.open({albumId:album.id,photos:sectionPhotos(album,'all',true),trigger:el});
