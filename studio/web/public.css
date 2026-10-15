@@ -180,11 +180,12 @@ body.public-view {
 :where(.public-view) .footer-bottom { align-items:center; }
 :where(.public-view) .photo-open { background:#eeebe5; cursor:zoom-in; }
 :where(.public-view) .photo-open:focus-visible { outline-offset:5px; }
-:where(.public-view) #lightbox.image-loading img { opacity:.25; }
+:where(.public-view) #lightbox.image-loading .lightbox-viewport img { opacity:0; transition:none; }
 :where(.public-view) #lightbox.image-error img { visibility:hidden; }
-:where(.public-view) #lightbox img { transition:opacity .18s; }
+:where(.public-view) #lightbox .lightbox-viewport img { transition:transform .2s ease-out,opacity .18s; }
 :where(.public-view) #lightbox .lightbox-controls:has(#lightbox-pick[hidden]):has(#lightbox-download[hidden]):has(#lightbox-zoom[hidden]) { display:none; }
 :where(.public-view) #lightbox figure { overflow:hidden; position:relative; display:flex; flex-direction:column; align-items:center; }
+:where(.public-view) #lightbox :is(.photo-prev,.photo-next,.close) { z-index:2; }
 :where(.public-view) #lightbox.is-zoomed img { cursor:grab; }
 :where(.public-view) #lightbox.is-zoomed.is-panning img { cursor:grabbing; }
 :where(.public-view) #lightbox button:hover { background:#e9ece3; }
@@ -198,7 +199,7 @@ body.public-view {
   :where(.public-view) .calendar-heading button { width:44px; height:44px; }
   :where(.public-view) #booking-form>.btn { width:100%; }
   :where(.public-view) #lightbox { width:100vw; max-width:100vw; max-height:100dvh; margin:auto; padding:40px 10px 14px; padding-top:max(40px, env(safe-area-inset-top)); padding-bottom:max(14px, env(safe-area-inset-bottom)); border-radius:0; box-sizing:border-box; }
-  :where(.public-view) #lightbox img { height:calc(100dvh - 230px); min-height:100px; object-fit:contain; }
+  :where(.public-view) #lightbox .lightbox-viewport { height:calc(100dvh - 230px); }
   :where(.public-view) #lightbox figcaption { padding:6px 42px 0; font-size:11.5px; }
   :where(.public-view) #lightbox .close { top:8px; right:8px; width:44px; height:44px; font-size:18px; }
   :where(.public-view) #lightbox .photo-prev,:where(.public-view) #lightbox .photo-next { top:calc(50% - 64px); bottom:auto; width:44px; height:44px; font-size:16px; }
@@ -782,7 +783,7 @@ body.public-view {
 :where(.public-view) #lightbox .lightbox-controls :is(button,a),
 :where(.public-view) #lightbox .lightbox-retry { font-size:var(--text-small); }
 :where(.public-view) :is(#gallery-download,#editor) .dialog-heading h2 { font-family:var(--text); }
-:where(.public-view) #lightbox.is-zoomed figure { touch-action:none; }
+:where(.public-view) #lightbox.is-zoomed .lightbox-viewport { touch-action:none; }
 :where(.public-view) #gallery-download p { font-size:var(--text-small); }
 :where(.public-view) #gallery-download .download-part strong { font-size:var(--text-small); }
 :where(.public-view) #gallery-download :is(.download-hint,.download-part span,.download-status,.form-error) { font-size:var(--text-caption); }

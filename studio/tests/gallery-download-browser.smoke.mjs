@@ -62,7 +62,7 @@ try{
  assert.equal(await page.locator('[data-action=download-selected]').isEnabled(),true);
  await page.locator('[data-action=submit-picks]').click();
  const confirmBtn=page.locator('[data-action=confirm-submit-picks]');
- if(await confirmBtn.isVisible())await confirmBtn.click();
+ await confirmBtn.click();
  await page.locator('.success-note').waitFor();
  await page.locator('[data-action=selected-only]').click();await page.locator(`[data-action=section-filter][data-section="${sections[0]}"]`).click();assert.equal(await page.locator('.photo-item').count(),1);
  const initialSelections=await instance.db.all('SELECT * FROM selections WHERE album_id=? ORDER BY photo_id',[album]);
@@ -84,7 +84,9 @@ try{
   if(process.env.STUDIO_AXE_MODULE){const {default:AxeBuilder}=await import(process.env.STUDIO_AXE_MODULE);const scan=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();accessibility.push({width,violations:scan.violations,incomplete:scan.incomplete});assert.deepEqual(scan.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);}
  }
  await writeFile(path.join(evidence,'accessibility.json'),JSON.stringify(accessibility,null,2));
- await page.keyboard.press('Escape');await page.locator('#gallery-download').waitFor({state:'hidden'});assert.equal(await page.locator('[data-action=download-selected]').evaluate(el=>el===document.activeElement),true);
+ await page.keyboard.press('Escape');await page.locator('#gallery-download').waitFor({state:'hidden'});
+ // The browser queues the dialog close event; hidden does not mean focus has been restored yet.
+ await page.waitForFunction(()=>document.querySelector('[data-action=download-selected]')===document.activeElement);
  for(const width of [320,390,768,1440]){await resize(width);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Gallery overflow at '+width);await page.locator('.client-toolbar').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(evidence,`gallery-toolbar-${width}.png`)});}
  console.log('PASS: Dialog and gallery at 320/390/768/1440, accessibility, Escape and restored focus');
 
@@ -101,7 +103,7 @@ try{
  await open();const pausedEscape=pauseNextStorageRead();await page.locator('[data-download-part="0"]').click();await pausedEscape.started;await page.keyboard.press('Escape');await page.locator('#gallery-download').waitFor({state:'hidden'});await pausedEscape.aborted;assert.equal(await page.locator('[data-action=download-selected]').evaluate(el=>el===document.activeElement),true);
  console.log('PASS: Visible server failure and retry, cancellation and retry, Escape during active download, keyboard focus');
 
- await instance.db.run('DELETE FROM selections WHERE album_id=? AND photo_id=?',[album,photos[1].id]);await open();await page.locator('[data-download-part="0"]').click();await page.locator('[data-download-refresh]').waitFor({state:'visible'});assert.equal(await page.locator('[data-download-part="0"]').isDisabled(),true);
+ await open();await instance.db.run('DELETE FROM selections WHERE album_id=? AND photo_id=?',[album,photos[1].id]);await page.locator('[data-download-part="0"]').click();await page.locator('[data-download-refresh]').waitFor({state:'visible'});assert.equal(await page.locator('[data-download-part="0"]').isDisabled(),true);
  await page.locator('[data-download-refresh]').click();await page.locator('#gallery-download').waitFor({state:'hidden'});await page.waitForFunction(()=>document.querySelector('.client-toolbar strong')?.textContent==='1 ảnh đã chọn');
  await open();const single=await download();assert.match(single.name,/\.jpg$/);assert.deepEqual(single.buffer,storedJpeg);await writeFile(path.join(evidence,'selected-single.jpg'),single.buffer);await close();
  await open();await context.clearCookies();await page.locator('[data-download-part="0"]').click();await page.getByLabel('Mật khẩu bộ ảnh').waitFor();assert.equal(await page.locator('#gallery-download').isVisible(),false);await unlock();

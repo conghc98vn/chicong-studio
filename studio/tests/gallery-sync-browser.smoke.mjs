@@ -34,7 +34,7 @@ try{
  }
  browser=await pw[engine].launch({headless:true,...(engine==='chromium'?{channel:'chrome'}:{})});
  const unlock=ctx=>ctx.request.post(base+'/api/gallery/'+aid+'/unlock',{headers:{Origin:base},data:{password:'gallery-password'}});
- const client=async options=>{const ctx=await browser.newContext(options);await unlock(ctx);const page=await ctx.newPage();page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/gallery/'+aid);await page.locator('.client-toolbar').waitFor();return {ctx,page};};
+ const client=async options=>{const ctx=await browser.newContext(options);await unlock(ctx);const page=await ctx.newPage();page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));await page.clock.install();await page.goto(base+'/gallery/'+aid);await page.locator('.client-toolbar').waitFor();return {ctx,page};};
  const a=await client({viewport:{width:1280,height:800}}),b=await client({viewport:{width:1280,height:800}}),page=a.page;
  const put=(id,selected)=>b.ctx.request.put(base+'/api/gallery/'+aid+'/selection/'+id,{headers:{Origin:base},data:{selected}});
  const count=(page,n)=>page.waitForFunction(n=>document.querySelector('.client-toolbar strong')?.textContent===`${n} ảnh đã chọn`,n);
@@ -54,6 +54,12 @@ try{
  assert.equal((await f.db.get('SELECT selection_status FROM albums WHERE id=?',[aid])).selection_status,'draft');
  await page.locator('[data-action=submit-picks]').click();await page.locator('[data-action=confirm-submit-picks]').click();await page.locator('.success-note').waitFor();
  console.log('PASS: Stale confirmation is rejected; the customer reviews the actual list before submitting');
+
+ await page.bringToFront();await page.waitForTimeout(100);
+ await put(ids[0],true);
+ const periodic=page.waitForRequest(r=>r.method()==='GET'&&r.url().endsWith('/selection'));
+ await page.clock.fastForward(21000);await periodic;await count(page,2);
+ console.log('PASS: An active gallery reconciles other devices through the periodic lightweight endpoint');
 
  await put(ids[0],true);await sync(page);await count(page,2);
  await page.locator('[data-action=selected-only]').click();
@@ -88,8 +94,16 @@ try{
  console.log('PASS: Expired confirmation closes the modal and permits unlocking immediately');
 
  await page.locator('.photo-open').first().click();await page.waitForFunction(()=>document.querySelector('#lightbox img').naturalWidth>0);
+ await page.locator('[data-action=next-photo]').click();
+ await page.locator('[data-action=prev-photo]').click();
+ assert.match(await page.locator('#lightbox figcaption').textContent(),/photo-0/);
+ console.log('PASS: Both navigation arrows are visible and clickable above the photograph');
  await page.locator('#lightbox-zoom').click();
  await page.waitForFunction(()=>{const img=document.querySelector('#lightbox img');return img.complete&&img.naturalWidth>0&&!img.currentSrc.includes('size=thumb');});
+ const zoomBox=await page.locator('#lightbox img').boundingBox();
+ await page.mouse.move(640,300);await page.mouse.down();await page.mouse.move(1100,400);await page.mouse.up();
+ assert.equal(await page.locator('#lightbox img').evaluate(img=>new DOMMatrix(getComputedStyle(img).transform).m41),0);
+ assert.ok(zoomBox.width>0);
  await page.screenshot({path:path.join(evidence,engine+'-zoom.png')});
  await page.keyboard.press('Escape');await page.keyboard.press('Escape');
  console.log('PASS: Zoom upgrades the displayed portrait to the full rendition');

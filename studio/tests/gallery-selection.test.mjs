@@ -9,12 +9,12 @@ import {openDatabase,id} from '../server/db.mjs';
 import {createApp} from '../server/app.mjs';
 import {photoDeletion} from '../server/photo-deletion.mjs';
 
-for(const engine of ['sqlite','postgres'])test('Shared gallery consistency on '+engine,{skip:engine==='postgres'&&!process.env.STUDIO_TEST_DATABASE_URL,timeout:60000},async t=>{
+for(const engine of ['sqlite','postgres'])test('Shared gallery consistency on '+engine,{skip:engine==='postgres'&&!process.env.STUDIO_TEST_POSTGRES_URL,timeout:60000},async t=>{
  const dir=await mkdtemp(path.join(tmpdir(),'selection-test-')),schema='selection_'+randomBytes(6).toString('hex');
  let pool,db,server;
  try{
   let url;
-  if(engine==='postgres'){pool=new pg.Pool({connectionString:process.env.STUDIO_TEST_DATABASE_URL});await pool.query('CREATE SCHEMA '+schema);const parsed=new URL(process.env.STUDIO_TEST_DATABASE_URL);parsed.searchParams.set('options','-c search_path='+schema);url=parsed.href;}
+  if(engine==='postgres'){pool=new pg.Pool({connectionString:process.env.STUDIO_TEST_POSTGRES_URL});await pool.query('CREATE SCHEMA '+schema);const parsed=new URL(process.env.STUDIO_TEST_POSTGRES_URL);parsed.searchParams.set('options','-c search_path='+schema);url=parsed.href;}
   db=await openDatabase(dir,{url});
   const f=await createApp({db,dataDir:dir,env:{}});
   server=f.app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
