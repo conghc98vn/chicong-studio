@@ -59,6 +59,16 @@ test('Batched album reads preserve order and selections with constant query coun
   await f.db.run("UPDATE albums SET status='draft'");assert.deepEqual(await(await f.request('/api/portfolio')).json(),[]);
  }finally{await f.close();}
 });
+test('Admin album summaries omit every photo catalogue while retaining counts and covers',async()=>{
+ const f=await fixture();try{
+  f.reset();const response=await f.admin('/api/admin/albums?view=summary'),rows=await response.json();
+  assert.equal(response.status,200);assert.equal(f.queries,5);assert.equal(rows.length,9);
+  for(const album of rows){
+   assert.equal(album.photo_count,3);assert.equal(album.selected_count,1);assert.ok(album.cover?.id);assert.ok(!('photos' in album));assert.ok(!('optimization' in album));assert.ok(!('password' in album));
+  }
+  assert.ok(Buffer.byteLength(JSON.stringify(rows))<12*1024,'The album list remains a compact summary.');
+ }finally{await f.close();}
+});
 test('A 1500-photo private gallery stays at five queries and excludes storage and upload data',async t=>{
  const f=await fixture();try{
   for(let start=3;start<1500;start+=100){
