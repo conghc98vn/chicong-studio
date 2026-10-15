@@ -3,13 +3,23 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm,mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {createServer} from 'node:http';
 import sharp from 'sharp';
 import {createApp} from '../server/app.mjs';
 import {hashPassword} from '../server/db.mjs';
 const pw=await import(process.env.STUDIO_PLAYWRIGHT_MODULE||'playwright');
 const dir=await mkdtemp(path.join(tmpdir(),'gallery-sync-browser-'));
 const f=await createApp({dataDir:dir,env:{}}),aid='a'.repeat(32),ids=['b'.repeat(32),'c'.repeat(32)];
-const server=f.app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+let uploadFault;const keys=[];
+// Hold the real server response after saving. WebKit route.fetch cannot replay
+// multipart file bodies reliably, so upload faults must live at the HTTP server.
+const server=createServer((req,res)=>{
+ if(req.method==='POST'&&req.url.endsWith('/photos')){
+  keys.push(req.headers['x-upload-keys']);
+  if(uploadFault){const fault=uploadFault;uploadFault=null;const end=res.end.bind(res);res.end=(...args)=>{fault.status=res.statusCode;fault.stored();fault.gate.then(()=>{if(!res.destroyed)end(...args);});return res;};}
+ }
+ f.app(req,res);
+}).listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
 const base='http://127.0.0.1:'+server.address().port,errors=[];
 const engine=process.env.STUDIO_BROWSER||'chromium';let browser,releaseUpload;
 const evidence=path.resolve(process.env.STUDIO_BROWSER_EVIDENCE_DIR||'output/gallery-sync-review');
@@ -44,6 +54,13 @@ try{
  assert.equal((await f.db.get('SELECT selection_status FROM albums WHERE id=?',[aid])).selection_status,'draft');
  await page.locator('[data-action=submit-picks]').click();await page.locator('[data-action=confirm-submit-picks]').click();await page.locator('.success-note').waitFor();
  console.log('PASS: Stale confirmation is rejected; the customer reviews the actual list before submitting');
+
+ await put(ids[0],true);await sync(page);await count(page,2);
+ await page.locator('[data-action=selected-only]').click();
+ await put(ids[0],false);await put(ids[1],false);await sync(page);await count(page,0);
+ assert.equal(await page.locator('.photo-item').count(),0);
+ await page.locator('[data-action=selected-only]').click();
+ console.log('PASS: Removing several selections remotely leaves the selected-only view usable');
 
  await put(ids[0],false);await put(ids[1],false);await page.reload();await count(page,0);
  await page.route('**/selection/*',async route=>{await route.fetch();await route.abort('failed');});
@@ -87,17 +104,12 @@ try{
 
  const setup=await a.ctx.request.post(base+'/api/admin/setup',{headers:{Origin:base},data:{email:'admin@test.local',password:'admin-password-123'}});assert.equal(setup.status(),201);
  await page.goto(base+'/admin#album/'+aid);await page.locator('[data-form=upload]').waitFor();
- let uploaded;const stored=new Promise(r=>uploaded=r),gate=new Promise(r=>releaseUpload=r);let first=true;
- const keys=[];
- await page.route('**/api/admin/albums/*/photos',async route=>{
-  keys.push(route.request().headers()['x-upload-keys']);
-  const response=await route.fetch();
-  if(first){first=false;uploaded();await gate;}
-  await route.fulfill({response}).catch(()=>{});
- });
+ let uploaded;const stored=new Promise(r=>uploaded=r),gate=new Promise(r=>releaseUpload=r);
+ const fault={stored:uploaded,gate};uploadFault=fault;
  const jpeg=await sharp(full).jpeg().toBuffer();
  await page.locator('[data-form=upload] input[type=file]').setInputFiles({name:'saved-before-cancel.jpg',mimeType:'image/jpeg',buffer:jpeg});
  await page.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();await stored;
+ assert.equal(fault.status,201);
  assert.equal(Number((await f.db.get('SELECT COUNT(*) AS count FROM photos WHERE album_id=?',[aid])).count),3);
  await page.locator('.upload-cancel').click();releaseUpload();
  await page.getByRole('button',{name:'Tải lại các ảnh còn lại',exact:true}).waitFor();

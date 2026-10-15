@@ -127,8 +127,10 @@ function updateClientSelection(){
 function applySharedSelection(state){
  if(!Array.isArray(state?.selected)||!['draft','submitted'].includes(state.selection_status))throw Error('Chưa xác nhận được danh sách ảnh. Vui lòng đồng bộ lại.');
  const selected=new Set(state.selected),removed=[],added=[];
+ const previousStatus=album.selection_status;
  const currentPhoto=lightPhotos()[lightIndex]?.id;
  for(const p of album.photos){if(p.selected&&!selected.has(p.id))removed.push(p.id);if(!p.selected&&selected.has(p.id))added.push(p.id);p.selected=selected.has(p.id);}
+ if(!removed.length&&!added.length&&previousStatus===state.selection_status&&!selectionUncertain)return;
  album.selection_status=state.selection_status;selectionUncertain=false;
  if(selectedOnly&&added.length){const top=scrollY;albumPage(true);scrollTo({top,behavior:'instant'});}
  else if(selectedOnly)for(const id of removed)removeSelectedCard(id);
@@ -141,7 +143,7 @@ function applySharedSelection(state){
  if($('#lightbox').open){
   const photos=lightPhotos();
   if(!photos.length)$('#lightbox').close();
-  else if(selectedOnly&&(removed.length||added.length))showLight(Math.max(0,photos.findIndex(p=>p.id===currentPhoto)));
+  else if(selectedOnly&&(removed.length||added.length)){const index=photos.findIndex(p=>p.id===currentPhoto);showLight(index<0?Math.min(lightIndex,photos.length-1):index);}
   else{const p=photos[lightIndex],pick=$('#lightbox-pick');if(p){pick.setAttribute('aria-pressed',String(p.selected));pick.textContent=p.selected?'Bỏ chọn ảnh này':'Chọn ảnh này';$('#lightbox-selection').textContent=`${selected.size} ảnh đã chọn · ${state.selection_status==='submitted'?'Đã gửi đến studio':'Lựa chọn được lưu tự động'}`;}}
  }
 }
@@ -170,7 +172,7 @@ async function expireGallery(){
 async function backgroundSelectionRefresh(full=false){
  if(!clientGallery||document.hidden||pickBusy||selectionRefreshing||$('#editor').open)return;
  selectionRefreshing=true;
- try{await refreshSharedSelection(full);}catch(error){if(error.status===401)await expireGallery();else{selectionUncertain=true;if(clientGallery)updateClientSelection();}}finally{selectionRefreshing=false;}
+ try{await refreshSharedSelection(full);}catch(error){if(error.status===401){try{await expireGallery();}catch(error){toast(error.message);}}else{selectionUncertain=true;if(clientGallery)updateClientSelection();}}finally{selectionRefreshing=false;}
 }
 setInterval(()=>void backgroundSelectionRefresh(),20000);
 window.addEventListener('focus',()=>void backgroundSelectionRefresh(true));
@@ -178,6 +180,7 @@ window.addEventListener('online',()=>void backgroundSelectionRefresh(true));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void backgroundSelectionRefresh(true);});
 function removeSelectedCard(photoId){
  const card=$(`.pick[data-photo="${photoId}"]`)?.closest('.photo-item');
+ if(!card)return;
  const cards=[...document.querySelectorAll('.client-masonry .photo-item')],index=cards.indexOf(card),neighbor=cards[index+1]||cards[index-1];
  const top=neighbor?.getBoundingClientRect().top;
  card?.remove();
@@ -654,7 +657,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  if(action==='retry-selection'){await refreshSharedSelection(true);toast('Đã đồng bộ danh sách ảnh.');}
  if(action==='pick'){
   if(pickBusy)return;
-  if(selectionUncertain)await refreshSharedSelection(true);
+  if(selectionUncertain&&!await refreshSharedSelection(true))return;
   const p=album.photos.find(p=>p.id===el.dataset.photo);if(!p)return;
   pickBusy=true;++selectionEpoch;syncDownloadButton();$('.client-save-status').textContent='Đang lưu lựa chọn…';el.disabled=true;
   try{applySharedSelection(await send(`/api/gallery/${album.id}/selection/${p.id}`,{selected:!p.selected},'PUT'));}
@@ -665,15 +668,15 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
   }finally{pickBusy=false;el.disabled=false;if(clientGallery)updateClientSelection();}
  }
  if(action==='download-selected'){
-  await refreshSharedSelection(true);
+  if(!await refreshSharedSelection(true))return;
   const albumId=album.id;el.disabled=true;
   try{const downloads=await loadGalleryDownloads();if(clientGallery&&album?.id===albumId&&el.isConnected)downloads.open({albumId,photos:sectionPhotos(album,'all',true),trigger:el});}
   finally{syncDownloadButton();}
  }
  if(action==='lock-gallery'){photoDownloads?.close();galleryDownloads?.close();await send(`/api/gallery/${album.id}/logout`,{});album=null;selectedOnly=false;sectionFilter='all';await route();}
- if(action==='selected-only'){await refreshSharedSelection(true);selectedOnly=!selectedOnly;albumPage(true);scrollToGallery();$('[data-action=selected-only]')?.focus({preventScroll:true});}
+ if(action==='selected-only'){if(!await refreshSharedSelection(true))return;selectedOnly=!selectedOnly;albumPage(true);scrollToGallery();$('[data-action=selected-only]')?.focus({preventScroll:true});}
  if(action==='submit-picks'){
-  await refreshSharedSelection(true);confirmedPhotoIds=album.photos.filter(p=>p.selected).map(p=>p.id);
+  if(!await refreshSharedSelection(true))return;confirmedPhotoIds=album.photos.filter(p=>p.selected).map(p=>p.id);
   const count=album?.photos?.filter(p=>p.selected).length||0;if(!count)return;
   editDialog('Gửi lựa chọn đến studio',`<div class="submit-confirm-content"><p>Bạn muốn gửi danh sách <strong>${count} ảnh đã chọn</strong> đến studio?</p><p class="panel-note">Studio sẽ nhận được danh sách ảnh bạn đã chọn để tiến hành hậu kỳ.</p><div class="submit-confirm-actions"><button type="button" class="btn secondary" data-action="close-editor">Xem lại thêm</button><button type="button" class="btn" data-action="confirm-submit-picks">Xác nhận gửi</button></div></div>`);
  }

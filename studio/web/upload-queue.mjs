@@ -42,7 +42,7 @@ export class UploadQueue {
   const pending=this.retryable;
   progress(this.done.size,this.files.length);
   for(let i=0;i<pending.length;){
-   if(this.aborted)throw Object.assign(Error('Lượt tải ảnh đã được hủy. Bấm “Tải lại các ảnh còn lại” để tiếp tục.'),{code:'UPLOAD_CANCELLED',retryable:true});
+   if(this.aborted)throw Object.assign(Error('Lượt tải ảnh đã được hủy. Ảnh có thể đã được lưu; bấm “Tải lại các ảnh còn lại” để xác nhận và tiếp tục, không tạo ảnh trùng.'),{code:'UPLOAD_CANCELLED',retryable:true});
    const batch=[pending[i++]];
    let result;
    try{
@@ -55,13 +55,13 @@ export class UploadQueue {
     }finally{
      this.activeAbort=null;
     }
-    if(this.aborted)throw Object.assign(Error('Lượt tải ảnh đã được hủy. Bấm “Tải lại các ảnh còn lại” để tiếp tục.'),{code:'UPLOAD_CANCELLED',retryable:true});
+    if(this.aborted)throw Object.assign(Error('Lượt tải ảnh đã được hủy. Ảnh có thể đã được lưu; bấm “Tải lại các ảnh còn lại” để xác nhận và tiếp tục, không tạo ảnh trùng.'),{code:'UPLOAD_CANCELLED',retryable:true});
     if(!validAcknowledgements(result,batch.length))throw Object.assign(Error('Máy chủ chưa xác nhận đầy đủ kết quả lưu ảnh.'),{code:'INVALID_RESPONSE'});
    }catch(error){
     if(this.aborted){
      this.results.set(batch[0],{index:0,success:false,retryable:true,error:'Đã dừng chờ xác nhận. Ảnh có thể đã được lưu; tải lại sẽ không tạo ảnh trùng.',code:'UPLOAD_CANCELLED'});
      progress(this.done.size,this.files.length);
-     throw Object.assign(Error('Lượt tải ảnh đã được hủy. Bấm “Tải lại các ảnh còn lại” để tiếp tục.'),{code:'UPLOAD_CANCELLED',retryable:true});
+     throw Object.assign(Error('Lượt tải ảnh đã được hủy. Ảnh có thể đã được lưu; bấm “Tải lại các ảnh còn lại” để xác nhận và tiếp tục, không tạo ảnh trùng.'),{code:'UPLOAD_CANCELLED',retryable:true});
     }
     const failure=transferFailure(error);
     this.results.set(batch[0],{index:0,success:false,retryable:true,error:failure.message,code:failure.code});
