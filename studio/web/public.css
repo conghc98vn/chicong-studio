@@ -765,7 +765,23 @@ body.public-view {
  :where(.public-view) #lightbox .lightbox-actions { padding-inline:4px; }
 }
 
-:where(.public-view) .client-photos,:where(.public-view) #lightbox .lightbox-controls,:where(.public-view) #lightbox figcaption { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; }
+/* Proofing and downloads share the public reading font and its readable sizes. */
+:where(.public-view) .client-intro { font-size:var(--text-small); }
+:where(.public-view) .client-photos .photo-info>span { font-size:var(--text-caption); }
+:where(.public-view) .client-photos .section-tabs button { font-size:var(--text-caption); }
+:where(.public-view) .client-photos .section-tabs button span { font-size:14px; }
+:where(.public-view) .client-toolbar strong { font-size:var(--text-small); }
+:where(.public-view) .client-save-status { font-size:var(--text-caption); }
+:where(.public-view) .client-toolbar-actions :is(.small-btn,.btn) { font-size:var(--text-caption); }
+:where(.public-view) .client-album-title .link-btn { font-size:var(--text-small); }
+:where(.public-view) #lightbox figcaption,
+:where(.public-view) #lightbox .lightbox-controls p { font-size:var(--text-caption); line-height:1.5; }
+:where(.public-view) #lightbox .lightbox-controls :is(button,a),
+:where(.public-view) #lightbox .lightbox-retry { font-size:var(--text-small); }
+:where(.public-view) #gallery-download .dialog-heading h2 { font-family:var(--text); }
+:where(.public-view) #gallery-download p { font-size:var(--text-small); }
+:where(.public-view) #gallery-download .download-part strong { font-size:var(--text-small); }
+:where(.public-view) #gallery-download :is(.download-hint,.download-part span,.download-status,.form-error) { font-size:var(--text-caption); }
 :where(.public-view) .client-album-title h1 { margin-bottom:14px; }
 :where(.public-view) .client-album-title>p:not(.label) { line-height:1.6; }
 :where(.public-view) .client-photos .section-tabs button { min-height:44px; }
