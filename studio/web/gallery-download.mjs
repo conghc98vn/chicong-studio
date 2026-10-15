@@ -87,12 +87,12 @@ export function createGalleryDownloads({onExpired=()=>{},onSelectionChanged=()=>
   dialog?.remove();const returnFocus=trigger;
   const current=document.createElement('dialog');dialog=current;current.id='gallery-download';
   current.setAttribute('aria-labelledby','gallery-download-title');current.setAttribute('aria-describedby','gallery-download-description');
-  current.innerHTML=`<div class="dialog-heading"><h2 id="gallery-download-title">Tải ${count} ảnh đã chọn</h2><button type="button" class="close" data-download-close aria-label="Đóng hộp tải ảnh">×</button></div>
-   <p id="gallery-download-description">Bao gồm ảnh đã chọn trong tất cả các phần của bộ ảnh, kể cả ảnh đang ẩn bởi bộ lọc.</p>
+  current.innerHTML=`<div class="dialog-heading"><h2 id="gallery-download-title">Tải ${count} ảnh đã lưu</h2><button type="button" class="close" data-download-close aria-label="Đóng hộp tải ảnh">×</button></div>
+   <p id="gallery-download-description">Bao gồm ảnh đã lưu trong tất cả các phần của bộ ảnh, kể cả ảnh đang ẩn bởi bộ lọc.</p>
    <p class="download-format">Ảnh JPG rõ nét, dung lượng được tối ưu để chia sẻ và đăng Facebook. ${count>1?'Các ảnh được gói trong tệp ZIP.':'Bạn sẽ nhận một tệp JPG.'}</p>
    ${count>1?'<p class="download-hint">Trên điện thoại, mở tệp ZIP trong ứng dụng Tệp / Files rồi giải nén để lưu ảnh.</p>':''}
    ${parts.length>1?`<p class="download-hint">Danh sách được chia thành từng gói tối đa ${partSize} ảnh. Bấm tải lần lượt các gói bên dưới.</p>`:''}
-   <div class="download-parts">${parts.map((part,index)=>`<div class="download-part"><div><strong>${parts.length>1?`Gói ${index+1} · Ảnh ${part.first}–${part.last}`:`${count} ảnh đã chọn`}</strong><span data-download-part-status="${index}">${part.ids.length} ảnh · ${part.ids.length===1?'JPG':'ZIP'}</span></div><button type="button" class="${parts.length===1?'btn':'small-btn'}" data-download-part="${index}">${parts.length>1?`Tải gói ${index+1}`:part.ids.length===1?'Tải ảnh JPG':`Tải ${count} ảnh (ZIP)`}</button></div>`).join('')}</div>
+   <div class="download-parts">${parts.map((part,index)=>`<div class="download-part"><div><strong>${parts.length>1?`Gói ${index+1} · Ảnh ${part.first}–${part.last}`:`${count} ảnh đã lưu`}</strong><span data-download-part-status="${index}">${part.ids.length} ảnh · ${part.ids.length===1?'JPG':'ZIP'}</span></div><button type="button" class="${parts.length===1?'btn':'small-btn'}" data-download-part="${index}">${parts.length>1?`Tải gói ${index+1}`:part.ids.length===1?'Tải ảnh JPG':`Tải ${count} ảnh (ZIP)`}</button></div>`).join('')}</div>
    <div class="download-progress" hidden><progress aria-label="Tiến độ tải ảnh"></progress></div>
    <p class="download-status" role="status" aria-live="polite"></p><p class="form-error" role="alert"></p>
    <div class="download-footer"><button type="button" class="small-btn" data-download-smaller hidden>Chia thành gói nhỏ hơn</button><button type="button" class="small-btn" data-download-cancel hidden>Hủy tải</button><button type="button" class="small-btn" data-download-refresh hidden>Cập nhật danh sách</button></div>`;

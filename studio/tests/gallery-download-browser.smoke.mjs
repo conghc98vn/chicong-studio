@@ -101,7 +101,7 @@ try{
  console.log('PASS: Visible server failure and retry, cancellation and retry, Escape during active download, keyboard focus');
 
  await open();await instance.db.run('DELETE FROM selections WHERE album_id=? AND photo_id=?',[album,photos[1].id]);await page.locator('[data-download-part="0"]').click();await page.locator('[data-download-refresh]').waitFor({state:'visible'});assert.equal(await page.locator('[data-download-part="0"]').isDisabled(),true);
- await page.locator('[data-download-refresh]').click();await page.locator('#gallery-download').waitFor({state:'hidden'});await page.waitForFunction(()=>document.querySelector('.client-toolbar strong')?.textContent==='1 ảnh đã chọn');
+ await page.locator('[data-download-refresh]').click();await page.locator('#gallery-download').waitFor({state:'hidden'});await page.waitForFunction(()=>document.querySelector('.client-toolbar strong')?.textContent==='1 ảnh đã lưu');
  await open();const single=await download();assert.match(single.name,/\.jpg$/);assert.deepEqual(single.buffer,storedJpeg);await writeFile(path.join(evidence,'selected-single.jpg'),single.buffer);await close();
  await open();await context.clearCookies();await page.locator('[data-download-part="0"]').click();await page.getByLabel('Mật khẩu bộ ảnh').waitFor();assert.equal(await page.locator('#gallery-download').isVisible(),false);await unlock();
  console.log('PASS: Stale selection refresh, exact stored single JPEG, expired gallery session relocks');

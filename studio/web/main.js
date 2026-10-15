@@ -42,7 +42,7 @@ let selectionUncertain=false,selectionEpoch=0,selectionRefreshing=false;
 let selectionRefreshQueued=false,selectionRefreshQueuedFull=false;
 // Download code loads on demand so opening a gallery does not wait for it.
 let galleryDownloads,photoDownloads,galleryDownloadsLoading,photoDownloadsLoading;
-const loadGalleryDownloads=()=>galleryDownloadsLoading??=import('./gallery-download.mjs').then(({createGalleryDownloads})=>galleryDownloads=createGalleryDownloads({onExpired:async()=>{try{await expireGallery();}catch(error){toast(error.message);}},onSelectionChanged:async()=>{try{await route();$('[data-action=download-selected]')?.focus({preventScroll:true});toast('Đã cập nhật danh sách ảnh đã chọn.');}catch(error){toast(error.message);}}})).catch(error=>{galleryDownloadsLoading=null;throw error;});
+const loadGalleryDownloads=()=>galleryDownloadsLoading??=import('./gallery-download.mjs').then(({createGalleryDownloads})=>galleryDownloads=createGalleryDownloads({onExpired:async()=>{try{await expireGallery();}catch(error){toast(error.message);}},onSelectionChanged:async()=>{try{await route();$('[data-action=download-selected]')?.focus({preventScroll:true});toast('Đã cập nhật danh sách ảnh đã lưu.');}catch(error){toast(error.message);}}})).catch(error=>{galleryDownloadsLoading=null;throw error;});
 const loadPhotoDownloads=()=>photoDownloadsLoading??=import('./photo-download.mjs').then(({createPhotoDownloads})=>photoDownloads=createPhotoDownloads({
  onExpired:async()=>{await expireGallery();},
  onState:state=>{
@@ -88,7 +88,7 @@ function home(){
 }
 function portfolio(){const availableCategories=Object.entries(categories).filter(([key])=>albums.some(a=>a.category===key));const visible=curatePortfolio(albums,site.storySelection,site.heroSelection).filter(({album})=>filter==='all'||album.category===filter);publicPage(`<section class="page-width page-title portfolio-title">${label('ẢNH & NHỮNG CÂU CHUYỆN')}<h1>Câu chuyện <em>bằng ảnh.</em></h1><p>Những ngày cưới mình ghi lại bằng film và máy số.</p></section><section class="page-width portfolio-section">${availableCategories.length>1?`<div class="filter-row" role="group" aria-label="Lọc bộ ảnh theo thể loại">${[['all','Tất cả'],...availableCategories].map(([k,v])=>`<button data-action="filter" data-filter="${k}" aria-pressed="${filter===k}" class="${filter===k?'active':''}">${v}</button>`).join('')}</div>`:''}<div class="album-grid stories-grid">${visible.length?visible.map(({album,photo},i)=>albumCard(album,i,photo)).join(''):'<p class="empty-state">Chưa có bộ ảnh trong thể loại này.</p>'}</div></section>`);}
 function photosMarkup(photos,client=false){
- const photoMarkup=(p,i,sizes)=>{const name=p.caption||p.original||'Ảnh '+(i+1);return `<article class="photo-item"><button class="photo-open" data-action="open-photo" data-photo="${p.id}" aria-label="Xem ảnh ${esc(name)}">${img(p,'',i===0,true,sizes)}</button><div class="photo-info">${client?'':`<span title="${esc(name)}">${esc(name)}</span>`}${client?`<button class="pick ${p.selected?'picked':''}" data-action="pick" data-photo="${p.id}" aria-pressed="${!!p.selected}" aria-label="${p.selected?'Bỏ chọn':'Chọn'} ảnh ${esc(name)}">${icon('heart')}</button>`:''}</div></article>`;};
+ const photoMarkup=(p,i,sizes)=>{const name=p.caption||p.original||'Ảnh '+(i+1);return `<article class="photo-item"><button class="photo-open" data-action="open-photo" data-photo="${p.id}" aria-label="Xem ảnh ${esc(name)}">${img(p,'',i===0,true,sizes)}</button><div class="photo-info">${client?'':`<span title="${esc(name)}">${esc(name)}</span>`}${client?`<button class="pick ${p.selected?'picked':''}" data-action="pick" data-photo="${p.id}" aria-pressed="${!!p.selected}" aria-label="${p.selected?'Bỏ chọn lưu':'Lưu'} ảnh ${esc(name)}">${icon('bookmark')}</button>`:''}</div></article>`;};
  if(client){
   const sizes='(max-width:750px) calc((100vw - 56px)/2), min(calc((89vw - 32px)/3), 363px)';
   return `<div class="photo-grid client-masonry" data-count="${photos.length}">${photos.map((p,i)=>photoMarkup(p,i,sizes)).join('')}</div>`;
@@ -119,7 +119,7 @@ function albumDescription(a){
 }
 function updateClientSelection(){
  const count=album.photos.filter(photo=>photo.selected).length;
- $('.client-toolbar strong').textContent=`${count} ảnh đã chọn`;
+ $('.client-toolbar strong').textContent=`${count} ảnh đã lưu`;
  const status=$('.client-save-status');
  status.hidden=!selectionUncertain;
  status.textContent=selectionUncertain?'Chưa xác nhận được lựa chọn.':'';
@@ -130,13 +130,13 @@ function updateClientSelection(){
 }
 function updateLightSelection(){
  if(adminLight){const p=lightPhotos()[lightIndex];$('#lightbox-selection').textContent=album.status==='private'?(p?.selected?'♥ Khách đã chọn':'Khách chưa chọn'):'';return;}
- $('#lightbox-selection').textContent=clientGallery?(selectionUncertain?'Chưa xác nhận được lựa chọn. Vui lòng thử lại.':`${album.photos.filter(p=>p.selected).length} ảnh đã chọn`):'';
+ $('#lightbox-selection').textContent=clientGallery?(selectionUncertain?'Chưa xác nhận được lựa chọn. Vui lòng thử lại.':`${album.photos.filter(p=>p.selected).length} ảnh đã lưu`):'';
 }
 function updateLightPick(photo){
  const pick=$('#lightbox-pick');
  pick.setAttribute('aria-pressed',String(!!photo.selected));
- pick.setAttribute('aria-label',photo.selected?'Bỏ chọn ảnh này':'Chọn ảnh này');
- pick.innerHTML=icon('heart')+`<span>${photo.selected?'Đã chọn':'Chọn ảnh'}</span>`;
+ pick.setAttribute('aria-label',photo.selected?'Bỏ lưu ảnh này':'Lưu ảnh này');
+ pick.innerHTML=icon('bookmark')+`<span>${photo.selected?'Đã lưu':'Lưu ảnh'}</span>`;
 }
 function applySharedSelection(state){
  if(!Array.isArray(state?.selected)||!['draft','submitted'].includes(state.selection_status))throw Error('Chưa xác nhận được danh sách ảnh. Vui lòng đồng bộ lại.');
@@ -151,7 +151,7 @@ function applySharedSelection(state){
  const photosById=new Map(album.photos.map(p=>[p.id,p]));
  for(const button of document.querySelectorAll('.pick')){
   const p=photosById.get(button.dataset.photo);if(!p)continue;
-  button.classList.toggle('picked',p.selected);button.setAttribute('aria-pressed',String(p.selected));button.setAttribute('aria-label',`${p.selected?'Bỏ chọn':'Chọn'} ảnh ${p.caption||p.original||''}`);button.innerHTML=icon('heart');
+  button.classList.toggle('picked',p.selected);button.setAttribute('aria-pressed',String(p.selected));button.setAttribute('aria-label',`${p.selected?'Bỏ chọn lưu':'Lưu'} ảnh ${p.caption||p.original||''}`);button.innerHTML=icon('bookmark');
  }
  updateClientSelection();
  if($('#lightbox').open){
@@ -234,10 +234,10 @@ function albumPage(client=false){
   `<h1 id="album-heading">${esc(album.title)}</h1>${copy.intro?`<p class="album-description">${esc(copy.intro)}</p>`:''}`;
  publicPage(`<section class="page-width album-title ${client?'page-title client-album-title':'portfolio-album-title'}" aria-labelledby="album-heading">${introduction}</section>
  <section class="page-width photo-section ${client?'client-photos':'editorial-photos'}">
- ${client?`<div class="client-intro"><p>${icon('heart')} Chạm tim để chọn ảnh yêu thích.</p></div>`:''}
+ ${client?`<div class="client-intro"><p>${icon('bookmark')} Chạm biểu tượng lưu ở mỗi ảnh bạn muốn giữ lại.</p></div>`:''}
  ${sectionTabs(album,sectionFilter,false,selectedOnly,client)}<p class="sr-only" data-gallery-status role="status">${visible.length} ảnh đang hiển thị</p>
  ${visible.length?photosMarkup(visible,client):`<div class="empty-state">${selectedOnly?'Chưa có ảnh được chọn trong mục này.':sectionFilter!=='all'?'Phần này chưa có ảnh.':'Bộ ảnh đang được chuẩn bị.'}</div>`}
- ${client?`<div class="client-toolbar" role="region" aria-label="Thao tác chọn ảnh"><div class="client-toolbar-main"><strong role="status" aria-live="polite">${count} ảnh đã chọn</strong><button class="link-btn" data-action="retry-selection" hidden>Đồng bộ lại</button><span class="client-save-status" role="status" hidden></span></div><div class="client-toolbar-actions"><button class="small-btn" data-action="selected-only" aria-label="${selectedOnly?'Xem tất cả':'Xem ảnh đã chọn'}" aria-pressed="${selectedOnly}"><span class="btn-text-full">${selectedOnly?'Xem tất cả':'Xem ảnh đã chọn'}</span><span class="btn-text-short">${selectedOnly?'Tất cả':'Đã chọn'}</span></button><button class="small-btn" data-action="download-selected" aria-label="Tải ảnh đã chọn" ${!count||pickBusy?'disabled':''}><span class="btn-text-full">Tải ảnh đã chọn</span><span class="btn-text-short">Tải ảnh</span></button></div></div>`:''}
+ ${client?`<div class="client-toolbar" role="region" aria-label="Thao tác với ảnh đã lưu"><div class="client-toolbar-main">${icon('bookmark')}<strong role="status" aria-live="polite">${count} ảnh đã lưu</strong><button class="link-btn" data-action="retry-selection" hidden>Đồng bộ lại</button><span class="client-save-status" role="status" hidden></span></div><div class="client-toolbar-actions"><button class="toolbar-icon" data-action="selected-only" aria-label="${selectedOnly?'Xem tất cả ảnh':'Chỉ xem ảnh đã lưu'}" aria-pressed="${selectedOnly}">${icon('bookmark')}</button><button class="toolbar-icon" data-action="download-selected" aria-label="Tải ảnh đã lưu" ${!count||pickBusy?'disabled':''}>${icon('download')}</button></div></div>`:''}
  ${copy?.credit?`<p class="album-credit">${esc(copy.credit)}</p>`:''}</section>${client?'':relatedStories()}`);
  alignSectionTabs();
 }

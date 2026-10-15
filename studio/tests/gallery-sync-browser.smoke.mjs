@@ -37,7 +37,7 @@ try{
  const client=async options=>{const ctx=await browser.newContext(options);await unlock(ctx);const page=await ctx.newPage();page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));await page.clock.install();await page.goto(base+'/gallery/'+aid);await page.locator('.client-toolbar').waitFor();return {ctx,page};};
  const a=await client({viewport:{width:1280,height:800}}),b=await client({viewport:{width:1280,height:800}}),page=a.page;
  const put=(id,selected)=>b.ctx.request.put(base+'/api/gallery/'+aid+'/selection/'+id,{headers:{Origin:base},data:{selected}});
- const count=(page,n)=>page.waitForFunction(n=>document.querySelector('.client-toolbar strong')?.textContent===`${n} ảnh đã chọn`,n);
+ const count=(page,n)=>page.waitForFunction(n=>document.querySelector('.client-toolbar strong')?.textContent===`${n} ảnh đã lưu`,n);
  const sync=page=>page.evaluate(()=>window.dispatchEvent(new Event('focus')));
  await page.locator('.pick').first().click();await count(page,1);
  await sync(b.page);await count(b.page,1);

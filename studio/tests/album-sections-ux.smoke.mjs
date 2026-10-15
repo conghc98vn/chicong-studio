@@ -88,7 +88,7 @@ try{
  const client=await clientContext.newPage();client.setDefaultTimeout(5000);client.on('pageerror',e=>errors.push(e.message));
  await client.goto(base+'/gallery/'+album);await client.getByLabel('Mật khẩu bộ ảnh').fill('gallery-pass');await client.getByRole('button',{name:'Mở bộ ảnh',exact:true}).click();await client.locator('.photo-item').first().waitFor();
  await scenario('Selected-only tab counts match selected results',async()=>{
-  await client.locator('.pick').first().click();await client.waitForFunction(()=>document.querySelector('.client-toolbar strong').textContent==='1 ảnh đã chọn');await client.getByRole('button',{name:'Xem ảnh đã chọn',exact:true}).click();
+  await client.locator('.pick').first().click();await client.waitForFunction(()=>document.querySelector('.client-toolbar strong').textContent==='1 ảnh đã lưu');await client.getByRole('button',{name:'Chỉ xem ảnh đã lưu',exact:true}).click();
   assert.equal(Number(await client.locator('[data-action=section-filter][data-section=all] span').textContent()),1);
  });
  await scenario('Keyboard focus returns to the photo after lightbox closes',async()=>{
