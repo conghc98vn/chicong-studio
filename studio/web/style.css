@@ -94,6 +94,8 @@ em { font-weight:400; }
 .photo-section.client-photos { padding-bottom:120px; }
 .client-intro { margin-bottom:18px; padding:12px 18px; background:var(--green-light); border:1px solid #dce6d9; border-radius:8px; font-size:13px; color:#324434; line-height:1.55; }
 .client-intro p { margin:0; }
+.gallery-more { display:flex; flex-direction:column; align-items:center; gap:8px; padding:28px 0 8px; color:var(--muted); font-size:12px; }
+.gallery-more .link-btn { min-height:44px; }
 .photo-grid { columns:3; column-gap:20px; }
 .photo-item { position:relative; break-inside:avoid; margin-bottom:16px; content-visibility:auto; contain-intrinsic-size:300px 400px; }
 .photo-open { border:0; padding:0; background:none; display:block; width:100%; cursor:pointer; }

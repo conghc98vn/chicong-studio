@@ -40,6 +40,8 @@ const send=(url,data,method='POST')=>api(url,{method,body:JSON.stringify(data)})
 let clientGallery=false,pickBusy=false,activeUploadQueue=null;
 let selectionUncertain=false,selectionEpoch=0,selectionRefreshing=false;
 let selectionRefreshQueued=false,selectionRefreshQueuedFull=false;
+const galleryBatchSize=90;
+let galleryLoadObserver=null;
 // Download code loads on demand so opening a gallery does not wait for it.
 let galleryDownloads,photoDownloads,galleryDownloadsLoading,photoDownloadsLoading;
 const loadGalleryDownloads=()=>galleryDownloadsLoading??=import('./gallery-download.mjs').then(({createGalleryDownloads})=>galleryDownloads=createGalleryDownloads({onExpired:async()=>{try{await expireGallery();}catch(error){toast(error.message);}},onSelectionChanged:async()=>{try{await route();$('[data-action=download-selected]')?.focus({preventScroll:true});toast('Đã cập nhật danh sách ảnh đã lưu.');}catch(error){toast(error.message);}}})).catch(error=>{galleryDownloadsLoading=null;throw error;});
@@ -87,11 +89,16 @@ function home(){
  <section class="note-section page-width">${label('CHÀO HAI BẠN')}<p>Mình là ${esc(site.name)}.<br><em>Mình chụp ảnh cưới<br>bằng film và máy số.</em></p><a class="underlink" href="/about">Một chút về mình ${icon('arrow')}</a></section>`);
 }
 function portfolio(){const availableCategories=Object.entries(categories).filter(([key])=>albums.some(a=>a.category===key));const visible=curatePortfolio(albums,site.storySelection,site.heroSelection).filter(({album})=>filter==='all'||album.category===filter);publicPage(`<section class="page-width page-title portfolio-title">${label('ẢNH & NHỮNG CÂU CHUYỆN')}<h1>Câu chuyện <em>bằng ảnh.</em></h1><p>Những ngày cưới mình ghi lại bằng film và máy số.</p></section><section class="page-width portfolio-section">${availableCategories.length>1?`<div class="filter-row" role="group" aria-label="Lọc bộ ảnh theo thể loại">${[['all','Tất cả'],...availableCategories].map(([k,v])=>`<button data-action="filter" data-filter="${k}" aria-pressed="${filter===k}" class="${filter===k?'active':''}">${v}</button>`).join('')}</div>`:''}<div class="album-grid stories-grid">${visible.length?visible.map(({album,photo},i)=>albumCard(album,i,photo)).join(''):'<p class="empty-state">Chưa có bộ ảnh trong thể loại này.</p>'}</div></section>`);}
+function clientPhotoMarkup(p,i){
+ const name=p.caption||p.original||'Ảnh '+(i+1),sizes='(max-width:750px) calc((100vw - 56px)/2), min(calc((89vw - 32px)/3), 363px)';
+ return `<article class="photo-item"><button class="photo-open" data-action="open-photo" data-photo="${p.id}" aria-label="Xem ảnh ${esc(name)}">${img(p,'',i===0,true,sizes)}</button><div class="photo-info"><button class="pick ${p.selected?'picked':''}" data-action="pick" data-photo="${p.id}" aria-pressed="${!!p.selected}" aria-label="${p.selected?'Bỏ chọn lưu':'Lưu'} ảnh ${esc(name)}">${icon('bookmark')}</button></div></article>`;
+}
+function galleryMoreMarkup(total,shown){return shown<total?`<div class="gallery-more" data-gallery-more aria-live="polite"><button class="link-btn" data-action="gallery-more">Hiển thị thêm ${Math.min(galleryBatchSize,total-shown)} ảnh</button><span>${shown} / ${total} ảnh</span></div>`:'';}
 function photosMarkup(photos,client=false){
  const photoMarkup=(p,i,sizes)=>{const name=p.caption||p.original||'Ảnh '+(i+1);return `<article class="photo-item"><button class="photo-open" data-action="open-photo" data-photo="${p.id}" aria-label="Xem ảnh ${esc(name)}">${img(p,'',i===0,true,sizes)}</button><div class="photo-info">${client?'':`<span title="${esc(name)}">${esc(name)}</span>`}${client?`<button class="pick ${p.selected?'picked':''}" data-action="pick" data-photo="${p.id}" aria-pressed="${!!p.selected}" aria-label="${p.selected?'Bỏ chọn lưu':'Lưu'} ảnh ${esc(name)}">${icon('bookmark')}</button>`:''}</div></article>`;};
  if(client){
-  const sizes='(max-width:750px) calc((100vw - 56px)/2), min(calc((89vw - 32px)/3), 363px)';
-  return `<div class="photo-grid client-masonry" data-count="${photos.length}">${photos.map((p,i)=>photoMarkup(p,i,sizes)).join('')}</div>`;
+  const shown=Math.min(galleryBatchSize,photos.length);
+  return `<div class="photo-grid client-masonry" data-count="${shown}" data-gallery-total="${photos.length}">${photos.slice(0,shown).map(clientPhotoMarkup).join('')}</div>${galleryMoreMarkup(photos.length,shown)}`;
  }
  let index=0;
  return `<div class="photo-grid album-sequence">${albumRows(photos).map(row=>`<div class="album-photo-row ${row.length===1?'single-frame':''} ${row.length===1&&row[0].width<row[0].height?'portrait-frame':''}">${row.map(p=>photoMarkup(p,index++,albumPhotoSizes(row,p))).join('')}</div>`).join('')}</div>`;
@@ -205,16 +212,15 @@ window.addEventListener('online',()=>void backgroundSelectionRefresh(true));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void backgroundSelectionRefresh(true);});
 function removeSelectedCard(photoId){
  const card=$(`.pick[data-photo="${photoId}"]`)?.closest('.photo-item');
- if(!card)return;
- const cards=[...document.querySelectorAll('.client-masonry .photo-item')],index=cards.indexOf(card),neighbor=cards[index+1]||cards[index-1];
- const top=neighbor?.getBoundingClientRect().top;
- card?.remove();
+ const cards=[...document.querySelectorAll('.client-masonry .photo-item')],index=cards.indexOf(card),neighbor=index>=0?(cards[index+1]||cards[index-1]):null;
+ const top=neighbor?.getBoundingClientRect().top;if(card)card.remove();
  const visible=sectionPhotos(album,sectionFilter,true),tabs=$('.section-tabs');
  if(tabs)tabs.outerHTML=sectionTabs(album,sectionFilter,false,true,true);
- $('[data-gallery-status]').textContent=`${visible.length} ảnh đang hiển thị`;
- if(!visible.length){$('.client-masonry').outerHTML='<div class="empty-state">Chưa có ảnh được chọn trong mục này.</div>';}
- else {const grid=$('.client-masonry');grid.dataset.count=visible.length;initClientLayout($('#main'));}
- if(!$('#lightbox').open){
+ if(!visible.length){galleryLoadObserver?.disconnect();galleryLoadObserver=null;const masonry=$('.client-masonry');if(masonry)masonry.outerHTML='<div class="empty-state">Chưa có ảnh được chọn trong mục này.</div>';}
+ else {
+  const grid=$('.client-masonry');if(grid){const shown=grid.querySelectorAll('.photo-item').length;grid.dataset.count=String(shown);grid.dataset.galleryTotal=String(visible.length);initClientLayout($('#main'));updateGalleryMore(visible.length,shown);if(shown<Math.min(galleryBatchSize,visible.length))appendGalleryBatch(Math.min(galleryBatchSize,visible.length)-shown);else setupGalleryLoader();}
+ }
+ if(card&&!$('#lightbox').open){
   if(neighbor){window.scrollBy({top:neighbor.getBoundingClientRect().top-top,behavior:'instant'});neighbor.querySelector('.pick')?.focus({preventScroll:true});}
   else $('[data-action=selected-only]')?.focus({preventScroll:true});
  }else if(lightReturnPhoto===photoId)lightReturnPhoto=neighbor?.querySelector('.photo-open')?.dataset.photo||null;
@@ -222,6 +228,28 @@ function removeSelectedCard(photoId){
 function scrollToGallery(){
  const target=$('.section-tabs')||$('.client-masonry')||$('.client-photos .empty-state');
  if(target&&target.getBoundingClientRect().top<0)target.scrollIntoView({block:'start',behavior:'instant'});
+}
+function visibleClientPhotos(){return sectionPhotos(album,sectionFilter,selectedOnly);}
+function updateGalleryMore(total,shown){
+ const more=$('[data-gallery-more]');
+ if(more)more.outerHTML=galleryMoreMarkup(total,shown);
+ const status=$('[data-gallery-status]');
+ if(status)status.textContent=`${total} ảnh trong bộ ảnh. ${shown} ảnh đang hiển thị.`;
+}
+function setupGalleryLoader(){
+ galleryLoadObserver?.disconnect();galleryLoadObserver=null;
+ const more=$('[data-gallery-more]');if(!more||typeof IntersectionObserver==='undefined')return;
+ galleryLoadObserver=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))more.querySelector('[data-action=gallery-more]')?.click();},{rootMargin:'360px 0px'});
+ galleryLoadObserver.observe(more);
+}
+function appendGalleryBatch(limit=galleryBatchSize){
+ const grid=$('.client-masonry');if(!grid)return;
+ const visible=visibleClientPhotos(),shown=grid.querySelectorAll('.photo-item').length;
+ if(shown>=visible.length)return;
+ const next=visible.slice(shown,shown+limit);
+ grid.insertAdjacentHTML('beforeend',next.map((photo,index)=>clientPhotoMarkup(photo,shown+index)).join(''));
+ grid.dataset.count=String(shown+next.length);grid.dataset.galleryTotal=String(visible.length);
+ initClientLayout($('#main'));updateGalleryMore(visible.length,shown+next.length);setupGalleryLoader();
 }
 function albumPage(client=false){
  clientGallery=client;
@@ -235,11 +263,12 @@ function albumPage(client=false){
  publicPage(`<section class="page-width album-title ${client?'page-title client-album-title':'portfolio-album-title'}" aria-labelledby="album-heading">${introduction}</section>
  <section class="page-width photo-section ${client?'client-photos':'editorial-photos'}">
  ${client?`<div class="client-intro"><p>${icon('bookmark')} Chạm biểu tượng lưu ở mỗi ảnh bạn muốn giữ lại.</p></div>`:''}
- ${sectionTabs(album,sectionFilter,false,selectedOnly,client)}<p class="sr-only" data-gallery-status role="status">${visible.length} ảnh đang hiển thị</p>
+ ${sectionTabs(album,sectionFilter,false,selectedOnly,client)}<p class="sr-only" data-gallery-status role="status">${visible.length} ảnh trong bộ ảnh. ${Math.min(galleryBatchSize,visible.length)} ảnh đang hiển thị.</p>
  ${visible.length?photosMarkup(visible,client):`<div class="empty-state">${selectedOnly?'Chưa có ảnh được chọn trong mục này.':sectionFilter!=='all'?'Phần này chưa có ảnh.':'Bộ ảnh đang được chuẩn bị.'}</div>`}
  ${client?`<div class="client-toolbar" role="region" aria-label="Thao tác với ảnh đã lưu"><div class="client-toolbar-main">${icon('bookmark')}<strong role="status" aria-live="polite">${count} ảnh đã lưu</strong><button class="link-btn" data-action="retry-selection" hidden>Đồng bộ lại</button><span class="client-save-status" role="status" hidden></span></div><div class="client-toolbar-actions"><button class="toolbar-icon" data-action="selected-only" aria-label="${selectedOnly?'Xem tất cả ảnh':'Chỉ xem ảnh đã lưu'}" aria-pressed="${selectedOnly}">${icon('bookmark')}</button><button class="toolbar-icon" data-action="download-selected" aria-label="Tải ảnh đã lưu" ${!count||pickBusy?'disabled':''}>${icon('download')}</button></div></div>`:''}
  ${copy?.credit?`<p class="album-credit">${esc(copy.credit)}</p>`:''}</section>${client?'':relatedStories()}`);
  alignSectionTabs();
+ if(client)setupGalleryLoader();
 }
 function lockedGallery(){clientGallery=false;selectionUncertain=false;$('#editor').close();$('#lightbox').close();publicPage(`<section class="gallery-lock page-width">${label('DÀNH RIÊNG CHO BẠN')}<div class="lock-icon">${icon('lock')}</div><h1>Bộ ảnh của bạn.</h1><p>Nhập mật khẩu studio đã gửi để xem và chọn ảnh.</p><form data-form="unlock"><label>Mật khẩu bộ ảnh<input name="password" type="password" autocomplete="current-password" required autofocus></label><p class="form-error" role="alert"></p><button class="btn">Mở bộ ảnh</button></form></section>`);}
 function about(){
@@ -947,6 +976,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  if(action==='back-to-top'){window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});$('.public-nav .wordmark')?.focus({preventScroll:true});}
  if(action==='menu'){const open=el.getAttribute('aria-expanded')!=='true';el.setAttribute('aria-expanded',String(open));$('#nav-links').classList.toggle('open',open);}
  if(action==='filter'){filter=el.dataset.filter;portfolio();$(`[data-filter="${filter}"]`)?.focus({preventScroll:true});}
+ if(action==='gallery-more'){e.preventDefault();appendGalleryBatch();return;}
  if(await handleSectionAction(action,el))return;
  if(action==='open-photo'){lightReturnPhoto=el.dataset.photo;el.focus({preventScroll:true});showLight(lightPhotos().findIndex(p=>p.id===el.dataset.photo));}
  if(action==='retry-photo')showLight(lightIndex,true);

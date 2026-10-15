@@ -77,13 +77,17 @@ try{
    toolbar:(()=>{const r=document.querySelector('.client-toolbar').getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height};})()
   }));
   const metric={...viewport,readyMs,initialMediaRequests:requestUrls.length,...initial};results.viewports.push(metric);
-  check(`all 900 photos rendered at ${viewport.width}`,initial.photoCount===900);
+  check(`initial gallery batch stays bounded at ${viewport.width}`,initial.photoCount===90,initial.photoCount);
+  check(`initial gallery exposes a progressive-load control at ${viewport.width}`,await page.locator('[data-action=gallery-more]').isVisible());
   check(`chronological DOM and keyboard order at ${viewport.width}`,initial.domOrder.every((photo,index)=>photo===id(index)),initial.domOrder.map(photo=>parseInt(photo,16)));
   check(`bounded initial image requests at ${viewport.width}`,requestUrls.length<60,requestUrls.length);
   if(!baseline)check(`download modules stay off the initial viewing path at ${viewport.width}`,await page.evaluate(()=>!performance.getEntriesByType('resource').some(entry=>/\/(photo|gallery)-download\.mjs/.test(entry.name))));
   check(`no gallery overflow at ${viewport.width}`,!initial.overflow);
   check(`low initial layout shift at ${viewport.width}`,initial.cls<=0.1,initial.cls);
   await page.screenshot({path:path.join(evidence,`gallery-${viewport.width}.png`)});
+  await page.locator('[data-action=gallery-more]').click();await page.waitForFunction(()=>document.querySelectorAll('.photo-item').length===180);
+  check(`manual progressive batch appends in order at ${viewport.width}`,await page.evaluate(()=>[...document.querySelectorAll('.photo-open')].slice(90,102).every((element,index)=>element.dataset.photo===(index+91).toString(16).padStart(32,'0'))));
+  const loadThrough=async index=>{while(await page.locator('.photo-item').count()<=index){const more=page.locator('[data-action=gallery-more]');await more.click();}};
   if(measureOnly){await context.close();continue;}
 
   const first=page.locator(`.photo-open[data-photo="${id(0)}"]`);await first.focus();await page.keyboard.press('Tab');await page.keyboard.press('Tab');
@@ -145,8 +149,9 @@ try{
   check(`last unpick keeps usable keyboard focus at ${viewport.width}`,await page.evaluate(()=>document.activeElement!==document.body));
   await page.locator('[data-action=selected-only]').click();const filterStart=performance.now();await page.locator(`[data-action=section-filter][data-section="${sectionIds[1]}"]`).click();
   metric.sectionFilterMs=performance.now()-filterStart;
-  check(`section filter at ${viewport.width}`,await page.locator('.photo-item').count()===450);
+  check(`section filter resets to its first progressive batch at ${viewport.width}`,await page.locator('.photo-item').count()===90);
   await page.locator('[data-action=section-filter][data-section="all"]').click();
+  await loadThrough(150);
   const anchor=page.locator(`.photo-open[data-photo="${id(150)}"]`);await anchor.scrollIntoViewIfNeeded();await anchor.focus();
   const beforeResizeY=await anchor.evaluate(el=>el.getBoundingClientRect().y);await page.setViewportSize({width:viewport.width<750?1000:390,height:viewport.height});await page.waitForTimeout(300);
   const afterResize=await anchor.evaluate(el=>({focused:el===document.activeElement,y:el.getBoundingClientRect().y}));
@@ -154,6 +159,7 @@ try{
   check(`resize keeps focused photo visible at ${viewport.width}`,afterResize.y>=-1&&afterResize.y<viewport.height,{beforeY:beforeResizeY,afterY:afterResize.y});
   metric.resize=afterResize;
   await page.setViewportSize({width:viewport.width,height:viewport.height});await page.waitForTimeout(150);
+  await loadThrough(899);
   const requestsBeforeScroll=requestUrls.length;
   const scrollStart=performance.now();
   for(const index of [300,600,899]){
