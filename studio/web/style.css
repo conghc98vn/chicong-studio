@@ -172,6 +172,10 @@ input::placeholder,textarea::placeholder { color:#778073; font-weight:400; }
 textarea { resize:vertical; min-height:110px; }
 [data-slug-preview] { display:block; margin-top:8px; overflow-wrap:anywhere; color:var(--muted); line-height:1.6; }
 .form-note { font-size:13px; line-height:1.8; margin-bottom:24px; }
+.checkbox-label { display:flex !important; align-items:center; gap:10px; cursor:pointer; margin-bottom:14px; user-select:none; }
+.checkbox-label input[type="checkbox"] { display:inline-block; width:18px; height:18px; min-height:18px; margin:0; accent-color:var(--green); flex-shrink:0; cursor:pointer; }
+.private-password-section { background:#fafbf8; border:1px solid #e5ebe1; border-radius:8px; padding:18px; margin-bottom:22px; }
+.private-password-section .form-note { margin-bottom:0; margin-top:8px; }
 .form-error { color:#9d4534; font-size:13px; margin:14px 0; }
 .form-error:empty { display:none; }
 .trap { position:absolute; left:-9999px; }
@@ -200,7 +204,10 @@ textarea { resize:vertical; min-height:110px; }
 #toast.show { opacity:1; }
 dialog::backdrop { background:#18211ab0; backdrop-filter:blur(4px); }
 #lightbox { position:fixed; inset:0; margin:auto; border:0; border-radius:8px; background:#171e19; color:white; padding:40px 50px 20px; width:min(1200px,96vw); max-width:96vw; max-height:94dvh; touch-action:pan-y pinch-zoom; }
-#lightbox img { display:block; width:100%; height:min(65dvh,calc(100dvh - 230px)); object-fit:contain; user-select:none; -webkit-user-select:none; }
+#lightbox figure { position:relative; overflow:hidden; display:flex; flex-direction:column; align-items:center; }
+#lightbox img { display:block; width:100%; height:min(65dvh,calc(100dvh - 230px)); object-fit:contain; user-select:none; -webkit-user-select:none; cursor:zoom-in; transition:transform .2s ease-out; }
+#lightbox.is-zoomed img { cursor:grab; }
+#lightbox.is-zoomed.is-panning img { cursor:grabbing; transition:none; }
 #lightbox figcaption { padding-top:10px; text-align:center; font-size:12px; color:#d1d9ce; overflow-wrap:anywhere; }
 #lightbox button { position:absolute; border:1px solid #ffffff55; background:none; color:white; width:44px; height:44px; border-radius:50%; font-size:21px; }
 .close { right:14px; top:12px; }
@@ -270,8 +277,8 @@ td small { display:block; font-size:12px; color:var(--muted); margin-top:4px; }
 .row-action .link-btn { border:0; min-height:36px; white-space:nowrap; font-size:12px; }
 .row-action .icon { width:15px; height:15px; }
 .badge { display:inline-flex; align-items:center; gap:6px; font-size:11px; line-height:1.5; font-weight:500; border-radius:5px; padding:5px 8px; background:#f0f2ec; color:#5c6754; white-space:nowrap; }
-.badge.published,.badge.confirmed,.badge.submitted { background:#eaf2e5; color:#3b642e; }
-.badge.private,.badge.contacted { background:#edf1ef; color:#4a6661; }
+.badge.published,.badge.confirmed,.badge.submitted,.badge.no-password { background:#eaf2e5; color:#3b642e; }
+.badge.private,.badge.contacted,.badge.has-password { background:#edf1ef; color:#4a6661; }
 .badge.new { background:#f6f0df; color:#79652f; }
 .badge.cancelled,.badge.archived { background:#f4ece8; color:#866253; }
 .admin-two { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
@@ -558,3 +565,9 @@ body:has(.client-toolbar) #toast { bottom:100px; }
 .upload-meter[hidden] { display:none; }
 
 #lightbox-download-status:empty { display:none; }
+.upload-panel.drag-over { border-color:var(--green); background:#f1f5ee; outline:2px dashed var(--green); outline-offset:-6px; }
+.upload-cancel { min-height:44px; background:#fff; border:1px solid #d9ded3; color:#985340; cursor:pointer; padding:8px 16px; border-radius:6px; font-size:12px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
+.upload-cancel:hover { background:#fdf2f0; border-color:#985340; text-decoration:none; }
+.submit-confirm-content { padding:4px 0; }
+.submit-confirm-content p { margin:0 0 12px; font-size:14px; line-height:1.5; }
+.submit-confirm-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }

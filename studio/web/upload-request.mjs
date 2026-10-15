@@ -3,8 +3,10 @@ import {isPreparedPhotoFile} from './upload-policy.mjs';
 // XHR exposes upload byte progress; fetch does not. 100% means sent by the
 // browser, not stored by the application. Only the JSON acknowledgement counts.
 export function uploadRequest(url,{body,headers={},onProgress=()=>{}},{xhrFactory=()=>new XMLHttpRequest(),requestId=crypto.randomUUID(),timeout=uploadRequestTimeout}={}){
- return new Promise((resolve,reject)=>{
+ let cancelXhr=()=>{};
+ const promise=new Promise((resolve,reject)=>{
   const xhr=xhrFactory();let sent=false,settled=false;
+  cancelXhr=()=>{try{xhr.abort?.();}catch{} if(!settled&&typeof xhr.onabort==='function')try{xhr.onabort();}catch{}};
   const finish=(error,data)=>{if(settled)return;settled=true;xhr.onload=xhr.onerror=xhr.ontimeout=xhr.onabort=null;xhr.upload.onprogress=xhr.upload.onload=null;error?reject(error):resolve(data);};
   const failure=(code,message)=>Object.assign(Error(message+' Mã kiểm tra: '+requestId+'.'),{code,requestId,uploadSent:sent});
   xhr.open('POST',url,true);xhr.timeout=timeout;
@@ -24,6 +26,8 @@ export function uploadRequest(url,{body,headers={},onProgress=()=>{}},{xhrFactor
   onProgress({phase:'sending',loaded:0,total:null});
   try{xhr.send(body);}catch{finish(failure('UPLOAD_NETWORK_ERROR','Không gửi được dữ liệu ảnh.'));}
  });
+ promise.abort=cancelXhr;
+ return promise;
 }
 export function uploadProgressText(name,progress){
  if(progress.phase==='processing')return `${name}: đã gửi dữ liệu, đang chờ máy chủ ${isPreparedPhotoFile({name})?'kiểm tra và lưu ảnh':'xử lý và xác nhận lưu ảnh'}…`;

@@ -25,3 +25,10 @@ test('Queue preserves diagnostics and stable retry keys after a transfer timeout
  await assert.rejects(queue.run(async()=>{throw Object.assign(Error('Chưa gửi xong. Mã kiểm tra: trace-id.'),{code:'UPLOAD_TIMEOUT'});}),/trace-id.*Giữ nguyên trang/);
  assert.equal(queue.done.size,0);await queue.run(async(files,keys)=>{assert.deepEqual(keys,[key]);return {results:[{index:0,success:true}]};});assert.equal(queue.done.size,1);
 });
+test('uploadRequest abort method cancels XHR and rejects with UPLOAD_NETWORK_ERROR',async()=>{
+ const {xhr,promise}=fixture();
+ const check=assert.rejects(promise,e=>e.code==='UPLOAD_NETWORK_ERROR');
+ promise.abort();
+ await check;
+});
+

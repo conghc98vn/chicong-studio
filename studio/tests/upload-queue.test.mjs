@@ -65,3 +65,14 @@ test('Transport and HTTP failures are visible per file and retain status for ses
   assert.equal(queue.results.get(file).success,false);assert.equal(queue.results.get(file).retryable,true);assert.match(uploadReport(queue),/upload-file-error/);assert.doesNotMatch(uploadReport(queue),/<img>/);assert.match(uploadReport(queue),error.status?/đăng nhập/:/trace-id/);
  }
 });
+test('Aborting an upload queue stops processing and retains unacknowledged files for retry',async()=>{
+ const files=[{name:'first.jpg'},{name:'second.jpg'}],q=new UploadQueue(files);
+ await assert.rejects(q.run(async batch=>{
+  if(batch[0]===files[1]){q.abort();}
+  return ack(batch);
+ }),/Lượt tải ảnh đã được hủy/);
+ assert.equal(q.done.size,1);
+ assert.equal(q.pending.length,1);
+ assert.equal(q.retryable.length,1);
+});
+

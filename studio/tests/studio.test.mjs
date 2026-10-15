@@ -413,3 +413,62 @@ test('Public HTML hides fallback behind a loading screen until startup completes
   assert.match(await entry.text(),/import\('\.\/main.js'\)/);
  }finally{await f.close();}
 });
+
+test('Private galleries support optional password, direct view without password, selection and download',async()=>{
+ const f=await fixture();try{
+  await f.setup();
+  const createRes=await f.client('/api/admin/albums',{title:'Không cần mật khẩu',category:'wedding',status:'private',require_password:false},'POST');
+  assert.equal(createRes.status,201);
+  const albumId=(await createRes.json()).id;
+
+  const adminAlbums=await (await f.client('/api/admin/albums')).json();
+  const foundAdmin=adminAlbums.find(a=>a.id===albumId);
+  assert.equal(foundAdmin.has_password,false);
+  assert.equal(foundAdmin.status,'private');
+
+  await upload(f,albumId);
+  const rows=await (await f.client('/api/admin/albums')).json();
+  const photoId=rows.find(a=>a.id===albumId).photos[0].id;
+
+  const publicGallery=await f.client('/api/gallery/'+albumId,null,'GET',false);
+  assert.equal(publicGallery.status,200);
+  const galleryData=await publicGallery.json();
+  assert.equal(galleryData.locked,undefined);
+  assert.equal(galleryData.has_password,false);
+  assert.equal(galleryData.photos.length,1);
+
+  const mediaRes=await f.client('/media/'+photoId,null,'GET',false);
+  assert.equal(mediaRes.status,200);
+
+  const selectRes=await f.client(`/api/gallery/${albumId}/selection/${photoId}`,{selected:true},'PUT',false);
+  assert.equal(selectRes.status,200);
+
+  const submitRes=await f.client(`/api/gallery/${albumId}/submit`,{},'POST',false);
+  assert.equal(submitRes.status,200);
+
+  const photoDl=await f.client(`/api/gallery/${albumId}/photos/${photoId}/download`,null,'GET',false);
+  assert.equal(photoDl.status,200);
+
+  const zipDl=await f.client(`/api/gallery/${albumId}/download`,{photos:[photoId]},'POST',false);
+  assert.equal(zipDl.status,200);
+
+  const patchRes=await f.client('/api/admin/albums/'+albumId,{title:'Có mật khẩu',category:'wedding',status:'private',require_password:true,password:'secret-pass-123'},'PATCH');
+  assert.equal(patchRes.status,200);
+
+  const lockedGallery=await f.client('/api/gallery/'+albumId,null,'GET',false);
+  assert.deepEqual(await lockedGallery.json(),{locked:true});
+  assert.equal((await f.client('/media/'+photoId,null,'GET',false)).status,404);
+
+  const adminCookie=f.cookie;
+  assert.equal((await f.client('/api/gallery/'+albumId+'/unlock',{password:'secret-pass-123'},'POST',false)).status,200);
+  assert.equal((await f.client('/api/gallery/'+albumId)).status,200);
+  assert.equal((await f.client('/media/'+photoId)).status,200);
+
+  const unprotectRes=await fetch(f.base+'/api/admin/albums/'+albumId,{method:'PATCH',headers:{Cookie:adminCookie,Origin:'http://localhost','Content-Type':'application/json'},body:JSON.stringify({title:'Bỏ mật khẩu',category:'wedding',status:'private',require_password:false})});
+  assert.equal(unprotectRes.status,200);
+
+  const reopened=await f.client('/api/gallery/'+albumId,null,'GET',false);
+  assert.equal(reopened.status,200);
+  assert.equal((await reopened.json()).has_password,false);
+ }finally{await f.close();}
+});

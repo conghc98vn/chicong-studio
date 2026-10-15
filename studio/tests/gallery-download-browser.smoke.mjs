@@ -60,7 +60,10 @@ try{
  await page.goto(base+'/gallery/'+album);await unlock();assert.equal(await page.locator('[data-action=download-selected]').isDisabled(),true);
  for(const photo of photos.slice(0,2)){await page.locator(`.pick[data-photo="${photo.id}"]`).click();await page.waitForFunction(id=>document.querySelector(`.pick[data-photo="${id}"]`)?.getAttribute('aria-pressed')==='true',photo.id);}
  assert.equal(await page.locator('[data-action=download-selected]').isEnabled(),true);
- await page.locator('[data-action=submit-picks]').click();await page.locator('.success-note').waitFor();
+ await page.locator('[data-action=submit-picks]').click();
+ const confirmBtn=page.locator('[data-action=confirm-submit-picks]');
+ if(await confirmBtn.isVisible())await confirmBtn.click();
+ await page.locator('.success-note').waitFor();
  await page.locator('[data-action=selected-only]').click();await page.locator(`[data-action=section-filter][data-section="${sections[0]}"]`).click();assert.equal(await page.locator('.photo-item').count(),1);
  const initialSelections=await instance.db.all('SELECT * FROM selections WHERE album_id=? ORDER BY photo_id',[album]);
  await open();assert.match(await page.locator('#gallery-download-description').textContent(),/tất cả các phần/);

@@ -47,7 +47,10 @@ try{
  await client.locator('.photo-open').first().click();assert.match(await client.locator('#lightbox figcaption').textContent(),/Nghi thức gia tiên.*1 \/ 3/);await client.getByRole('button',{name:'Chọn ảnh này',exact:true}).click();await client.getByRole('button',{name:'Bỏ chọn ảnh này',exact:true}).waitFor();await client.getByRole('button',{name:'Ảnh tiếp theo',exact:true}).click();assert.match(await client.locator('#lightbox figcaption').textContent(),/2 \/ 3/);await client.keyboard.press('Escape');
  await client.locator(`[data-action=section-filter][data-section="${group.id}"]`).click();assert.equal(await client.locator('.photo-item').count(),1);await client.locator('.pick').click();await client.waitForFunction(()=>document.querySelector('.client-toolbar strong').textContent==='2 ảnh đã chọn');
  await client.getByRole('button',{name:'Xem ảnh đã chọn',exact:true}).click();assert.equal(await client.locator('.photo-item').count(),1);await client.locator(`[data-action=section-filter][data-section="${ceremony.id}"]`).click();assert.equal(await client.locator('.photo-item').count(),1);await client.locator('.photo-open').click();await client.getByRole('button',{name:'Bỏ chọn ảnh này',exact:true}).click();await client.locator('#lightbox').waitFor({state:'hidden'});assert.equal(await client.locator('.photo-item').count(),0);
- await client.getByRole('button',{name:'Xem tất cả',exact:true}).click();await client.getByRole('button',{name:'Gửi lựa chọn',exact:true}).click();await client.locator('.success-note').waitFor();
+ await client.getByRole('button',{name:'Xem tất cả',exact:true}).click();await client.getByRole('button',{name:'Gửi lựa chọn',exact:true}).click();
+ const confirmBtn=client.locator('[data-action=confirm-submit-picks]');
+ if(await confirmBtn.isVisible())await confirmBtn.click();
+ await client.locator('.success-note').waitFor();
  await client.screenshot({path:path.join(evidenceDir,'gallery-mobile.png'),fullPage:true});assert.ok(await client.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await client.setViewportSize({width:1440,height:1000});await client.screenshot({path:path.join(evidenceDir,'gallery-desktop.png'),fullPage:true});
  // Delete a section while keeping its photos and the submitted customer selection.

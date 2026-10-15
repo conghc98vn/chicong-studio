@@ -27,28 +27,42 @@ function validAcknowledgements(result,count){
 export class UploadQueue {
  constructor(files,keyFactory=()=>crypto.randomUUID()){
   this.files=files;this.done=new Set();this.keys=new Map(files.map(file=>[file,keyFactory()]));this.results=new Map();
+  this.aborted=false;this.activeAbort=null;
   for(const file of files){const error=uploadIssue(file);if(error)this.results.set(file,{success:false,error,retryable:false});}
+ }
+ abort(){
+  this.aborted=true;
+  if(this.activeAbort)try{this.activeAbort();}catch{}
  }
  matches(files){return files.length===this.files.length&&files.every((f,i)=>f===this.files[i]);}
  get pending(){return this.files.filter(f=>!this.done.has(f));}
  get retryable(){return this.pending.filter(f=>this.results.get(f)?.retryable!==false);}
  async run(send,progress=()=>{}){
+  this.aborted=false;
   const pending=this.retryable;
   progress(this.done.size,this.files.length);
   for(let i=0;i<pending.length;){
-   // Acknowledge each photo separately: processing eight images on a small
-   // host can exceed proxy deadlines even when their compressed files are small.
+   if(this.aborted)throw Object.assign(Error('Lượt tải ảnh đã được hủy. Bấm “Tải lại các ảnh còn lại” để tiếp tục.'),{code:'UPLOAD_CANCELLED',retryable:true});
    const batch=[pending[i++]];
    let result;
    try{
-    try{result=await send(batch,batch.map(file=>this.keys.get(file)));}catch(error){
+    try{
+     result=await send(batch,batch.map(file=>this.keys.get(file)),abortFn=>{this.activeAbort=abortFn;});
+    }catch(error){
+     if(this.aborted)throw error;
      if(Array.isArray(error.data?.results))result=error.data;
      else throw error;
+    }finally{
+     this.activeAbort=null;
     }
-    // A 2xx status alone is not evidence that a photo was stored. Stop at an
-    // incomplete or inconsistent acknowledgement, preserving the same retry key.
+    if(this.aborted)throw Object.assign(Error('Lượt tải ảnh đã được hủy. Bấm “Tải lại các ảnh còn lại” để tiếp tục.'),{code:'UPLOAD_CANCELLED',retryable:true});
     if(!validAcknowledgements(result,batch.length))throw Object.assign(Error('Máy chủ chưa xác nhận đầy đủ kết quả lưu ảnh.'),{code:'INVALID_RESPONSE'});
    }catch(error){
+    if(this.aborted){
+     this.results.set(batch[0],{index:0,success:false,retryable:true,error:'Đã hủy tải ảnh này.',code:'UPLOAD_CANCELLED'});
+     progress(this.done.size,this.files.length);
+     throw Object.assign(Error('Lượt tải ảnh đã được hủy. Bấm “Tải lại các ảnh còn lại” để tiếp tục.'),{code:'UPLOAD_CANCELLED',retryable:true});
+    }
     const failure=transferFailure(error);
     this.results.set(batch[0],{index:0,success:false,retryable:true,error:failure.message,code:failure.code});
     progress(this.done.size,this.files.length);

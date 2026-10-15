@@ -183,7 +183,10 @@ body.public-view {
 :where(.public-view) #lightbox.image-loading img { opacity:.25; }
 :where(.public-view) #lightbox.image-error img { visibility:hidden; }
 :where(.public-view) #lightbox img { transition:opacity .18s; }
-:where(.public-view) #lightbox .lightbox-controls:has(#lightbox-pick[hidden]):has(#lightbox-download[hidden]) { display:none; }
+:where(.public-view) #lightbox .lightbox-controls:has(#lightbox-pick[hidden]):has(#lightbox-download[hidden]):has(#lightbox-zoom[hidden]) { display:none; }
+:where(.public-view) #lightbox figure { overflow:hidden; position:relative; display:flex; flex-direction:column; align-items:center; }
+:where(.public-view) #lightbox.is-zoomed img { cursor:grab; }
+:where(.public-view) #lightbox.is-zoomed.is-panning img { cursor:grabbing; }
 :where(.public-view) #lightbox button:hover { background:#e9ece3; }
 :where(.public-view) .booking-layout form { min-width:0; }
 :where(.public-view) .booking-layout input[aria-invalid=true] { border-color:#9d4534; }
