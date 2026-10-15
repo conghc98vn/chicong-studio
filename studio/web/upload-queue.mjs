@@ -59,7 +59,7 @@ export class UploadQueue {
     if(!validAcknowledgements(result,batch.length))throw Object.assign(Error('Máy chủ chưa xác nhận đầy đủ kết quả lưu ảnh.'),{code:'INVALID_RESPONSE'});
    }catch(error){
     if(this.aborted){
-     this.results.set(batch[0],{index:0,success:false,retryable:true,error:'Đã hủy tải ảnh này.',code:'UPLOAD_CANCELLED'});
+     this.results.set(batch[0],{index:0,success:false,retryable:true,error:'Đã dừng chờ xác nhận. Ảnh có thể đã được lưu; tải lại sẽ không tạo ảnh trùng.',code:'UPLOAD_CANCELLED'});
      progress(this.done.size,this.files.length);
      throw Object.assign(Error('Lượt tải ảnh đã được hủy. Bấm “Tải lại các ảnh còn lại” để tiếp tục.'),{code:'UPLOAD_CANCELLED',retryable:true});
     }

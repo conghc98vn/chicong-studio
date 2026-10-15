@@ -10,8 +10,22 @@ export function hashPassword(value){const salt=randomBytes(16).toString('hex');r
 export function verifyPassword(value,stored){try{const [salt,key]=stored.split(':');const actual=scryptSync(value,salt,64);const expected=Buffer.from(key,'hex');return actual.length===expected.length&&timingSafeEqual(actual,expected);}catch{return false;}}
 export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
  let db;
- if(url){const pool=new pg.Pool({connectionString:url,max:3,connectionTimeoutMillis:15000});const query=(sql,p=[])=>{let i=0;return pool.query(sql.replace(/\?/g,()=>'$'+(++i)),p);};db={all:async(s,p)=>(await query(s,p)).rows,get:async(s,p)=>(await query(s,p)).rows[0],run:async(s,p)=>({changes:(await query(s,p)).rowCount}),exec:s=>pool.query(s),close:()=>pool.end(),cloud:true};}
- else{mkdirSync(dir,{recursive:true});const raw=new DatabaseSync(path.join(dir,'studio.sqlite'));raw.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');db={all:async(s,p=[])=>raw.prepare(s).all(...p),get:async(s,p=[])=>raw.prepare(s).get(...p),run:async(s,p=[])=>raw.prepare(s).run(...p),exec:async s=>raw.exec(s),close:async()=>raw.close(),cloud:false};}
+ if(url){
+  const pool=new pg.Pool({connectionString:url,max:3,connectionTimeoutMillis:15000});
+  const connection=client=>{const query=(sql,p=[])=>{let i=0;return client.query(sql.replace(/\?/g,()=>'$'+(++i)),p);};return {all:async(s,p)=>(await query(s,p)).rows,get:async(s,p)=>(await query(s,p)).rows[0],run:async(s,p)=>({changes:(await query(s,p)).rowCount}),exec:s=>client.query(s),cloud:true};};
+  db={...connection(pool),close:()=>pool.end(),transaction:async fn=>{
+   const client=await pool.connect();try{await client.query('BEGIN');const result=await fn(connection(client));await client.query('COMMIT');return result;}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+  }};
+ }
+ else{
+  mkdirSync(dir,{recursive:true});const raw=new DatabaseSync(path.join(dir,'studio.sqlite'));raw.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
+  const direct={all:async(s,p=[])=>raw.prepare(s).all(...p),get:async(s,p=[])=>raw.prepare(s).get(...p),run:async(s,p=[])=>raw.prepare(s).run(...p),exec:async s=>raw.exec(s),cloud:false};
+  // Do not let unrelated requests enter the same SQLite connection during a transaction.
+  let tail=Promise.resolve();const enqueue=fn=>{const result=tail.then(fn);tail=result.catch(()=>{});return result;};
+  db={...direct,...Object.fromEntries(['all','get','run','exec'].map(key=>[key,(...args)=>enqueue(()=>direct[key](...args))])),close:()=>enqueue(()=>raw.close()),transaction:fn=>enqueue(async()=>{
+   raw.exec('BEGIN IMMEDIATE');try{const result=await fn(direct);raw.exec('COMMIT');return result;}catch(error){raw.exec('ROLLBACK');throw error;}
+  })};
+ }
  await db.exec(`CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS admins(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,admin_id TEXT REFERENCES admins(id),album_id TEXT,expires BIGINT NOT NULL);
@@ -20,11 +34,12 @@ export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
  CREATE INDEX IF NOT EXISTS sections_album_position ON album_sections(album_id,position);
  CREATE TABLE IF NOT EXISTS photos(id TEXT PRIMARY KEY,album_id TEXT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,filename TEXT NOT NULL,original TEXT NOT NULL DEFAULT '',caption TEXT NOT NULL DEFAULT '',width INTEGER NOT NULL,height INTEGER NOT NULL,position INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS selections(album_id TEXT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,photo_id TEXT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,updated TEXT NOT NULL,PRIMARY KEY(album_id,photo_id));
+ CREATE TABLE IF NOT EXISTS photo_cleanup(photo_id TEXT PRIMARY KEY,filename TEXT NOT NULL,has_download INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS inquiries(id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL,phone TEXT NOT NULL DEFAULT '',date TEXT NOT NULL DEFAULT '',service TEXT NOT NULL,message TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'new',created TEXT NOT NULL);
  CREATE UNIQUE INDEX IF NOT EXISTS one_confirmed_per_date ON inquiries(date) WHERE status='confirmed' AND date<>'';
  CREATE TABLE IF NOT EXISTS blocked_dates(date TEXT PRIMARY KEY,note TEXT NOT NULL DEFAULT '');
  CREATE TABLE IF NOT EXISTS rate_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires BIGINT NOT NULL);`);
- if(db.cloud){await db.exec(['settings','admins','sessions','albums','album_sections','photos','selections','inquiries','blocked_dates','rate_limits'].map(t=>`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'));}
+ if(db.cloud){await db.exec(['settings','admins','sessions','albums','album_sections','photos','selections','photo_cleanup','inquiries','blocked_dates','rate_limits'].map(t=>`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'));}
  // Additive migration: existing albums, photos and sessions stay intact.
  if(db.cloud)await db.exec('ALTER TABLE photos ADD COLUMN IF NOT EXISTS section_id TEXT REFERENCES album_sections(id) ON DELETE SET NULL;');
  else if(!(await db.all('PRAGMA table_info(photos)')).some(c=>c.name==='section_id'))await db.exec('ALTER TABLE photos ADD COLUMN section_id TEXT REFERENCES album_sections(id) ON DELETE SET NULL;');

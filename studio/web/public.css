@@ -781,7 +781,8 @@ body.public-view {
 :where(.public-view) #lightbox .lightbox-controls p { font-size:var(--text-caption); line-height:1.5; }
 :where(.public-view) #lightbox .lightbox-controls :is(button,a),
 :where(.public-view) #lightbox .lightbox-retry { font-size:var(--text-small); }
-:where(.public-view) #gallery-download .dialog-heading h2 { font-family:var(--text); }
+:where(.public-view) :is(#gallery-download,#editor) .dialog-heading h2 { font-family:var(--text); }
+:where(.public-view) #lightbox.is-zoomed figure { touch-action:none; }
 :where(.public-view) #gallery-download p { font-size:var(--text-small); }
 :where(.public-view) #gallery-download .download-part strong { font-size:var(--text-small); }
 :where(.public-view) #gallery-download :is(.download-hint,.download-part span,.download-status,.form-error) { font-size:var(--text-caption); }
