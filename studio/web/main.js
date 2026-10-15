@@ -637,6 +637,10 @@ window.addEventListener('popstate',()=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMobileMenu(true);});
 document.addEventListener('click',e=>{if(!e.target.closest('.public-nav'))closeMobileMenu();});
 function lightPhotos(){if(adminLight){const photos=new Map(album.photos.map(p=>[p.id,p]));return adminLightIds.map(id=>photos.get(id)).filter(Boolean);}return album?.photos?sectionPhotos(album,sectionFilter,selectedOnly):[];}
+// Portfolio albums use the lightbox only for comfortable viewing and navigation.
+// Downloading the delivered JPG and inspecting it at full scale belong to a
+// customer's private gallery.
+const hasGalleryMediaControls=()=>clientGallery&&!adminLight;
 let lightReturnPhoto=null,lightPreloadTimer,lightPreloads=[];
 function lightImageSizes(photo){
  const image=$('#lightbox img');
@@ -676,6 +680,7 @@ function resetLightZoom(){
  if(zoomBtn){zoomBtn.textContent='Phóng to';zoomBtn.setAttribute('aria-label','Phóng to ảnh');}
 }
 function toggleLightZoom(clientX,clientY){
+ if(!hasGalleryMediaControls())return;
  const img=$('#lightbox img');
  if(!img||!img.naturalWidth||$('#lightbox-zoom').disabled)return;
  if(lightZoomed){resetLightZoom();return;}
@@ -732,7 +737,10 @@ function showLight(index,retry=false){
  pick.dataset.photo=p.id;
  pick.disabled=pickBusy;
  updateLightPick(p);
- $('#lightbox-download').hidden=adminLight;
+ const galleryMediaControls=hasGalleryMediaControls();
+ $('#lightbox').classList.toggle('gallery-media-controls',galleryMediaControls);
+ $('#lightbox-download').hidden=!galleryMediaControls;
+ $('#lightbox-zoom').hidden=!galleryMediaControls;
  updateLightSelection();
  if(!$('#lightbox').open)$('#lightbox').showModal();
  document.body.classList.add('modal-open');
@@ -750,7 +758,7 @@ $('#lightbox figcaption').addEventListener('keydown',e=>{
 lightImage.addEventListener('load',()=>{if(!$('#lightbox').open)return;$('#lightbox').classList.remove('image-loading','image-error');$('#lightbox-retry').hidden=true;$('#lightbox-zoom').disabled=false;$('#lightbox .lightbox-loading').hidden=true;preloadLightNeighbors();});
 lightImage.addEventListener('error',()=>{if(!$('#lightbox').open)return;$('#lightbox').classList.remove('image-loading');$('#lightbox').classList.add('image-error');$('#lightbox-retry').hidden=false;$('#lightbox-zoom').disabled=true;$('#lightbox .lightbox-loading').hidden=true;$('#lightbox figcaption').textContent='Chưa tải được ảnh. Bạn có thể thử lại.';});
 $('#editor').addEventListener('cancel',e=>{if(sectionBusy)e.preventDefault();});
-$('#lightbox').addEventListener('dblclick',e=>{if(lightPointerType==='touch')return;if(e.target.closest('button,a,input,select'))return;const img=$('#lightbox img'),rect=$('#lightbox .lightbox-viewport')?.getBoundingClientRect();if(e.target===img||e.target.closest('#lightbox .lightbox-viewport')||(rect&&e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom)){e.preventDefault();toggleLightZoom(e.clientX,e.clientY);}});
+$('#lightbox').addEventListener('dblclick',e=>{if(!hasGalleryMediaControls()||lightPointerType==='touch')return;if(e.target.closest('button,a,input,select'))return;const img=$('#lightbox img'),rect=$('#lightbox .lightbox-viewport')?.getBoundingClientRect();if(e.target===img||e.target.closest('#lightbox .lightbox-viewport')||(rect&&e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom)){e.preventDefault();toggleLightZoom(e.clientX,e.clientY);}});
 $('#lightbox').addEventListener('close',()=>{
  if($('#lightbox').open)return;
  document.body.classList.remove('modal-open');photoDownloads?.close();stopLightPreloads();resetLightGesture();resetLightZoom();
@@ -811,7 +819,7 @@ $('#lightbox').addEventListener('pointerup',e=>{
   lightPanState=null;$('#lightbox').classList.remove('is-panning');
   if($('#lightbox').hasPointerCapture?.(e.pointerId))$('#lightbox').releasePointerCapture(e.pointerId);
  }
- if(e.pointerType==='touch'&&tap&&!e.target.closest('button,a,input,select')){
+ if(hasGalleryMediaControls()&&e.pointerType==='touch'&&tap&&!e.target.closest('button,a,input,select')){
   const img=$('#lightbox img'),rect=$('#lightbox .lightbox-viewport')?.getBoundingClientRect();
   const inside=e.target===img||e.target.closest('#lightbox .lightbox-viewport')||(rect&&e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom);
   if(inside){
@@ -1010,6 +1018,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  if(action==='retry-photo')showLight(lightIndex,true);
  if(action==='download-single'){
   e.preventDefault();
+  if(!hasGalleryMediaControls())return;
   if(photoDownloads?.busy)photoDownloads.close();
   else{
    const photo=lightPhotos()[lightIndex],albumId=album.id;
@@ -1023,7 +1032,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
   }
  }
  if(action==='close-lightbox')$('#lightbox').close();if(action==='prev-photo')showLight(lightIndex-1);if(action==='next-photo')showLight(lightIndex+1);
- if(action==='zoom-photo')toggleLightZoom();
+ if(action==='zoom-photo'&&hasGalleryMediaControls())toggleLightZoom();
  if(action==='retry-selection'){await refreshSharedSelection(true);toast('Đã đồng bộ danh sách ảnh.');}
  if(action==='pick'){
   if(pickBusy)return;

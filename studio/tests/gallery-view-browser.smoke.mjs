@@ -201,13 +201,13 @@ try{
   await context.close();
  }
  if(!measureOnly){
- // Public album controls share the lightbox, but intentionally omit private selection.
+ // Portfolio albums keep the lightbox for viewing, but delivery controls stay in private galleries.
  await instance.db.run("UPDATE albums SET status='published' WHERE id=?",[albumId]);
  const publicContext=await browser.newContext({viewport:{width:390,height:844}}),publicPage=await publicContext.newPage();
  await publicPage.goto(base+'/album/review-gallery');await publicPage.locator('.photo-open').first().click();
- check('public lightbox exposes single-image download',await publicPage.locator('#lightbox-download').isVisible());
+ check('public lightbox hides single-image download',await publicPage.locator('#lightbox-download').isHidden());
+ check('public lightbox hides zoom',await publicPage.locator('#lightbox-zoom').isHidden());
  check('public lightbox hides private selection',await publicPage.locator('#lightbox-pick').isHidden());
- if(!baseline){const before=singleRequests.length,event=publicPage.waitForEvent('download');await publicPage.locator('#lightbox-download').click();const file=await event;check('public single JPEG download makes one GET',await file.failure()===null&&singleRequests.length-before===1&&(await sharp(await readFile(await file.path())).metadata()).format==='jpeg');await file.delete();}
  await publicPage.screenshot({path:path.join(evidence,'public-lightbox-390.png')});await publicContext.close();
  }
  check('no browser runtime errors',results.errors.length===0,results.errors);
