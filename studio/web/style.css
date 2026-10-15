@@ -234,8 +234,8 @@ dialog::backdrop { background:#18211ab0; backdrop-filter:blur(4px); }
 .login-card .label { font-size:10px; }
 .login-card .btn { width:100%; }
 .muted { color:var(--muted); }
-/* The studio uses a compact sans serif hierarchy around the photography. */
-.admin-layout { display:grid; grid-template-columns:224px minmax(0,1fr); min-height:100dvh; background:#f7f8f4; }
+/* Match the studio interface to the editorial voice used throughout the public site. */
+.admin-layout { --sans:var(--serif); display:grid; grid-template-columns:224px minmax(0,1fr); min-height:100dvh; background:#f7f8f4; font-family:var(--serif); }
 .sidebar { background:#fbfcf9; border-right:1px solid var(--line); padding:34px 18px 24px; position:sticky; top:0; height:100dvh; display:flex; flex-direction:column; min-width:0; }
 .sidebar .wordmark { font-size:32px; margin-left:15px; }
 .sidebar .wordmark span { font-size:9px; letter-spacing:.2em; }
