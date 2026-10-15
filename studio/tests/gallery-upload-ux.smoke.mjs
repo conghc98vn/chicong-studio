@@ -1,4 +1,4 @@
-// Tests for Lightbox zoom/pan, submit picks confirmation modal, and upload drag/cancel UX.
+// Tests for Lightbox zoom/pan, automatic selection persistence, and upload drag/cancel UX.
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -39,7 +39,7 @@ try{
  const context=await browser.newContext({viewport:{width:1280,height:800}});
  const page=await context.newPage();
 
- // 1. Client gallery: test confirmation dialog on submit-picks
+ // 1. Client gallery: selection persists without a submit step
  await page.goto(base+'/gallery/'+actualAlbumId);
  await page.getByLabel('Mật khẩu bộ ảnh').fill('test-gallery-pass');
  await page.getByRole('button',{name:'Mở bộ ảnh',exact:true}).click();
@@ -50,28 +50,11 @@ try{
  await pickBtn.click();
  await page.waitForFunction(()=>document.querySelector('.pick')?.getAttribute('aria-pressed')==='true');
 
- // Submit button should be enabled
- const submitBtn=page.locator('[data-action=submit-picks]');
- assert.equal(await submitBtn.isEnabled(),true);
-
- // Click submit -> Opens confirmation dialog
- await submitBtn.click();
- await page.locator('#editor[open]').waitFor();
- assert.match(await page.locator('#editor-title').textContent(),/Gửi lựa chọn đến studio/);
- assert.match(await page.locator('.submit-confirm-content').textContent(),/1 ảnh đã chọn/);
-
- // Test dismiss with "Xem lại thêm"
- await page.getByRole('button',{name:'Xem lại thêm',exact:true}).click();
- await page.locator('#editor').waitFor({state:'hidden'});
- assert.equal(await page.locator('.success-note').count(),0);
-
- // Re-open and confirm submit
- await submitBtn.click();
- await page.locator('#editor[open]').waitFor();
- await page.locator('[data-action=confirm-submit-picks]').click();
- await page.locator('.success-note').waitFor();
- assert.match(await page.locator('.success-note').textContent(),/Studio đã nhận danh sách/);
- console.log('PASS: Client proofing submit confirmation dialog & cancellation works cleanly');
+ assert.equal(await page.locator('[data-action=submit-picks]').count(),0);
+ assert.equal((await instance.db.get('SELECT COUNT(*) AS n FROM selections WHERE album_id=?',[actualAlbumId])).n,1);
+ await page.reload();await page.waitForFunction(()=>document.querySelector('.pick')?.getAttribute('aria-pressed')==='true');
+ assert.equal(await page.locator('.client-save-status').isVisible(),false);
+ console.log('PASS: Picking persists immediately and survives reload without submission');
 
  // 2. Lightbox Zoom & Pan inspection
  const photoCard=page.locator('.photo-open').first();
@@ -121,7 +104,9 @@ try{
  await page.getByLabel('Mật khẩu',{exact:true}).fill('AdminSecret1234!');
  await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();
  await page.locator('.admin-layout').waitFor();
+ await page.locator('[data-action=admin-view][data-view=clients]').click();
  await page.locator(`[data-action=edit-album][data-id="${actualAlbumId}"]`).click();
+ await page.locator('[data-album-tool=upload]>summary').click();
  await page.locator('.upload-panel').waitFor();
 
  const cancelLink=page.locator('.upload-cancel');

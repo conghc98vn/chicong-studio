@@ -50,7 +50,7 @@ export function clientMasonryLayout(photos, width, columns=3, gap=16) {
  const heights=Array(count).fill(0);
  const items=photos.map(photo=>{
   const ratio=Number(photo.height)/Number(photo.width);
-  const height=Math.ceil(cardWidth*(Number.isFinite(ratio)&&ratio>0?ratio:2/3))+24;
+  const height=Math.ceil(cardWidth*(Number.isFinite(ratio)&&ratio>0?ratio:2/3));
   const column=heights.indexOf(Math.min(...heights));
   const top=heights[column];heights[column]+=height+gap;
   return {left:column*(cardWidth+gap),top,width:cardWidth,height};

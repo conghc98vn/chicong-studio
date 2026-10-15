@@ -21,7 +21,7 @@ async function fixture(storage,uploadLogger){
  const setup=await request('/api/admin/setup',{email:'upload@example.com',password:'upload-test-password'},'POST');cookie=setup.headers.get('set-cookie').split(';')[0];
  const a=await request('/api/admin/albums',{title:'Upload quality',category:'wedding',status:'published'},'POST'),album=(await a.json()).id;
  const upload=(buffers,keys=buffers.map((_,i)=>String(i).repeat(32)))=>{const body=new FormData();for(const buffer of buffers)body.append('photos',new Blob([buffer],{type:'image/jpeg'}),'same.jpg');return request('/api/admin/albums/'+album+'/photos',body,'POST',{'X-Upload-Keys':JSON.stringify(keys)});};
- return {dir,db,album,request,upload,url,close:async()=>{server.closeAllConnections();await new Promise(r=>server.close(r));await db.close();if(pool){await pool.query('DROP SCHEMA '+schema+' CASCADE');await pool.end();}await rm(dir,{recursive:true,force:true});}};
+ return {dir,db,album,request,upload,url,photoCleanup:instance.photoCleanup,close:async()=>{server.closeAllConnections();await new Promise(r=>server.close(r));await instance.photoCleanup.close();await db.close();if(pool){await pool.query('DROP SCHEMA '+schema+' CASCADE');await pool.end();}await rm(dir,{recursive:true,force:true});}};
 }
 const sample=()=>sharp({create:{width:3000,height:2000,channels:3,background:'#bb7733'}}).jpeg().toBuffer();
 test('JPEG above 10 MiB uploads as album photo and portrait; files over 20 MiB are rejected without writes',async()=>{
@@ -75,7 +75,7 @@ test('Failed download rendition storage rolls back all files and a retry persist
  const f=await fixture(storage);try{
   const bytes=await sample(),response=await f.upload([bytes]);assert.equal(response.status,422);const result=(await response.json()).results[0];assert.equal(result.code,'SAVE_FAILED');assert.equal(result.retryable,true);assert.equal(files.size,0);assert.equal((await f.db.all('SELECT * FROM photos')).length,0);
   broken=false;const retry=await f.upload([bytes]);assert.equal(retry.status,201);const saved=(await retry.json()).results[0];assert.equal(files.size,3);assert.equal(saved.optimization.download_bytes,files.get(saved.id+'-download.jpg').length);
-  assert.equal((await f.request('/api/admin/photos/'+saved.id,{},'DELETE')).status,200);assert.equal(files.size,0);assert.equal((await f.db.all('SELECT * FROM photos')).length,0);
+  assert.equal((await f.request('/api/admin/photos/'+saved.id,{},'DELETE')).status,200);assert.equal((await f.db.all('SELECT * FROM photos')).length,0);await f.photoCleanup.cleanup(true);assert.equal(files.size,0);
  }finally{await f.close();}
 });
 
@@ -100,7 +100,7 @@ test('Prepared uploads store exact local renditions, keep section/name and dedup
   const photo=await f.db.get('SELECT original,caption,section_id FROM photos WHERE id=?',[saved.id]);assert.deepEqual({...photo},{original:'CC - 0001.jpg',caption:'CC - 0001',section_id:section});
   const again=(await(await send()).json()).results[0];assert.equal(again.id,saved.id);assert.equal(again.reused,true);assert.equal((await f.db.all('SELECT id FROM photos')).length,1);
   const stages=events.filter(e=>e.event==='stage').map(e=>e.stage);assert.ok(stages.includes('prepared_validate'));assert.ok(!stages.some(stage=>stage.startsWith('optimize_')));
-  const disguised=await send('ordinary.jpg','d'.repeat(32));assert.equal(disguised.status,201);assert.equal((await f.db.all('SELECT id FROM photos')).length,2);
+  const disguised=await send('ordinary.jpg','d'.repeat(32));assert.equal(disguised.status,201);assert.equal((await disguised.json()).results[0].skipped,true);assert.equal((await f.db.all('SELECT id FROM photos')).length,1);
  }finally{await f.close();}
 });
 

@@ -34,15 +34,15 @@ Nếu upload có ảnh hỏng, các ảnh thành công vẫn được lưu và h
 
 1. **Gallery khách → Tạo gallery**, đặt mật khẩu từ 8 ký tự.
 2. Upload ảnh và sao chép link gallery. Bạn gửi link/mật khẩu cho khách qua kênh của mình.
-3. Khách mở link, nhập mật khẩu, bấm ♡ trên danh sách hoặc **Chọn ảnh này** trong trình xem ảnh lớn. Có thể chuyển ảnh bằng phím ←/→ trên máy tính. Bấm **Gửi lựa chọn** khi xong.
-4. Studio hiển thị số ảnh đã chọn và trạng thái khách đã gửi; có thể xuất danh sách tên file/chú thích dưới dạng CSV.
-5. Khách có thể chỉnh lựa chọn và gửi lại. Nhiều thiết bị dùng cùng gallery chia sẻ một danh sách lựa chọn. Đổi mật khẩu vô hiệu phiên gallery cũ; khách có thể bấm **Đóng gallery** để thoát.
+3. Khách mở link, nhập mật khẩu rồi bấm ♡ trên ảnh hoặc **Chọn ảnh này** trong trình xem ảnh lớn. Lựa chọn được lưu và đồng bộ ngay; có thể chuyển ảnh bằng phím ←/→ trên máy tính.
+4. Studio xem số ảnh đã chọn và xuất danh sách tên file/chú thích dưới dạng CSV.
+5. Khách có thể tiếp tục chỉnh lựa chọn trên bất kỳ thiết bị nào; gallery dùng chung một danh sách lựa chọn. Đổi mật khẩu vô hiệu phiên gallery cũ; khách có thể bấm **Đóng gallery** để thoát.
 
 File media của gallery private yêu cầu session hợp lệ; có link ảnh đơn lẻ cũng không xem được nếu chưa đăng nhập. Ảnh công khai và chân dung dùng cache trình duyệt có kiểm tra lại với server (`private,no-cache`); gallery private dùng `private,no-store`. Khi ẩn album, request kiểm tra lại quyền trước khi trả 304. Gallery và admin có noindex. Không giữ ảnh gốc/RAW để giao file: ảnh web được tối ưu 2400px + thumbnail 900px; ảnh upload mới có thêm bản JPG tải xuống tối đa 2400px.
 
 ## Khách tải ảnh đã chọn
 
-Trong gallery đã mở bằng mật khẩu, bấm **Tải ảnh đã chọn**. Danh sách tải gồm toàn bộ ảnh đã chọn trong album, kể cả các phần đang bị ẩn bởi bộ lọc. Một ảnh tải thành JPG; nhiều ảnh được gom vào ZIP với tên file gốc đã làm sạch và số thứ tự để tránh trùng. Không cần bấm **Gửi lựa chọn** trước; tải xuống không thay đổi trạng thái gửi hay danh sách đã chọn.
+Trong gallery đã mở bằng mật khẩu, bấm **Tải ảnh đã chọn**. Danh sách tải gồm toàn bộ ảnh đã chọn trong album, kể cả các phần đang bị ẩn bởi bộ lọc. Một ảnh tải thành JPG; nhiều ảnh được gom vào ZIP với tên file gốc đã làm sạch và số thứ tự để tránh trùng. Tải xuống không thay đổi danh sách ảnh đã chọn.
 
 Các gói tối đa 50 ảnh, tải lần lượt; trên điện thoại mở ZIP bằng ứng dụng Tệp / Files rồi giải nén. Hộp tải có tiến độ nhận tệp, hủy và thử lại. Nếu vượt giới hạn dung lượng, bấm **Chia thành gói nhỏ hơn**; các ảnh đã chọn vẫn được giữ nguyên. Trình duyệt lưu vào mục Tải xuống; thông báo chuyển tệp cho trình duyệt không có nghĩa ảnh đã được lưu vào thư viện Ảnh. Nếu lựa chọn trên thiết bị khác thay đổi, bấm cập nhật danh sách; phiên hết hạn yêu cầu mở lại gallery.
 

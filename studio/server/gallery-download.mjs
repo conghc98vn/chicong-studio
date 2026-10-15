@@ -39,6 +39,14 @@ async function makeZip(entries,destination,signal){
 
 export function registerGalleryDownloads(app,{db,storage,allowed}){
  const active=new Set();
+ const reserve=(albumId,res)=>{
+  active.add(albumId);let released=false;
+  // A file stream may close after the completed response. Release promptly,
+  // and never let the old request release a newer request's slot in finally.
+  const release=()=>{if(!released){released=true;active.delete(albumId);}};
+  res.once('finish',release);
+  return ()=>{res.removeListener('finish',release);release();};
+ };
  app.post('/api/gallery/:id/download',(req,res,next)=>{
   const run=async()=>{
    res.set('Cache-Control','private,no-store');
@@ -62,7 +70,7 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
    // In that case the close event has already fired: do not reserve a worker slot.
    if(req.aborted||res.destroyed)return;
    if(active.has(album.id)||active.size>=downloadPolicy.maxConcurrent){res.set('Retry-After','5');throw fail(429,'Đang chuẩn bị lượt tải khác. Vui lòng thử lại sau ít giây.');}
-   active.add(album.id);
+   const releaseSlot=reserve(album.id,res);
    const controller=new AbortController(),signal=controller.signal;
    const disconnected=()=>controller.abort();
    res.once('close',disconnected);
@@ -98,7 +106,7 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
     if(error.status)throw error;
     throw fail(503,'Chưa chuẩn bị được ảnh để tải xuống. Vui lòng thử lại sau ít phút.');
    }finally{
-    clearTimeout(timeout);res.removeListener('close',disconnected);active.delete(album.id);
+    clearTimeout(timeout);res.removeListener('close',disconnected);releaseSlot();
     if(directory)await rm(directory,{recursive:true,force:true});
    }
   };
@@ -127,7 +135,7 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
     return res.end();
    }
    if(active.has(album.id)||active.size>=downloadPolicy.maxConcurrent){res.set('Retry-After','5');throw fail(429,'Đang chuẩn bị lượt tải khác. Vui lòng thử lại sau ít giây.');}
-   active.add(album.id);
+   const releaseSlot=reserve(album.id,res);
    const controller=new AbortController(),signal=controller.signal;
    const disconnected=()=>controller.abort();
    res.once('close',disconnected);
@@ -148,7 +156,7 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
     if(error.status)throw error;
     throw fail(503,'Chưa chuẩn bị được ảnh để tải xuống. Vui lòng thử lại sau ít phút.');
    }finally{
-    clearTimeout(timeout);res.removeListener('close',disconnected);active.delete(album.id);
+    clearTimeout(timeout);res.removeListener('close',disconnected);releaseSlot();
    }
   };
   run().catch(next);

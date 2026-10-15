@@ -45,15 +45,11 @@ try{
  await sync(page);await count(page,2);
  console.log('PASS: Two independent clients reconcile the shared selection without reloading images');
 
- await page.locator('[data-action=submit-picks]').click();await page.locator('#editor[open]').waitFor();
- assert.match(await page.locator('.submit-confirm-content').textContent(),/2 ảnh đã chọn/);
- await b.page.locator('.pick').first().click();await count(b.page,1);
- await page.locator('[data-action=confirm-submit-picks]').click();
- await page.locator('#editor').waitFor({state:'hidden'});await count(page,1);
- await page.locator('#toast').filter({hasText:'đã thay đổi ở một phiên khác'}).waitFor();
- assert.equal((await f.db.get('SELECT selection_status FROM albums WHERE id=?',[aid])).selection_status,'draft');
- await page.locator('[data-action=submit-picks]').click();await page.locator('[data-action=confirm-submit-picks]').click();await page.locator('.success-note').waitFor();
- console.log('PASS: Stale confirmation is rejected; the customer reviews the actual list before submitting');
+ assert.equal(await page.locator('[data-action=submit-picks]').count(),0);
+ assert.equal(await page.locator('.client-save-status').isVisible(),false);
+ assert.equal((await f.db.all('SELECT * FROM selections WHERE album_id=?',[aid])).length,2);
+ await b.page.locator('.pick').first().click();await count(b.page,1);await sync(page);await count(page,1);
+ console.log('PASS: Selections are stored and reconciled without a separate submission');
 
  await page.bringToFront();await page.waitForTimeout(100);
  await put(ids[0],true);
@@ -77,24 +73,26 @@ try{
  console.log('PASS: A lost acknowledgement after a real save reconciles the UI with the database');
 
  await page.route('**/api/gallery/'+aid,route=>route.abort('failed'));
- await page.locator('.pick').nth(1).click();
+ await page.locator('.photo-open').nth(1).click();await page.locator('#lightbox-pick').click();
+ await page.locator('#lightbox-selection').filter({hasText:'Chưa xác nhận'}).waitFor();
+ await page.locator('[data-action=close-lightbox]').click();
  await page.locator('[data-action=retry-selection]').waitFor({state:'visible'});
- assert.equal(await page.locator('[data-action=submit-picks]').isDisabled(),true);
+ assert.equal(await page.locator('[data-action=download-selected]').isDisabled(),true);
  assert.match(await page.locator('.client-save-status').textContent(),/Chưa xác nhận/);
  await page.unroute('**/selection/*');await page.unroute('**/api/gallery/'+aid);
  await page.locator('[data-action=retry-selection]').click();await count(page,2);
- assert.equal(await page.locator('[data-action=submit-picks]').isEnabled(),true);
- console.log('PASS: Offline ambiguity is visible and blocks stale submission; retry restores the confirmed state');
+ assert.equal(await page.locator('[data-action=download-selected]').isEnabled(),true);
+ console.log('PASS: Offline ambiguity is visible and blocks stale downloads; retry restores the confirmed state');
 
- await page.locator('[data-action=submit-picks]').click();await page.locator('#editor[open]').waitFor();
- await a.ctx.clearCookies();await page.locator('[data-action=confirm-submit-picks]').click();
+ await a.ctx.clearCookies();await page.locator('.pick').first().click();
  await page.getByLabel('Mật khẩu bộ ảnh').fill('gallery-password');
  assert.equal(await page.locator('#editor').evaluate(e=>e.open),false);
  await page.getByRole('button',{name:'Mở bộ ảnh',exact:true}).click();await count(page,2);
- console.log('PASS: Expired confirmation closes the modal and permits unlocking immediately');
+ console.log('PASS: Expired selection relocks the gallery and permits unlocking immediately');
 
  await page.locator('.photo-open').first().click();await page.waitForFunction(()=>document.querySelector('#lightbox img').naturalWidth>0);
  await page.locator('[data-action=next-photo]').click();
+ assert.equal(await page.locator('#lightbox-counter').textContent(),'2 / 2');
  await page.locator('[data-action=prev-photo]').click();
  assert.match(await page.locator('#lightbox figcaption').textContent(),/photo-0/);
  console.log('PASS: Both navigation arrows are visible and clickable above the photograph');
@@ -117,7 +115,7 @@ try{
  console.log('PASS: Real touch double-tap zooms in and out without a duplicate synthetic click');
 
  const setup=await a.ctx.request.post(base+'/api/admin/setup',{headers:{Origin:base},data:{email:'admin@test.local',password:'admin-password-123'}});assert.equal(setup.status(),201);
- await page.goto(base+'/admin#album/'+aid);await page.locator('[data-form=upload]').waitFor();
+ await page.goto(base+'/admin#album/'+aid);await page.locator('[data-album-tool=upload]>summary').click();await page.locator('[data-form=upload]').waitFor();
  let uploaded;const stored=new Promise(r=>uploaded=r),gate=new Promise(r=>releaseUpload=r);
  const fault={stored:uploaded,gate};uploadFault=fault;
  const jpeg=await sharp(full).jpeg().toBuffer();

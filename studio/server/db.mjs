@@ -34,12 +34,13 @@ export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
  CREATE INDEX IF NOT EXISTS sections_album_position ON album_sections(album_id,position);
  CREATE TABLE IF NOT EXISTS photos(id TEXT PRIMARY KEY,album_id TEXT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,filename TEXT NOT NULL,original TEXT NOT NULL DEFAULT '',caption TEXT NOT NULL DEFAULT '',width INTEGER NOT NULL,height INTEGER NOT NULL,position INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS selections(album_id TEXT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,photo_id TEXT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,updated TEXT NOT NULL,PRIMARY KEY(album_id,photo_id));
+ CREATE TABLE IF NOT EXISTS photo_upload_receipts(album_id TEXT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,upload_key TEXT NOT NULL,file_hash TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(album_id,upload_key));
  CREATE TABLE IF NOT EXISTS photo_cleanup(photo_id TEXT PRIMARY KEY,filename TEXT NOT NULL,has_download INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS inquiries(id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL,phone TEXT NOT NULL DEFAULT '',date TEXT NOT NULL DEFAULT '',service TEXT NOT NULL,message TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'new',created TEXT NOT NULL);
  CREATE UNIQUE INDEX IF NOT EXISTS one_confirmed_per_date ON inquiries(date) WHERE status='confirmed' AND date<>'';
  CREATE TABLE IF NOT EXISTS blocked_dates(date TEXT PRIMARY KEY,note TEXT NOT NULL DEFAULT '');
  CREATE TABLE IF NOT EXISTS rate_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires BIGINT NOT NULL);`);
- if(db.cloud){await db.exec(['settings','admins','sessions','albums','album_sections','photos','selections','photo_cleanup','inquiries','blocked_dates','rate_limits'].map(t=>`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'));}
+ if(db.cloud){await db.exec(['settings','admins','sessions','albums','album_sections','photos','selections','photo_upload_receipts','photo_cleanup','inquiries','blocked_dates','rate_limits'].map(t=>`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'));}
  // Additive migration: existing albums, photos and sessions stay intact.
  if(db.cloud)await db.exec('ALTER TABLE photos ADD COLUMN IF NOT EXISTS section_id TEXT REFERENCES album_sections(id) ON DELETE SET NULL;');
  else if(!(await db.all('PRAGMA table_info(photos)')).some(c=>c.name==='section_id'))await db.exec('ALTER TABLE photos ADD COLUMN section_id TEXT REFERENCES album_sections(id) ON DELETE SET NULL;');

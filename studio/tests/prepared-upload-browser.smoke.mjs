@@ -44,7 +44,7 @@ try{
  const page=await context.newPage(),errors=[];page.setDefaultTimeout(30000);page.on('pageerror',error=>errors.push(error.message));
  await page.goto(base+'/admin');await page.getByLabel('Email quản trị').fill('prepared-browser@example.com');await page.getByLabel('Mật khẩu',{exact:true}).fill('prepared-browser-password');await page.getByRole('button',{name:'Tạo tài khoản quản trị',exact:true}).click();
  await page.getByRole('button',{name:'Tạo bộ ảnh',exact:true}).click();
- const albumForm=page.locator('[data-form=album]');await albumForm.locator('[name=title]').fill('Ảnh tối ưu trên Mac');await albumForm.locator('[name=status]').selectOption('private');await albumForm.locator('[name=password]').fill('prepared-gallery-password');await albumForm.getByRole('button',{name:'Tạo bộ ảnh',exact:true}).click();await page.locator('[data-form=upload]').waitFor();
+ const albumForm=page.locator('[data-form=album]');await albumForm.locator('[name=title]').fill('Ảnh tối ưu trên Mac');await albumForm.locator('[name=status]').selectOption('private');await albumForm.locator('[name=password]').fill('prepared-gallery-password');await albumForm.getByRole('button',{name:'Tạo bộ ảnh',exact:true}).click();await page.locator('[data-form=upload]').waitFor();await page.locator('[data-album-tool=sections]>summary').click();
  const albumId=new URL(page.url()).hash.slice('#album/'.length);
  for(const title of ['Chi tiết trang trí','Chân dung']){
   await page.getByRole('button',{name:'+ Thêm phần',exact:true}).click();await page.locator('[data-form=section] [name=title]').fill(title);await page.getByRole('button',{name:'Lưu phần',exact:true}).click();await page.locator('#editor').waitFor({state:'hidden'});await page.locator('.section-title strong').filter({hasText:title}).waitFor();
@@ -61,14 +61,14 @@ try{
  console.log('PASS: Mixed prepared/original uploads, custom MIME, original filename, selected section, original byte report and byte-exact stored renditions');
 
  // The same prepared package can be safely resumed in its chosen destination.
- dropNextUpload=true;await upload.locator('[name=section_id]').selectOption(sections[1].id);await upload.locator('[type=file]').setInputFiles({...prepared,name:'retry.ccphoto',mimeType:''});
+ dropNextUpload=true;await upload.locator('[name=section_id]').selectOption(sections[1].id);await upload.locator('[type=file]').setInputFiles({...prepared,name:'retry.ccphoto',mimeType:'',buffer:encodePreparedPhoto({originalName:'retry-new.jpg',sourceHash:'c'.repeat(64),...optimized})});
  await upload.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();await upload.locator('.form-error').filter({hasText:'Mã kiểm tra'}).waitFor();assert.equal(droppedStatus,201);assert.equal(await upload.locator('[name=section_id]').isDisabled(),true);
  const beforeRetry=await instance.db.all('SELECT id,section_id FROM photos WHERE album_id=? ORDER BY position,id',[albumId]);assert.equal(beforeRetry.length,3);assert.equal(beforeRetry[2].section_id,sections[1].id);
  await upload.getByRole('button',{name:'Tải lại các ảnh còn lại',exact:true}).click();await page.locator('.upload-summary').filter({hasText:'Đã lưu 1/1'}).waitFor();assert.deepEqual(await instance.db.all('SELECT id,section_id FROM photos WHERE album_id=? ORDER BY position,id',[albumId]),beforeRetry);assert.equal(await upload.locator('[name=section_id]').isDisabled(),false);
  console.log('PASS: Empty-MIME package, lost acknowledgement, destination lock and retry without duplicate');
 
  // Corrupt package errors remain per-file; a normal image in the same selection proceeds.
- await upload.locator('[name=section_id]').selectOption(sections[0].id);await upload.locator('[type=file]').setInputFiles([{name:'broken <img>.ccphoto',mimeType:'',buffer:Buffer.from('not a prepared photo')},original]);
+ await upload.locator('[name=section_id]').selectOption(sections[0].id);await upload.locator('[type=file]').setInputFiles([{name:'broken <img>.ccphoto',mimeType:'',buffer:Buffer.from('not a prepared photo')},{...original,name:'after-invalid.jpg'}]);
  await upload.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();await upload.locator('.form-error').filter({hasText:'Đã lưu 1/2'}).waitFor();assert.equal(await page.locator('.upload-file-error').count(),1);assert.equal(await page.locator('.upload-file-error img').count(),0);assert.equal(await upload.locator('button').isDisabled(),true);assert.equal((await instance.db.all('SELECT id FROM photos WHERE album_id=?',[albumId])).length,4);
  for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Admin overflow at '+width);await page.locator('.upload-report').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(evidence,`upload-${width}.png`)});}
  if(process.env.STUDIO_AXE_MODULE){const {default:AxeBuilder}=await import(process.env.STUDIO_AXE_MODULE);const scan=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();assert.deepEqual(scan.violations.map(item=>({id:item.id,nodes:item.nodes.map(node=>node.target)})),[]);}

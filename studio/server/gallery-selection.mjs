@@ -1,12 +1,29 @@
 import {createHash} from 'node:crypto';
 export const photoVersion=photos=>createHash('sha256').update(photos.map(p=>p.id).join(',')).digest('hex');
+// Public and admin metadata versions exclude selections and private password material.
+export function catalogVersion(album,photos,sections){
+ const fields=(row,keys)=>keys.map(key=>row[key]??null);
+ return createHash('sha256').update(JSON.stringify([
+  fields(album,['id','slug','title','category','description','status','event_date','cover_id','created','client_name']),!!album.password,
+  photos.map(p=>fields(p,['id','filename','caption','original','width','height','position','section_id','source_bytes','image_bytes','thumb_bytes','download_bytes'])),
+  sections.map(s=>fields(s,['id','title','position']))
+ ])).digest('hex');
+}
+export function galleryVersion(album,photos,sections){
+ return createHash('sha256').update(JSON.stringify([
+  album.title,album.description,album.event_date,!!album.password,
+  photos.map(p=>[p.id,p.filename,p.original,p.caption,p.width,p.height,p.position,p.section_id]),
+  sections.map(s=>[s.id,s.title,s.position])
+ ])).digest('hex');
+}
 const fail=(status,message)=>Object.assign(Error(message),{status});
 const handler=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
 
-export async function selectionState(db,albumId){
+export async function selectionState(db,albumId,{catalogAlbum,galleryAlbum}={}){
  const rows=await db.all('SELECT a.selection_status,s.photo_id FROM albums a LEFT JOIN selections s ON s.album_id=a.id WHERE a.id=? ORDER BY s.photo_id',[albumId]);
- const photos=await db.all('SELECT id FROM photos WHERE album_id=? ORDER BY position,id',[albumId]);
- return {selected:rows.map(row=>row.photo_id).filter(Boolean),selection_status:rows[0]?.selection_status||'draft',photo_version:photoVersion(photos)};
+ const photos=await db.all('SELECT '+(catalogAlbum?'id,filename,caption,original,width,height,position,section_id,source_bytes,image_bytes,thumb_bytes,download_bytes':galleryAlbum?'id,filename,caption,original,width,height,position,section_id':'id')+' FROM photos WHERE album_id=? ORDER BY position,id',[albumId]);
+ const sections=catalogAlbum||galleryAlbum?await db.all('SELECT id,title,position FROM album_sections WHERE album_id=? ORDER BY position,id',[albumId]):[];
+ return {selected:rows.map(row=>row.photo_id).filter(Boolean),selection_status:rows[0]?.selection_status||'draft',photo_version:photoVersion(photos),...(catalogAlbum?{catalog_version:catalogVersion(catalogAlbum,photos,sections)}:{}),...(galleryAlbum?{gallery_version:galleryVersion(galleryAlbum,photos,sections)}:{})};
 }
 
 export function registerGallerySelection(app,{db,allowed}){
@@ -16,7 +33,7 @@ export function registerGallerySelection(app,{db,allowed}){
   return album;
  };
  app.get('/api/gallery/:id/selection',handler(async(req,res)=>{
-  await authorize(req,db);res.set('Cache-Control','private,no-store').json(await selectionState(db,req.params.id));
+  const a=await authorize(req,db);res.set('Cache-Control','private,no-store').json(await selectionState(db,req.params.id,{galleryAlbum:a}));
  }));
  app.put('/api/gallery/:id/selection/:photo',handler(async(req,res)=>{
   if(typeof req.body.selected!=='boolean')throw fail(422,'Chưa lưu được lựa chọn ảnh. Vui lòng tải lại trang rồi thử lại.');

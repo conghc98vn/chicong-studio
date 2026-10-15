@@ -60,10 +60,7 @@ try{
  await page.goto(base+'/gallery/'+album);await unlock();assert.equal(await page.locator('[data-action=download-selected]').isDisabled(),true);
  for(const photo of photos.slice(0,2)){await page.locator(`.pick[data-photo="${photo.id}"]`).click();await page.waitForFunction(id=>document.querySelector(`.pick[data-photo="${id}"]`)?.getAttribute('aria-pressed')==='true',photo.id);}
  assert.equal(await page.locator('[data-action=download-selected]').isEnabled(),true);
- await page.locator('[data-action=submit-picks]').click();
- const confirmBtn=page.locator('[data-action=confirm-submit-picks]');
- await confirmBtn.click();
- await page.locator('.success-note').waitFor();
+ assert.equal(await page.locator('[data-action=submit-picks]').count(),0);
  await page.locator('[data-action=selected-only]').click();await page.locator(`[data-action=section-filter][data-section="${sections[0]}"]`).click();assert.equal(await page.locator('.photo-item').count(),1);
  const initialSelections=await instance.db.all('SELECT * FROM selections WHERE album_id=? ORDER BY photo_id',[album]);
  await open();assert.match(await page.locator('#gallery-download-description').textContent(),/tất cả các phần/);
@@ -72,9 +69,9 @@ try{
  const zipped=await download();assert.match(zipped.name,/\.zip$/);const entries=zipEntries(zipped.buffer);assert.equal(entries.length,2);
  assert.deepEqual(entries[0].data,storedJpeg);for(const entry of entries){const info=await sharp(entry.data).metadata();assert.equal(info.format,'jpeg');assert.equal(Math.max(info.width,info.height),2400);}
  assert.deepEqual(new Set(downloadPayloads.at(-1).photos),new Set(photos.slice(0,2).map(photo=>photo.id)));
- assert.equal((await instance.db.get('SELECT selection_status FROM albums WHERE id=?',[album])).selection_status,'submitted');assert.deepEqual(await instance.db.all('SELECT * FROM selections WHERE album_id=? ORDER BY photo_id',[album]),initialSelections);
+ assert.equal((await instance.db.get('SELECT selection_status FROM albums WHERE id=?',[album])).selection_status,'draft');assert.deepEqual(await instance.db.all('SELECT * FROM selections WHERE album_id=? ORDER BY photo_id',[album]),initialSelections);
  await writeFile(path.join(evidence,'selected-photos.zip'),zipped.buffer);
- console.log('PASS: Private unlock, zero-selection disabling, pick synchronization, selected-only + section filtering includes all selected photos, actual ZIP/JPEG payloads and unchanged submitted selection');
+ console.log('PASS: Private unlock, zero-selection disabling, pick synchronization, selected-only + section filtering includes all selected photos, actual ZIP/JPEG payloads and unchanged automatically saved selection');
 
  const accessibility=[];
  for(const width of [320,390,768,1440]){

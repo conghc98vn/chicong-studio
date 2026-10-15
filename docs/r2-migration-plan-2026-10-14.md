@@ -2,6 +2,10 @@
 
 Ngày lập: 14/10/2026, giờ Việt Nam. Đây là kế hoạch, chưa triển khai, chưa chuyển dữ liệu và chưa thay đổi mã ứng dụng. Căn cứ: mã nguồn hiện tại trong workspace, tài liệu dự án và tài liệu chính thức của nhà cung cấp. Trạng thái production và dung lượng thực tế cần kiểm kê lại trước khi thực hiện; không lấy số ảnh trong tài liệu cũ làm số hiện tại.
 
+Rà soát sâu ngày 15/10/2026: kiến trúc được giữ, các bước vận hành đã sửa theo chức năng mới trong workspace. HEAD lúc lấy mẫu là 0c6a493, có nhiều thay đổi chưa commit; kiểm thử dùng bản sao riêng với danh mục SHA-256. Không coi HEAD đơn lẻ hay bản sao này là bản production. Xem [biên bản xác minh](r2-plan-verification-2026-10-15.md) để phân biệt kết quả đã chạy, giới hạn hiện tại và các điều kiện còn thiếu.
+
+Để chuẩn bị vòng xác nhận với chủ website, xem [danh sách chuẩn bị và câu hỏi trước triển khai](r2-preimplementation-checklist-2026-10-15.md). Tài liệu tách các quyết định trước code khỏi các điều kiện phải có trước khi thử cloud và chuyển website thật.
+
 **1. Những điều đã chốt và còn mở**
 
 | Nội dung | Trạng thái |
@@ -48,21 +52,23 @@ Khi bạn upload:
 
 1. Trình duyệt gửi ảnh và mã giúp nhận diện lần thử lại cho website.
 2. Server kiểm tra quyền quản trị, loại ảnh, dung lượng và số pixel.
-3. Server tạo WebP lớn, thumbnail và JPG tải xuống theo chất lượng hiện tại.
+3. Ảnh JPEG/PNG/WebP thông thường được server tạo WebP lớn, thumbnail và JPG. Gói .ccphoto đã chuẩn bị trên máy được server kiểm chứng định dạng, kích thước và checksum của ba bản, rồi giữ nguyên bytes; không encode lại.
 4. Server ghi các bản đã xử lý vào R2.
 5. Khi đủ file, server lưu bản ghi ảnh vào database rồi xác nhận thành công.
-6. Nếu thất bại giữa chừng, server báo rõ giai đoạn, cố dọn file đã ghi và cho phép thử lại theo cơ chế chống trùng.
+6. Nếu thất bại giữa chừng, server báo rõ giai đoạn và xử lý theo cơ chế chống trùng/biên nhận upload bền vững. Lỗi mất phản hồi không tự chứng minh file hoặc transaction chưa được lưu; chỉ dọn khi đã đối chiếu tham chiếu database. File dư được theo dõi và xử lý qua hàng đợi khi phù hợp.
+
+Upload hiện còn có bỏ qua/ghi đè ảnh trùng tên. Ghi đè giữ mã ảnh và lựa chọn của khách nhưng thay khóa file. Chuyển kho phải giữ đầy đủ hành vi này và bảng photo_upload_receipts.
 
 Khi khách xem:
 
 1. Trình duyệt yêu cầu URL ảnh trên chính website, như hiện tại.
-2. Server đọc trạng thái album và kiểm tra phiên gallery khi cần.
+2. Server đọc trạng thái album và kiểm tra phiên khi gallery có mật khẩu. Gallery private không đặt mật khẩu hiện cho người giữ link truy cập; “private” ở đây không đồng nghĩa với bắt buộc đăng nhập. Kho R2 private vẫn luôn chỉ cho server đọc.
 3. Được phép thì server lấy file từ R2 và trả cho trình duyệt; không được phép thì không trả ảnh.
 
 Khi khách tải lựa chọn:
 
 1. Server kiểm tra đúng gallery và đúng những ảnh đang được chọn.
-2. Một ảnh trả JPG; nhiều ảnh chuẩn bị ZIP theo giới hạn hiện tại.
+2. Một ảnh trả JPG; nhiều ảnh chuẩn bị ZIP theo giới hạn hiện tại. Ngoài tải lựa chọn, hệ thống còn có nút tải một ảnh riêng trong gallery và album công khai; đường này không yêu cầu ảnh đã được chọn.
 3. Server kiểm tra lại quyền/lựa chọn trước khi gửi file đã chuẩn bị.
 4. File tạm trên Render được dọn; R2 không phải nơi lưu ZIP lâu dài trong thiết kế này.
 
@@ -76,7 +82,7 @@ Kết quả mong muốn: đổi kho lưu file, tăng dư địa dung lượng, g
 
 Render Free vẫn có cơ chế ngủ sau thời gian không có traffic; đổi Storage không loại bỏ thời gian khởi động lại của website. [Giới hạn Render Free](https://render.com/docs/free)
 
-Tài liệu docs/upload-production-diagnostics-2026-10-14.md ghi lỗi upload 180 giây vẫn chưa rõ nguyên nhân cuối cùng. Kế hoạch phải đo riêng thời gian truyền ảnh, xử lý ảnh, ghi storage và ghi database. Không dùng việc đổi R2 để kết luận đã sửa lỗi đó. Các thông số xử lý ảnh và timeout không được thay đổi đồng thời chỉ để làm kết quả chuyển kho có vẻ nhanh hơn.
+Tài liệu docs/upload-production-diagnostics-2026-10-14.md ghi lỗi upload 180 giây chưa rõ nguyên nhân cuối cùng tại thời điểm báo cáo. Workspace sau đó đã có upload .ccphoto và các thay đổi khác; chưa xác minh bản nào đang chạy production trong lượt review này. Phải đo riêng truyền ảnh, encode/kiểm chứng package, ghi storage và ghi database trên cùng baseline. Không quy lỗi còn tồn tại hoặc đã hết chỉ từ tài liệu cũ, và không dùng đổi R2 để kết luận đã sửa lỗi upload. Không đổi chất lượng hay timeout đồng thời chỉ để làm phép so sánh nhanh hơn.
 
 **5. Dung lượng và chi phí theo cách dễ dự tính**
 
@@ -91,6 +97,12 @@ Ví dụ minh họa, không phải kết quả đo toàn bộ kho: nếu tổng 
 R2 Standard hiện có hạn mức miễn phí hàng tháng 10GB-month, 1 triệu Class A và 10 triệu Class B; phần lưu trữ vượt mức là $0,015/GB-month. R2 không thu phí egress trực tiếp. Đây không phải trần hóa đơn hay cam kết chính sách vĩnh viễn. [Giá R2](https://developers.cloudflare.com/r2/pricing/)
 
 Theo lựa chọn ưu tiên miễn phí và chấp nhận phí nhỏ của người dùng, đề xuất theo dõi dung lượng sử dụng, số request, lỗi upload và băng thông Render, cùng cảnh báo sớm trước hạn mức. Chưa đặt một số tiền trần hoặc tự ngừng upload khi vừa vượt phần miễn phí; “phí nhỏ” chưa phải quyền tự nâng gói hay bật dịch vụ trả phí khác. Dashboard nhà cung cấp là căn cứ đối chiếu hóa đơn; số byte trong ứng dụng chỉ là ước tính, nhất là với ảnh cũ/file dư. Nếu sau này cần chặn upload mới, cơ chế đó chỉ hạn chế tăng dung lượng, không chặn mọi khoản phí đọc file. Chi phí chuyển dữ liệu từ Supabase, bản backup, bucket thử và dịch vụ khác phải tính riêng.
+
+Trước khi đọc nội dung toàn kho, lập ngân sách nguồn: dung lượng × số lượt tải để hash/copy/backup/diễn tập + phần phát sinh + phần dành cho hoạt động website. Ưu tiên runner riêng có ổ lưu bền vững, không chạy copy hàng loạt trên Render phục vụ khách. Có thể tải một lượt vào bản sao riêng và tính hash trong lúc đọc, dùng bản này để chuyển/đối chiếu; final delta vẫn đối chiếu snapshot cuối. Không giả định quota còn nguyên hoặc đọc nhiều lần là miễn phí. [Supabase egress](https://supabase.com/docs/guides/platform/manage-your-usage/egress)
+
+Render gửi file mới sang R2 cũng là outbound, bên cạnh Render gửi ảnh cho người xem. Phải kiểm tra gói và quota thực tế của workspace; ví dụ 900 ảnh × 2MB đã tạo khoảng 1,8GB upload ra kho mỗi tháng, chưa có lượt xem/tải. [Render bandwidth](https://render.com/docs/outbound-bandwidth)
+
+Đợt đầu dùng số liệu và cảnh báo nhà cung cấp nếu tài khoản hỗ trợ; không ngầm xây một hệ thống billing riêng. Cloudflare Budget alerts theo chi phí usage của tài khoản, không phải trần thanh toán hay cảnh báo chính xác mốc dung lượng 10GB. Người nhận/ngưỡng được chốt khi cấu hình; chưa tạo cảnh báo hoặc automation trong lượt lập kế hoạch. [Budget alerts](https://developers.cloudflare.com/billing/manage/budget-alerts/)
 
 Chưa có chính sách tự xóa gallery. Nếu sau này cần “giữ 90 ngày”, phải định nghĩa rõ thông báo, quyền gia hạn, bản sao và xử lý lựa chọn của khách trước khi làm tự động.
 
@@ -110,13 +122,13 @@ Chưa chốt ngày công hay số phút tạm dừng upload: cần biết dung l
 
 **Bước B — kiểm kê chi tiết**
 
-1. Xác nhận commit và cấu hình provider của bản chạy thật, không chỉ dựa vào mã local.
+1. Chốt một baseline bất biến gồm commit và mọi thay đổi được chọn đưa vào bản phát hành; đối chiếu với commit/config production. Nếu workspace đổi trong lúc review, lưu hash bản đã kiểm thử và rà lại phần thay đổi trước triển khai.
 2. Lấy danh mục từ database cho mọi trạng thái album: published, private, draft, archived; lấy ảnh chân dung đang dùng từ settings.
 3. Phân loại ảnh cũ hai bản và ảnh mới ba bản. Thiếu JPG ở ảnh cũ không tự động là lỗi.
 4. Đối chiếu file thiếu, file dư và tổng số byte. Ảnh chân dung cũ và file sót sau upload lỗi được báo cáo riêng, không tự xóa trong migration.
-5. Tạo manifest: mã file, loại nội dung, số byte, checksum, trạng thái copy và thời điểm kiểm tra. Giữ manifest kín vì có thông tin kho ảnh.
+5. Tạo manifest theo mapping photo.id → photos.filename hiện hành → object key của từng bản, kèm role, Content-Type, số byte, SHA-256 nội dung thực, nguồn/đích, snapshot ID, trạng thái copy và thời điểm kiểm tra. Không dựng key từ photo.id: sau ghi đè, ID khác filename. Giữ riêng tham chiếu portrait, file chờ cleanup và file không tham chiếu. upload_hash, receipt file_hash và .ccphoto sourceHash không thay thế checksum của từng object.
 6. Đo một tập ảnh đại diện: ảnh nhỏ/lớn, nhiều chi tiết, dọc/ngang, ảnh cũ/mới, gallery riêng và portfolio. So sánh cùng file và cùng cấu hình xử lý.
-7. Kiểm tra phương án backup cả database và media; JSON xuất ở giao diện không chứa ảnh và không phải backup đầy đủ.
+7. Backup database phải gồm receipts, phiên/quyền và trạng thái cleanup tương ứng, ngoài album/lựa chọn/booking. JSON xuất ở giao diện không thay thế backup đầy đủ. Công cụ kiểm kê đọc bằng kết nối chỉ đọc trực tiếp, không gọi createApp/openDatabase của ứng dụng vì các hàm đó có thể chạy migration và worker xóa.
 
 **Bước C — chuẩn bị tài khoản và môi trường**
 
@@ -124,7 +136,11 @@ Bạn kiểm soát tài khoản Cloudflare và bước kích hoạt thanh toán 
 
 Dự kiến có bucket thử và bucket thật tách biệt, đều dùng Standard và private. Tên cuối cùng được ghi trong cấu hình; không hard-code tên riêng vào logic xử lý ảnh. Tạo token object chỉ cho bucket cần dùng, thay vì cấp quyền quản trị toàn tài khoản. [Hướng dẫn S3 và token R2](https://developers.cloudflare.com/r2/get-started/s3/)
 
-Kiểm tra private trên cấu hình Cloudflare và thử truy cập không xác thực. Kiểm tra S3 thành công chỉ chứng minh server có quyền truy cập; không tự chứng minh mọi đường public đã bị tắt. Dữ liệu thử dùng ảnh không nhạy cảm; không sao chép ảnh khách vào một môi trường public.
+Staging phải có database/schema, credentials, bucket và dữ liệu thử riêng; không kế thừa .env production. Worker cleanup chỉ được chạm dữ liệu thử. Không đưa cấu hình gửi email/calendar thật vào fixture. Diễn tập restore vào đích riêng, với worker tắt cho tới khi kiểm chứng mọi tham chiếu/queue đúng đích. Backup được giữ ngoài phạm vi quyền xóa của runtime.
+
+Ghi lại vùng Render trước khi chọn vị trí bucket, đo đường server↔R2. Automatic/location hint không phải cam kết tối ưu theo vị trí khách xem. Endpoint phải khớp tài khoản và jurisdiction nếu có. [Vị trí dữ liệu R2](https://developers.cloudflare.com/r2/reference/data-location/)
+
+Kiểm tra bằng Dashboard hoặc credential quản trị chỉ đọc riêng: r2.dev tắt, không custom domain public đang bật, không Worker/route có sẵn vô tình phát ảnh. Thử một object chắc chắn tồn tại qua từng đường đã cấu hình; bucket root không liệt kê file không phải bằng chứng private. Runtime Object Read & Write chỉ giới hạn bucket, không mở rộng thành quyền quản trị chỉ để audit. S3 thành công chỉ chứng minh server có quyền, không chứng minh mọi đường public đã tắt. [Quyền R2](https://developers.cloudflare.com/r2/api/tokens/), [Public access](https://developers.cloudflare.com/r2/buckets/public-buckets/)
 
 **Bước D — phạm vi kỹ thuật dự kiến**
 
@@ -133,32 +149,39 @@ Kiểm tra private trên cấu hình Cloudflare và thử truy cập không xác
 | Lớp storage | Thêm R2 vào hợp đồng init/put/get/remove | Thay kho mà giữ logic album/gallery |
 | Chọn provider | Một lựa chọn rõ local/supabase/r2 | Supabase database vẫn tồn tại nên không được đoán storage từ biến cũ |
 | Kiểm tra startup | Yêu cầu DB bền vững và cấu hình đầy đủ của provider đã chọn | Không tự rơi về ổ đĩa tạm Render khi thiếu biến |
-| SDK | Dùng thư viện S3 phù hợp với Node hiện tại | Tránh tự viết cơ chế ký yêu cầu |
+| SDK | Khóa phiên bản S3 SDK đã thử, region auto, endpoint và credentials tường minh | Không dùng nhầm AWS credential chain; thử checksum thực tế |
 | Upload | Giữ ba bản, chất lượng, mã retry và chống trùng | Không thay đổi trải nghiệm/chất lượng trong migration |
 | Lỗi/hủy | Giữ timeout, tín hiệu hủy và mã lỗi đã làm sạch | Download hủy phải dừng đọc và giải phóng tài nguyên |
 | Khởi tạo bucket | Tách thao tác quản trị khỏi runtime | Ứng dụng không cần quyền tạo/xóa kho |
 | Công cụ chuyển | Kiểm kê, copy tiếp tục được, đối chiếu và báo cáo | Có bằng chứng đủ file và xử lý được gián đoạn |
-| Tạm khóa thay đổi media | Chặn phía server các thao tác ghi media trong khung chuyển; báo rõ trên admin | Không chỉ dựa vào việc đóng một tab, tránh thay đổi từ thiết bị/phiên khác |
+| Tạm khóa thay đổi media | Khóa dùng chung tồn tại qua restart, mọi tiến trình tuân thủ, theo dõi tác vụ ghi thực sự | Đóng kết nối HTTP không đồng nghĩa handler đã ngừng ghi |
+| Worker cleanup | Có thể tạm dừng/chờ hoàn tất; drain đúng kho và kiểm chứng queue rỗng trước đổi provider | Queue hiện chưa chứa provider/bucket |
 | Cấu hình/tài liệu | Ví dụ biến môi trường, hosting, vận hành, khôi phục | Chủ studio hiểu cách vận hành sau chuyển |
 
-File dự kiến liên quan: studio/server/storage.mjs, studio/server/app.mjs, package.json và lockfile, .env.example, render.yaml, HOSTING.md, README.md, tài liệu vận hành và công cụ chuyển mới. Chưa cần đổi schema photos hoặc frontend cho phạm vi cơ sở; giữ mã file và URL cùng domain hiện tại.
+File dự kiến liên quan: storage.mjs, app.mjs, photo-upload.mjs, photo-deletion.mjs, prepared-photo.mjs, gallery-download.mjs, start.mjs, db.mjs khi cần trạng thái khóa; package/lockfile, cấu hình, tài liệu và công cụ chuyển. Chưa có lý do đổi schema photos chỉ để chuyển kho; trạng thái khóa/drain có thể cần bổ sung lưu bền vững. Giữ ID, filename, URL có version, receipts và các version của gallery/catalog. Nếu thêm thông báo bảo trì vào admin thì coi là thay đổi giao diện nhỏ có kiểm thử, không hứa tuyệt đối không sửa frontend.
+
+SDK GET phải giữ deadline đến khi đọc xong body và đóng stream khi hủy; deadline tổng gồm retry, kết nối và body. Giữ ngân sách hiện có làm baseline rồi đo lại, không nhân timeout theo số retry ngoài ý muốn. Chỉ retry hữu hạn cho lỗi phù hợp; không retry liên tục lỗi quyền/validation, không tạo nhiều writer cho cùng key. Kiểm thử checksum mặc định của phiên bản SDK đã chọn với R2 thật; không tắt checksum theo phỏng đoán. [Cloudflare JS SDK](https://developers.cloudflare.com/r2/examples/aws/aws-sdk-js-v3/), [AWS checksum](https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/s3-checksums.html)
+
+R2 không thay nguyên mô hình allowed_mime_types/file_size_limit của Supabase. Giữ kiểm tra tên key, MIME/nội dung thật, 20MiB input và 40MP; xác định giới hạn bản dẫn xuất từ kiểm kê và kiểm tra ở ứng dụng. 24MiB trong code cũ là mức tối thiểu cho cấu hình bucket, không chứng minh mọi file cũ dưới 24MiB vì bucket có thể cho mức lớn hơn/unlimited. Không tự loại file cũ hoặc áp trần mới mà chưa đối chiếu tương thích. Với kích thước ảnh hiện tại, chưa cần multipart upload chỉ để thay kho. [Giới hạn R2](https://developers.cloudflare.com/r2/platform/limits/)
 
 Không tự đọc Supabase khi R2 lỗi để che lỗi chuyển dữ liệu. Nếu sau này cần cơ chế đọc hai kho, phải phân biệt rõ file không tồn tại với lỗi quyền, timeout và lỗi mạng. Trước mắt, kiểm chứng đủ rồi chuyển provider đơn nhất dễ vận hành hơn.
 
-Khi xóa ảnh thất bại giữa các file, cần báo lỗi, cho phép thử lại và đối chiếu được. Xóa file đã không tồn tại phải an toàn khi retry. File dư sau cleanup lỗi cần được ghi nhận; không hứa mọi lỗi mạng đều dọn được ngay. Không mở rộng đợt này thành hệ thống xử lý nền lớn nếu chưa có nhu cầu thực tế.
+Giữ cách xóa hiện tại: transaction xóa tham chiếu hiển thị và ghi việc cleanup bền vững; thành công ở bước này thì ảnh đã ngừng hiện dù xóa bytes có thể chậm. Lỗi transaction khác với cleanup đang chờ. Worker retry việc xóa file; remove phải an toàn với object đã không tồn tại. Theo dõi queue, không báo sai rằng ảnh chưa bị xóa khỏi album khi database đã cập nhật.
+
+Timeout/abort của PUT không chứng minh R2 chưa ghi; cả một lần HEAD trả không có ngay sau timeout cũng chưa đủ kết luận. Giữ trạng thái chưa xác định, đối chiếu lại bằng key/checksum và tham chiếu DB, chỉ đánh dấu dọn sạch sau kiểm chứng phù hợp. Không xóa bytes đang được DB tham chiếu khi mất xác nhận COMMIT. [R2 consistency](https://developers.cloudflare.com/r2/reference/consistency/)
 
 **Bước E/F — quy trình chuyển dữ liệu thật**
 
-1. Chuẩn bị phiên bản hỗ trợ cả Supabase và R2; chạy thử với dữ liệu riêng. Giữ một phiên bản đã kiểm chứng có khả năng chạy R2 để quay lại code khi cần.
+1. Chuẩn bị bản tương thích cả Supabase/R2, các tính năng upload/ghi đè/receipts hiện tại và khóa/drain. Triển khai bản này vẫn dùng Supabase trước; kiểm chứng tất cả tiến trình phục vụ đã hiểu khóa, không còn bản cũ có thể ghi vượt khóa. Giữ bản đã kiểm chứng này làm đích rollback code.
 2. Sao lưu database đầy đủ và files, kiểm tra khả năng đọc/khôi phục bản sao. Bảo vệ backup như dữ liệu khách thật.
-3. Copy từ Supabase sang R2 với nguyên tên và nội dung. Không resize/nén lại. Giữ đúng Content-Type WebP/JPEG.
+3. Copy theo manifest hiện hành trên runner riêng, nguyên key/nội dung/Content-Type. Đích mới rỗng hoặc có manifest của cùng đợt chuyển; không tự ghi đè object không rõ nguồn. Giữ metadata cần thiết, không lấy chính sách public của nguồn làm cấu hình cho đích.
 4. Công cụ copy giới hạn số tác vụ đồng thời, retry hữu hạn, lưu tiến độ để tiếp tục. Ghi đè khóa có sẵn chỉ khi quy tắc đối chiếu xác định an toàn; khác nội dung phải được báo ra.
 5. Kiểm chứng file đích bằng số byte và SHA-256. Không mặc định ETag của mọi kiểu upload là mã băm nội dung. Với quy mô dự kiến, ưu tiên kiểm chứng toàn bộ file cần dùng.
-6. Chọn khung giờ chuyển. Tạm khóa thao tác làm thay đổi media: upload, xóa ảnh/album, đổi chân dung và thay đổi trạng thái liên quan. Chờ upload đang chạy hoàn tất hoặc xử lý trạng thái chưa xác nhận. Booking và lựa chọn ảnh không cần bị đóng chỉ vì đổi kho.
-7. Trong lúc đã khóa thay đổi media, chụp snapshot database cuối và lập manifest tương ứng; bảo đảm bản backup giữ đủ mọi file mà snapshot này tham chiếu. Copy phần phát sinh và đối chiếu các file đã xóa trong lúc copy trước. Kiểm tra lại đủ ảnh mọi trạng thái, thumbnail, JPG cần có và chân dung. Cặp snapshot/file nhất quán này dùng cho khôi phục sự cố, không dùng để ghi đè database hiện hành khi chỉ quay lại storage.
-8. Đổi provider trên server theo cách deploy thủ công đã thống nhất. Giữ link website và database hiện hành. Có thể có gián đoạn ngắn do restart/deploy; không hứa zero downtime.
+6. Chọn khung giờ, bật khóa bền vững cho mọi đường thay đổi media: upload thường/.ccphoto, overwrite, xóa đơn/hàng loạt/album, chân dung kể cả thay tham chiếu trong settings và thay đổi trạng thái liên quan. Đợi tác vụ ghi thực sự về 0, kể cả client đã ngắt kết nối; nếu quá thời gian drain thì dừng chuyển và đối chiếu. Drain photo_cleanup trên Supabase cho tới rỗng rồi dừng worker; khi còn job lỗi thì chưa chuyển. Không chỉ căn cứ tab đã đóng hay server.close. Booking/lựa chọn có thể tiếp tục ngoài khoảng restart; không phục hồi DB cũ để đổi storage.
+7. Khi tác vụ ghi bằng 0 và cleanup đã rỗng/dừng, lấy snapshot DB và manifest cuối. Delta gồm ảnh thêm, filename thay thế, file đã xóa và chân dung đổi; không chỉ so ID/số ảnh/ngày tạo. Xác minh backup bao phủ mọi tham chiếu của snapshot. Object thừa ở R2 được phân loại, chỉ dọn những key thuộc đợt chuyển khi đã đối chiếu không được dùng. Lưu danh mục xóa của nguồn để xử lý kho cũ khi cần. Cặp snapshot/file dùng cho khôi phục sự cố, không ghi đè DB hiện hành để rollback storage.
+8. Giữ khóa media qua restart, đổi provider bằng deploy thủ công đã thống nhất; không để tiến trình Supabase cũ và R2 mới cùng nhận ghi. Worker đích chỉ được khởi động sau khi xác nhận queue/trạng thái khóa đúng. Giữ website/DB hiện hành; có thể gián đoạn ngắn khi deploy.
 9. Khi còn khóa thay đổi media, kiểm tra xem ảnh, gallery, lựa chọn, tải JPG/ZIP và ảnh chân dung. Nếu không đạt, quay lại kho cũ khi danh mục còn đồng nhất.
-10. Thực hiện upload thử có kiểm soát trong album thử riêng, xác nhận đủ ba file và retry không trùng; ghi nhận dữ liệu thử để đối chiếu/dọn sau. Từ lúc có dữ liệu ghi chỉ ở R2, rollback storage phải xử lý phần phát sinh.
+10. Dùng cửa kiểm thử được giới hạn cho người vận hành/album thử, hoặc công cụ kiểm thử riêng; không mở khóa toàn bộ chỉ để thử một upload. Xác nhận ba file, prepared upload, overwrite và retry; ghi danh mục dữ liệu thử. Bất kỳ ghi mới nào ở R2, kể cả file thử, làm phát sinh nghĩa vụ đồng bộ nếu quay lại kho cũ.
 11. Mở lại thao tác quản trị ảnh khi các kiểm tra đạt. Theo dõi lỗi và dung lượng; giữ kho cũ trong một thời hạn thống nhất, ví dụ 7–14 ngày nếu phù hợp với hạn mức và chi phí.
 12. Dọn kho Supabase là quyết định riêng sau nghiệm thu và xác minh backup. Không xóa Supabase project vì database vẫn chạy ở đó.
 
@@ -167,7 +190,7 @@ Khi xóa ảnh thất bại giữa các file, cần báo lỗi, cho phép thử 
 | Tình huống | Cách xử lý |
 |---|---|
 | Chưa mở lại ghi, hai kho đã khớp | Đổi provider về Supabase, kiểm tra lại URL và quyền |
-| Đã có ảnh mới chỉ nằm ở R2 | Khóa thay đổi media, đồng bộ phần phát sinh về nguồn phù hợp, đối chiếu DB hiện hành rồi mới đổi |
+| Đã có thêm/ghi đè/xóa sau chuyển | Khóa và drain trên R2, xử lý queue đúng R2, đồng bộ mọi filename hiện hành + portrait về đích đủ chỗ, đối chiếu rồi mới đổi |
 | Lỗi code nhưng dữ liệu R2 vẫn đúng | Quay về phiên bản code đã kiểm chứng có hỗ trợ R2, giữ nguyên kho và database |
 
 Supabase Free có thể không đủ chỗ chứa dữ liệu đã lớn lên trên R2. Vì vậy phương án quay lại không được mặc định phụ thuộc vào việc đưa toàn bộ dữ liệu về một kho cũ thiếu dung lượng. Cần xác minh sức chứa trước hoặc ưu tiên rollback code trong khi tiếp tục dùng R2.
@@ -179,22 +202,26 @@ Giữ nguyên bản Supabase cũ không phải backup đầy đủ cho những �
 | Nhóm | Tiêu chí |
 |---|---|
 | Ảnh công khai | Trang chủ, hero, portfolio, thumbnail, lightbox, ảnh chia sẻ mạng xã hội tải đúng bằng URL hiện có |
-| Gallery riêng | Không đăng nhập không xem được ảnh; phiên gallery A không đọc được ảnh gallery B |
-| Thu hồi quyền | Đổi mật khẩu vô hiệu phiên cũ; chuyển published sang private/draft/archived chặn người chưa có quyền, kể cả khi gửi ETag cũ hoặc HEAD |
-| Chân dung | Chân dung hiện dùng tải được; URL chân dung bị thay/xóa không còn được phục vụ |
-| Upload | File hợp lệ tạo đủ các bản, file sai bị từ chối, mất phản hồi rồi retry không trùng |
+| Gallery riêng | Gallery có mật khẩu chặn khách chưa mở khóa và phiên gallery khác; gallery không mật khẩu vẫn hoạt động bằng link như hiện tại |
+| Thu hồi quyền | Kiểm tra riêng bật/tắt/đổi mật khẩu và published → private có mật khẩu / private không mật khẩu / draft / archived. Private không mật khẩu không được kỳ vọng chặn người giữ link. GET/HEAD/ETag phải tuân thủ đúng từng trạng thái |
+| Chân dung | Chân dung hiện dùng tải được; yêu cầu mới tới URL cũ sau khi thay/ẩn bị từ chối, không cam kết thu hồi bytes của request đã chạy |
+| Upload | Ảnh thường và .ccphoto, checksum sai, skip/overwrite theo tên; ghi đè giữ lựa chọn/bìa/caption/section, đổi preview đúng; retry receipt cũ không phục hồi bản ảnh đã bị thay |
 | Lỗi ghi | Lỗi ở bất kỳ bản ảnh hoặc lúc ghi database không được báo upload thành công sai; cleanup lỗi được ghi nhận |
-| JPG/ZIP | Ảnh mới dùng JPG đã lưu; ảnh cũ tạo JPG từ WebP; đúng lựa chọn, thứ tự, tên Unicode và giới hạn hiện tại |
-| Quyền khi tải | Đổi mật khẩu/trạng thái/lựa chọn trong lúc chuẩn bị ZIP ngăn gửi nội dung không còn được phép |
+| JPG/ZIP | Tải lựa chọn đúng ID; tải một ảnh riêng không cần chọn; album public theo slug và gallery đúng quyền; HEAD không đọc bytes; JPG legacy/mới, Unicode, limits, abort và dùng chung lượt xử lý |
+| Quyền khi tải | JPG/ZIP kiểm tra lại quyền; tải lựa chọn kiểm tra lại danh sách trước khi gửi. Thay đổi hoàn tất trước lần kiểm tra này phải được phát hiện; không cam kết chặn nguyên tử mọi thay đổi trong lúc truyền |
 | Hủy | Hủy download dừng việc đọc R2 và giải phóng lượt xử lý/file tạm |
 | Provider | Sai key, thiếu biến, sai bucket, timeout, file thiếu được phân biệt phù hợp; production không tự dùng local |
 | Bảo mật log | Không lộ secret, cookie, nội dung ảnh hoặc URL chứa thông tin xác thực |
-| Migration | Đủ mọi trạng thái album, đúng ảnh cũ/mới, chân dung; copy gián đoạn có thể tiếp tục; sai checksum phải bị phát hiện |
+| Migration | Mọi trạng thái, photo.id khác filename, overwrite giữa các lượt copy và sau cutover, ảnh cũ/mới, portrait; resume, key xung đột, checksum sai, timeout ghi không rõ kết quả |
+| Khóa/cleanup | Client ngắt nhưng handler còn chạy, khóa qua restart, nhiều tiến trình, queue còn job/đang xóa, xóa hơn 24 job, fail giữa ba object; không đổi kho khi không chứng minh đã drain |
+| Cô lập thử nghiệm | DB/schema/credentials/bucket/email/calendar tách biệt; restore không chạy cleanup vào nguồn thật; runtime không xóa được backup |
 | Vận hành | Restart/deploy không mất ảnh; kiểm thử quay lại đạt; backup đọc/khôi phục được |
 
 Tận dụng test hiện có về security, upload, storage và gallery-download; bổ sung test hợp đồng R2 và migration storage. migration.test.mjs hiện chủ yếu kiểm schema database, chưa thay thế test chuyển kho.
 
 Kiểm tra browser desktop/mobile cho các luồng thực tế và chạy thử với bucket R2 riêng để xác nhận tương thích SDK/quyền/metadata. Kết quả local hoặc mock không thay cho thử kết nối R2 thật. Đo cùng tập ảnh trước/sau, tách thời gian xử lý khỏi thời gian storage; không hứa nhanh hơn một tỷ lệ khi chưa đo.
+
+Giới hạn quyền đang được kiểm tra riêng: một request media đã bắt đầu có thể hoàn tất sau khi quyền thay đổi; file đã nhận không thu hồi được. Lượt xác minh 15/10 cũng tái hiện mở khóa bằng mật khẩu cũ đang xử lý đồng thời với đổi mật khẩu có thể tạo phiên mới còn hợp lệ. Đây là vấn đề có sẵn trong snapshot, không do R2; cần sửa và regression riêng trước khi tuyên bố cơ chế đổi mật khẩu đạt yêu cầu triển khai. Không ghi “đổi mật khẩu luôn vô hiệu mọi truy cập” khi chưa kiểm tra các race này. Chi tiết bằng chứng ở biên bản xác minh.
 
 **9. Vận hành sau chuyển**
 

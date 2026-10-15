@@ -71,7 +71,7 @@ try{
  assert.equal(await clientPage1.locator('.photo-item').count(),1);
  console.log('PASS: Client directly accesses password-free gallery without lock screen');
 
- // 5. Client picks photo, downloads single photo, and submits selection
+ // 5. Client picks photo, downloads single photo, and retains selection
  const photoItem=clientPage1.locator('.photo-item').first();
  const pickBtn=photoItem.locator('.pick');
  await pickBtn.click();
@@ -91,12 +91,10 @@ try{
  await clientPage1.keyboard.press('Escape');
  await clientPage1.locator('#lightbox').waitFor({state:'hidden'});
 
- // Submit picks with confirmation dialog
- await clientPage1.locator('[data-action=submit-picks]').click();
- await clientPage1.locator('#editor[open]').waitFor();
- await clientPage1.locator('[data-action=confirm-submit-picks]').click();
- await clientPage1.locator('.success-note').waitFor();
- console.log('PASS: Client pick, lightbox, single download, and submit picks work on password-free gallery');
+ // Selection is already persisted; no confirmation is needed.
+ assert.equal(await clientPage1.locator('[data-action=submit-picks]').count(),0);
+ await clientPage1.reload();await clientPage1.waitForFunction(()=>document.querySelector('.pick')?.getAttribute('aria-pressed')==='true');
+ console.log('PASS: Client pick, lightbox, single download, and automatic saving work on password-free gallery');
 
  // 6. Admin updates album to REQUIRE password
  await adminPage.locator('[data-action=album-settings]').click();

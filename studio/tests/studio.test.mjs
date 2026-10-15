@@ -217,7 +217,7 @@ test('Calendar conflicts identify date and allow an undated consultation',async(
 test('Portfolio cards preserve curated images and counts without loading the entire album',async()=>{
  const f=await fixture();try{
   await f.setup();const a=await createAlbum(f,'published'),privateAlbum=await createAlbum(f,'private','private-pass');
-  for(let i=0;i<6;i++)await upload(f,a);await upload(f,privateAlbum);
+  for(let i=0;i<6;i++){const body=new FormData();body.append('photos',new Blob([await sharp({create:{width:30,height:20,channels:3,background:'#abc'}}).jpeg().toBuffer()],{type:'image/jpeg'}),`photo-${i}.jpg`);await f.client('/api/admin/albums/'+a+'/photos',body,'POST');}await upload(f,privateAlbum);
   const full=await (await f.client('/api/portfolio')).json();const photos=full[0].photos;
   const choice={albumId:a,wideId:photos[2].id,tallId:photos[3].id};
   assert.equal((await f.client('/api/admin/settings',{heroSelection:JSON.stringify([choice]),storySelection:JSON.stringify([{albumId:a,photoId:photos[4].id}])},'PATCH')).status,200);
@@ -470,5 +470,91 @@ test('Private galleries support optional password, direct view without password,
   const reopened=await f.client('/api/gallery/'+albumId,null,'GET',false);
   assert.equal(reopened.status,200);
   assert.equal((await reopened.json()).has_password,false);
+ }finally{await f.close();}
+});
+
+
+test('Dashboard shows automatically saved private selections without submission and removes empty selections',async()=>{
+ const f=await fixture();
+ try{
+  await f.setup();
+  const created=await f.client('/api/admin/albums',{title:'Auto saved picks',category:'wedding',status:'private',require_password:false},'POST');
+  assert.equal(created.status,201);const album=(await created.json()).id;await upload(f,album);
+  const photo=await f.db.get('SELECT id FROM photos WHERE album_id=?',[album]);
+  for(const endpoint of ['/api/admin/selection-summary',`/api/admin/albums/${album}`,`/api/admin/albums/${album}/selection`,`/api/admin/albums/${album}/selections.csv`]){
+   assert.equal((await f.client(endpoint,null,'GET',false)).status,401);
+  }
+  for(const suffix of ['', '/selection', '/selections.csv'])assert.equal((await f.client('/api/admin/albums/missing'+suffix)).status,404);
+  const summary=async()=>(await (await f.client('/api/admin/selection-summary')).json());
+  const dashboard=async()=>(await (await f.client('/api/admin/dashboard')).json()).selections;
+  assert.deepEqual(await dashboard(),[]);
+  assert.equal((await f.client(`/api/gallery/${album}/selection/${photo.id}`,{selected:true},'PUT')).status,200);
+  assert.equal((await f.db.get('SELECT selection_status FROM albums WHERE id=?',[album])).selection_status,'draft');
+  assert.deepEqual((await dashboard()).map(a=>a.id),[album]);
+  assert.equal((await summary())[0].selected_count,1);
+  const selection=await f.client(`/api/admin/albums/${album}/selection`);
+  assert.match(selection.headers.get('cache-control'),/no-store/);
+  assert.deepEqual((await selection.json()).selected,[photo.id]);
+  const detail=await f.client(`/api/admin/albums/${album}`);assert.match(detail.headers.get('cache-control'),/no-store/);
+  assert.equal((await detail.json()).photos[0].selected,true);
+  const csv=await f.client(`/api/admin/albums/${album}/selections.csv`);
+  assert.match(csv.headers.get('content-disposition'),/auto-saved-picks-anh-da-chon-\d{4}-\d{2}-\d{2}\.csv/);
+  assert.match(await csv.text(),/client-photo.jpg/);
+  await f.db.run("UPDATE albums SET status='published' WHERE id=?",[album]);
+  assert.deepEqual(await dashboard(),[]);
+  await f.db.run("UPDATE albums SET status='private' WHERE id=?",[album]);
+  assert.equal((await f.client(`/api/gallery/${album}/selection/${photo.id}`,{selected:false},'PUT')).status,200);
+  assert.deepEqual(await dashboard(),[]);assert.deepEqual(await summary(),[]);assert.deepEqual((await (await f.client(`/api/admin/albums/${album}/selection`)).json()).selected,[]);
+ }finally{await f.close();}
+});
+
+test('Admin catalog versions track metadata and section changes without changing for customer picks',async()=>{
+ const f=await fixture();
+ try{
+  await f.setup();
+  const created=await f.client('/api/admin/albums',{title:'Catalog sync',category:'wedding',status:'private',require_password:false},'POST');
+  const album=(await created.json()).id;await upload(f,album);
+  const photo=await f.db.get('SELECT id FROM photos WHERE album_id=?',[album]);
+  const section=(await (await f.client(`/api/admin/albums/${album}/sections`,{title:'Ceremony'},'POST')).json()).id;
+  const read=async()=>{
+   const response=await f.client(`/api/admin/albums/${album}/selection`);assert.equal(response.status,200);
+   const state=await response.json(),detail=await (await f.client(`/api/admin/albums/${album}`)).json();
+   assert.match(state.catalog_version,/^[a-f0-9]{64}$/);assert.equal(state.catalog_version,detail.catalog_version);
+   const galleryState=await (await f.client(`/api/gallery/${album}/selection`)).json();
+   const gallery=await (await f.client(`/api/gallery/${album}`)).json();
+   assert.match(galleryState.gallery_version,/^[a-f0-9]{64}$/);assert.equal(galleryState.gallery_version,gallery.gallery_version);
+   return {...state,gallery_version:galleryState.gallery_version};
+  };
+  const initial=await read();
+  await f.client(`/api/gallery/${album}/selection/${photo.id}`,{selected:true},'PUT');
+  assert.equal((await read()).catalog_version,initial.catalog_version);assert.equal((await read()).gallery_version,initial.gallery_version);
+  assert.equal((await (await f.client(`/api/gallery/${album}/selection`)).json()).catalog_version,undefined);
+  let previous=initial;
+  const changed=async work=>{await work();const state=await read();assert.notEqual(state.catalog_version,previous.catalog_version);assert.notEqual(state.gallery_version,previous.gallery_version);assert.equal(state.photo_version,initial.photo_version);previous=state;};
+  await changed(async()=>assert.equal((await f.client(`/api/admin/photos/${photo.id}`,{section_id:section},'PATCH')).status,200));
+  await changed(async()=>assert.equal((await f.client(`/api/admin/photos/${photo.id}`,{caption:'A different caption'},'PATCH')).status,200));
+  await changed(async()=>assert.equal((await f.client(`/api/admin/sections/${section}`,{title:'Renamed ceremony'},'PATCH')).status,200));
+  let second;
+  await changed(async()=>{second=(await (await f.client(`/api/admin/albums/${album}/sections`,{title:'Party'},'POST')).json()).id;});
+  await changed(async()=>assert.equal((await f.client(`/api/admin/albums/${album}/sections/order`,{sections:[second,section]},'PUT')).status,200));
+  await changed(async()=>assert.equal((await f.client(`/api/admin/sections/${section}`,null,'DELETE')).status,200));
+  await changed(async()=>{const detail=await (await f.client(`/api/admin/albums/${album}`)).json();assert.equal((await f.client(`/api/admin/albums/${album}`,{...detail,title:'Renamed album'},'PATCH')).status,200);});
+ }finally{await f.close();}
+});
+
+test('Cover-only updates preserve album metadata and reject unauthorized or cross-album photos',async()=>{
+ const f=await fixture();
+ try{
+  await f.setup();const a=await createAlbum(f,'private','private-password'),b=await createAlbum(f);await upload(f,a);await upload(f,b);
+  const photo=await f.db.get('SELECT id FROM photos WHERE album_id=?',[a]),other=await f.db.get('SELECT id FROM photos WHERE album_id=?',[b]);
+  const endpoint=`/api/admin/albums/${a}/cover`;
+  assert.equal((await f.client(endpoint,{cover_id:photo.id},'PUT',false)).status,401);
+  assert.equal((await f.client('/api/admin/albums/missing/cover',{cover_id:photo.id},'PUT')).status,404);
+  for(const cover_id of ['',other.id,'not-a-photo'])assert.equal((await f.client(endpoint,{cover_id},'PUT')).status,422);
+  await f.db.run("UPDATE albums SET title='Changed elsewhere',status='archived',description='Keep this',client_name='Keep client' WHERE id=?",[a]);
+  const before=await f.db.get('SELECT * FROM albums WHERE id=?',[a]);
+  assert.equal((await f.client(endpoint,{cover_id:photo.id,title:'Stale',status:'published'},'PUT')).status,200);
+  assert.deepEqual({...await f.db.get('SELECT * FROM albums WHERE id=?',[a])},{...before,cover_id:photo.id});
+  assert.equal((await f.client(`/media/${photo.id}`,null,'GET',false)).status,404);
  }finally{await f.close();}
 });

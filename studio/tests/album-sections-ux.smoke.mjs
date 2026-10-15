@@ -24,8 +24,9 @@ try{
  const chromium=pw.chromium||pw.default?.chromium;browser=await chromium.launch({channel:'chrome',headless:true});
  const adminContext=await browser.newContext({viewport:{width:1440,height:1000}});
  const page=await adminContext.newPage();page.setDefaultTimeout(5000);page.on('pageerror',e=>errors.push(e.message));
- const goAdmin=async()=>{if(page.url()===base+'/admin#album/'+album)await page.reload();else await page.goto(base+'/admin#album/'+album);await page.locator('#root').waitFor({state:'visible'});await page.locator('.section-manager').waitFor();};
- await page.goto(base+'/admin#album/'+album);await page.getByLabel('Email quản trị').fill('ux@example.com');await page.getByLabel('Mật khẩu',{exact:true}).fill('ux-test-password');await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();await page.locator('.section-manager').waitFor();
+ const openManagement=async()=>{await page.locator('.admin-photo-workspace').waitFor();for(const tool of ['upload','sections']){const panel=page.locator(`[data-album-tool=${tool}]`);if(await panel.getAttribute('open')===null)await panel.locator(':scope > summary').click();}const arrange=page.locator('[data-action=admin-arrange]');if(await arrange.getAttribute('aria-pressed')!=='true')await arrange.click();};
+ const goAdmin=async()=>{if(page.url()===base+'/admin#album/'+album)await page.reload();else await page.goto(base+'/admin#album/'+album);await page.locator('#root').waitFor({state:'visible'});await openManagement();};
+ await page.goto(base+'/admin#album/'+album);await page.getByLabel('Email quản trị').fill('ux@example.com');await page.getByLabel('Mật khẩu',{exact:true}).fill('ux-test-password');await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();await openManagement();
  const filter=async key=>{await page.locator(`[data-action=admin-section-filter][data-section="${key}"]`).click();};
  const uploadFile={name:'pending.webp',mimeType:'image/webp',buffer:bytes};
  await scenario('Pending upload survives section filtering without changing destination',async()=>{
@@ -96,7 +97,7 @@ try{
  await scenario('Failed customer pick leaves saved selection and counters unchanged',async()=>{
   if(await client.getByRole('button',{name:'Xem tất cả',exact:true}).count())await client.getByRole('button',{name:'Xem tất cả',exact:true}).click();
   const before=await db.all('SELECT * FROM selections WHERE album_id=?',[album]);const count=await client.locator('.client-toolbar strong').textContent();
-  await client.route('**/selection/*',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Lỗi lưu thử nghiệm'})}));await client.locator('.pick').first().click();await client.waitForFunction(()=>document.querySelector('#toast').textContent==='Lỗi lưu thử nghiệm');assert.equal(await client.locator('.client-toolbar strong').textContent(),count);assert.deepEqual(await db.all('SELECT * FROM selections WHERE album_id=?',[album]),before);await client.unroute('**/selection/*');
+  await client.route('**/selection/*',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Lỗi lưu thử nghiệm'})}));await client.locator('.pick').first().click();await client.waitForFunction(()=>document.querySelector('#toast').textContent==='Đã đối chiếu lại lựa chọn với máy chủ.');assert.equal(await client.locator('.client-toolbar strong').textContent(),count);assert.deepEqual(await db.all('SELECT * FROM selections WHERE album_id=?',[album]),before);await client.unroute('**/selection/*');
  });
  await scenario('Expired gallery session removes private photos and relocks',async()=>{
   await db.run('DELETE FROM sessions WHERE album_id=?',[album]);await client.locator('.photo-open').first().click();await client.locator('#lightbox-pick').click();await client.getByLabel('Mật khẩu bộ ảnh').waitFor();assert.equal(await client.locator('.photo-item').count(),0);assert.equal(await client.locator('#lightbox').isVisible(),false);
@@ -133,7 +134,7 @@ try{
  }
  await scenario('Expired admin save shows login and returns to the album after reauthentication',async()=>{
   await goAdmin();await db.run("DELETE FROM sessions WHERE admin_id='owner'");await page.locator('[data-section-photo]').first().check();await page.getByRole('button',{name:'Chuyển phần',exact:true}).click();await page.getByLabel('Email quản trị').waitFor();assert.equal(await page.locator('.section-manager').count(),0);
-  await page.getByLabel('Email quản trị').fill('ux@example.com');await page.getByLabel('Mật khẩu',{exact:true}).fill('ux-test-password');await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();await page.locator('.section-manager').waitFor();
+  await page.getByLabel('Email quản trị').fill('ux@example.com');await page.getByLabel('Mật khẩu',{exact:true}).fill('ux-test-password');await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();await openManagement();
  });
  await scenario('No browser runtime errors',async()=>assert.deepEqual(errors,[]));
  console.log(JSON.stringify({scenarios,failures},null,2));if(failures.length)process.exitCode=1;
