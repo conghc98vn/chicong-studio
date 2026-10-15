@@ -249,7 +249,9 @@ dialog::backdrop { background:#18211ab0; backdrop-filter:blur(4px); }
 .studio-signature { color:#626c5c; font:italic 14px/1.6 var(--serif); max-width:155px; }
 .sidebar-bottom button { min-height:40px; display:flex; align-items:center; gap:10px; background:none; border:0; padding:0; text-align:left; color:var(--muted); }
 .sidebar-bottom .icon { width:16px; height:16px; }
-.admin-main { min-width:0; }
+.admin-main { min-width:0; position:relative; }
+.admin-main.is-loading .admin-content { opacity:.58; pointer-events:none; }
+.admin-loading-status { position:fixed; z-index:20; top:18px; left:50%; transform:translateX(-50%); margin:0; padding:9px 14px; border:1px solid #d9e2d7; border-radius:999px; background:#fbfcf9; box-shadow:0 8px 24px rgba(39,58,42,.14); color:#395844; font-size:12px; }
 .admin-topbar { height:76px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 42px; gap:24px; font-size:12px; color:var(--muted); }
 .breadcrumb { display:flex; align-items:center; gap:12px; min-width:0; }
 .breadcrumb>span:nth-child(2) { color:#a2ad9b; }

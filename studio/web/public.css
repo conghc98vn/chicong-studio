@@ -598,9 +598,9 @@ body.public-view {
  :where(.public-view) .album-photo-row.single-frame { width:100%; max-width:none; }
 }
 
-/* A shared reading voice for the public journal, with sizes suited to a fine serif. */
+/* Keep reading and UI text aligned with the studio controls; reserve the serif for display type. */
 body.public-view {
- --text:var(--serif);
+ --text:var(--sans);
  --muted:#66695f;
  --text-body:20px;
  --text-small:18px;
