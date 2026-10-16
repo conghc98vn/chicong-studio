@@ -13,7 +13,7 @@ import {photoDeletion} from '../server/photo-deletion.mjs';
 import {openDatabase} from '../server/db.mjs';
 async function fixture(){
  const dir=await mkdtemp(path.join(tmpdir(),'photo-management-')),files=new Map();let failPut=false,failRemove=false;
- const storage={put:async(k,v)=>{if(failPut&&k.endsWith('-download.jpg'))throw Error('storage failed');files.set(k,v);},get:async k=>{if(!files.has(k))throw Error('missing');return files.get(k);},remove:async k=>{if(failRemove)throw Error('storage offline');files.delete(k);}};
+ const storage={put:async(k,v)=>{if(failPut&&k.endsWith('-download.jpg'))throw Object.assign(Error('storage failed'),{uncertain:false});files.set(k,v);},get:async k=>{if(!files.has(k))throw Error('missing');return files.get(k);},remove:async k=>{if(failRemove)throw Error('storage offline');files.delete(k);}};
  let pool,schema,url=null;
  if(process.env.STUDIO_TEST_POSTGRES_URL){pool=new pg.Pool({connectionString:process.env.STUDIO_TEST_POSTGRES_URL});schema='photo_management_'+randomBytes(8).toString('hex');await pool.query('CREATE SCHEMA '+schema);const target=new URL(process.env.STUDIO_TEST_POSTGRES_URL);target.searchParams.set('options','-c search_path='+schema);url=target.href;}
  const db=await openDatabase(dir,{url});
@@ -80,7 +80,7 @@ test('A lost database COMMIT acknowledgement preserves published image files and
  const f=await fixture();const transaction=f.db.transaction;
  try{
   const original=first(await f.upload('commit.jpg',await jpeg()));await f.request(`/api/gallery/${f.album}/selection/${original.id}`,{selected:true},'PUT');
-  let failed=false;f.db.transaction=async fn=>{const result=await transaction(fn);if(!failed){failed=true;throw Error('COMMIT acknowledgement lost');}return result;};
+  let failed=false;f.db.transaction=async fn=>{let publishing=false;const result=await transaction(tx=>fn({...tx,run:async(sql,...args)=>{if(sql.startsWith('UPDATE photos SET filename='))publishing=true;return tx.run(sql,...args);}}));if(publishing&&!failed){failed=true;throw Error('COMMIT acknowledgement lost');}return result;};
   const bytes=await jpeg('#44aaee',190),key=randomUUID(),response=await f.upload('commit.jpg',bytes,{policy:'overwrite',key});assert.equal(response.results[0].retryable,true);
   const row=await f.db.get('SELECT * FROM photos WHERE id=?',[original.id]);
   for(const suffix of ['.webp','-thumb.webp','-download.jpg'])assert.ok(f.files.has(row.filename+suffix),'published rendition survives uncertain commit');
@@ -214,4 +214,18 @@ test('Album metadata saving serializes with deleting its final cover photo',asyn
   assert.equal((await f.request('/api/admin/albums/'+f.album,metadata,'PATCH')).status,200);
   assert.equal((await f.db.get('SELECT cover_id FROM albums WHERE id=?',[f.album])).cover_id,null);
  }finally{release();f.db.run=run;f.db.get=get;f.db.transaction=transaction;await f.close();}
+});
+
+test('Client disconnect does not release media writer until upload and rollback work have settled',async()=>{
+ const f=await fixture();const put=f.storage.put;let resume,started;
+ const waiting=new Promise(r=>{resume=r;}),entered=new Promise(r=>{started=r;});let held=false;
+ try{
+  const login=await f.request('/api/admin/login',{email:'manage@test.local',password:'management-test-pass'},'POST'),cookie=login.headers.get('set-cookie').split(';')[0];
+  f.storage.put=async(...args)=>{if(!held){held=true;started();await waiting;}return put(...args);};
+  const body=new FormData();body.append('photos',new Blob([await jpeg()],{type:'image/jpeg'}),'disconnect.jpg');const controller=new AbortController();
+  const response=fetch(f.base+'/api/admin/albums/'+f.album+'/photos',{method:'POST',headers:{Origin:f.base,Cookie:cookie},body,signal:controller.signal}).catch(error=>error);
+  await entered;controller.abort();await response;const lease=await f.mediaControl.acquire('backup');await assert.rejects(f.mediaControl.assertDrained(lease),/writers/);
+  resume();const deadline=Date.now()+5000;while((await f.mediaControl.status()).writers.length){assert.ok(Date.now()<deadline);await new Promise(r=>setTimeout(r,10));}
+  await f.mediaControl.assertDrained(lease);assert.equal((await f.db.all('SELECT * FROM photos')).length,1);await f.mediaControl.release(lease);
+ }finally{resume();f.storage.put=put;await f.close();}
 });

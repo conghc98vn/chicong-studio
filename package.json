@@ -10,12 +10,14 @@
     "test": "node --test studio/tests/*.test.mjs",
     "check": "node studio/tests/check-syntax.mjs",
     "admin:reset": "node --env-file-if-exists=.env studio/server/reset-admin.mjs",
-    "photos:prepare": "node studio/tools/prepare-photos.mjs"
+    "photos:prepare": "node studio/tools/prepare-photos.mjs",
+    "media": "node studio/tools/media-ops.mjs"
   },
   "engines": {
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
     "express": "^5.2.1",
     "multer": "^2.4.0",
     "node-ical": "^0.27.3",

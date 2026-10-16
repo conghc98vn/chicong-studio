@@ -1,3 +1,4 @@
+import {createMediaControl,trackedStorage,mediaMutation} from './media-control.mjs';
 import {uploadTrace,quietUploadTrace} from './upload-trace.mjs';
 import {maxUploadBytes,uploadSizeLabel} from '../web/upload-policy.mjs';
 import {photoOptimization} from './image-optimizer.mjs';
@@ -37,20 +38,25 @@ const now=()=>new Date().toISOString();
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const validDate=x=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x))&&new Date(x).toISOString().slice(0,10)===x;
 const fail=(status,message)=>Object.assign(new Error(message),{status});
-const asyncRoute=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
 export async function createApp(options={}){
  const production=options.production??process.env.NODE_ENV==='production';
  const env=options.env||process.env;const dataDir=options.dataDir||env.DATA_DIR||path.resolve('data/live');
+ const indexing=env.SITE_INDEXING!=='false';
  const security=requestSecurity({production,origin:options.origin,env});
- if(production&&(!env.DATABASE_URL||!env.SUPABASE_URL))throw Error('Production requires persistent DATABASE_URL and SUPABASE_URL. See HOSTING.md.');
- const db=options.db||await openDatabase(dataDir,{url:env.DATABASE_URL});const storage=options.storage||createStorage(path.join(dataDir,'uploads'),env);
+ if(production&&!env.DATABASE_URL)throw Error('Production requires persistent DATABASE_URL. See HOSTING.md.');
+ const rawStorage=options.storage||createStorage(path.join(dataDir,'uploads'),{...env,NODE_ENV:production?'production':env.NODE_ENV});
+ await rawStorage.init?.();
+ const db=options.db||await openDatabase(dataDir,{url:env.DATABASE_URL});let mediaControl;
+ try{mediaControl=await createMediaControl(db,rawStorage.identity||'injected-test-storage');}catch(error){if(!options.db)await db.close();rawStorage.close?.();throw error;}
+ const storage=trackedStorage(db,rawStorage,mediaControl);
+ const asyncRoute=fn=>(req,res,next)=>Promise.resolve().then(()=>mediaMutation(req)?mediaControl.run('admin-media',()=>fn(req,res)):fn(req,res)).catch(next);
  const mailer=options.mailer||createMailer(env);
  const googleCalendar=options.googleCalendar||createGoogleCalendar(env);
- await storage.init?.();
- const deletedPhotos=photoDeletion({db,storage});
+ const deletedPhotos=photoDeletion({db,storage,mediaControl,enabled:env.MEDIA_CLEANUP_ENABLED!=='false'});
  await deletedPhotos.initialize();
  const app=express();app.disable('x-powered-by');app.set('trust proxy',security.trustProxy);
  app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",'Permissions-Policy':'camera=(), microphone=(), geolocation=()'});if(production)res.set('Strict-Transport-Security','max-age=31536000');next();});
+ app.use((req,res,next)=>{if(!indexing)res.set('X-Robots-Tag','noindex, nofollow');next();});
  app.use(security.middleware);
  app.use(uploadTrace(options.uploadLogger||(production?(entry=>console.info('[upload] '+JSON.stringify(entry))):(()=>{}))));
  app.use(express.json({limit:'128kb'}));
@@ -120,12 +126,19 @@ export async function createApp(options={}){
   await rate(req,'gallery-attempt',60);
   const invalid=()=>fail(401,'Mật khẩu chưa đúng hoặc bộ ảnh riêng đã đóng. Bạn hãy kiểm tra lại mật khẩu hoặc liên hệ nhiếp ảnh gia.');
   if(!/^[a-f0-9]{32}$/.test(req.params.id))throw invalid();
-  const a=await db.get("SELECT * FROM albums WHERE id=? AND status='private'",[req.params.id]);
-  if(!a)throw invalid();
-  if(!a.password){await makeSession(res,{album:a.id});return res.json({success:true});}
-  await rate(req,'gallery:'+a.id,8);
-  if(!verifyPassword(clean(req.body.password,200),a.password||''))throw invalid();
-  await makeSession(res,{album:a.id});res.json({success:true});
+  // Rate limiting runs outside the album transaction; SQLite must not enqueue a
+  // second connection operation from inside that transaction.
+  const candidate=await db.get("SELECT password FROM albums WHERE id=? AND status='private'",[req.params.id]);
+  if(!candidate)throw invalid();
+  if(candidate.password)await rate(req,'gallery:'+req.params.id,8);
+  const token=randomBytes(32).toString('hex'),age=7*86400000;
+  await db.transaction(async tx=>{
+   const a=await tx.get("SELECT * FROM albums WHERE id=? AND status='private'"+(tx.cloud?' FOR UPDATE':''),[req.params.id]);
+   if(!a||(a.password&&!verifyPassword(clean(req.body.password,200),a.password)))throw invalid();
+   await tx.run('INSERT INTO sessions(token,admin_id,album_id,expires) VALUES(?,NULL,?,?)',[digest(token),a.id,Date.now()+age]);
+  });
+  res.cookie('gallery_'+req.params.id,token,{httpOnly:true,sameSite:'strict',secure:production,maxAge:age,path:'/'});
+  res.json({success:true});
  }));
  app.post('/api/gallery/:id/logout',asyncRoute(async(req,res)=>{const token=cookies(req)['gallery_'+req.params.id];if(token)await db.run('DELETE FROM sessions WHERE token=?',[digest(token)]);res.clearCookie('gallery_'+req.params.id,{path:'/',httpOnly:true,sameSite:'strict',secure:production});res.json({success:true});}));
  registerGallerySelection(app,{db,allowed});
@@ -199,11 +212,12 @@ export async function createApp(options={}){
  app.post('/api/admin/login',asyncRoute(async(req,res)=>{await rate(req,'login',8);const a=await db.get('SELECT * FROM admins WHERE email=?',[clean(req.body.email,150)]);if(!a||!verifyPassword(clean(req.body.password,200),a.password))throw fail(401,'Email hoặc mật khẩu chưa đúng.');await makeSession(res,{admin:a.id});res.json({success:true});}));
  app.post('/api/admin/logout',requireAdmin,asyncRoute(async(req,res)=>{const t=cookies(req).studio_admin;await db.run('DELETE FROM sessions WHERE token=?',[digest(t)]);res.clearCookie('studio_admin',{path:'/',httpOnly:true,sameSite:'strict',secure:production});res.json({success:true});}));
  app.use('/api/admin',requireAdmin);
- registerSectionRoutes(app,db);
+ registerSectionRoutes(app,db,asyncRoute);
  const selectionSummary=()=>db.all("SELECT a.id,a.title,COUNT(s.photo_id) AS selected_count FROM albums a JOIN selections s ON s.album_id=a.id WHERE a.status='private' GROUP BY a.id,a.title ORDER BY MAX(s.updated) DESC,a.id");
  app.get('/api/admin/selection-summary',asyncRoute(async(req,res)=>res.set('Cache-Control','private,no-store').json(await selectionSummary())));
  app.get('/api/admin/albums/:id/selection',asyncRoute(async(req,res)=>{const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');res.set('Cache-Control','private,no-store').json(await selectionState(db,req.params.id,{catalogAlbum:a}));}));
  app.get('/api/admin/albums/:id',asyncRoute(async(req,res)=>{const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');res.set('Cache-Control','private,no-store').json(await albumDTO(a,true));}));
+ app.get('/api/admin/media-status',asyncRoute(async(req,res)=>res.set('Cache-Control','private,no-store').json(await mediaControl.status())));
  app.get('/api/admin/dashboard',asyncRoute(async(req,res)=>{const albums=await db.all('SELECT status,COUNT(*) AS count FROM albums GROUP BY status');const inquiries=await db.all('SELECT status,COUNT(*) AS count FROM inquiries GROUP BY status');const recent=await db.all('SELECT * FROM inquiries ORDER BY created DESC LIMIT 5');const selections=await selectionSummary();const photos=await db.get('SELECT COUNT(*) AS count FROM photos');const s=await settings();const visible=await db.get("SELECT COUNT(*) AS count FROM albums WHERE status='published' AND EXISTS(SELECT 1 FROM photos WHERE photos.album_id=albums.id)");res.json({albums,inquiries,recent,selections,photos:photos.count,readiness:{contact:!!(s.email||s.phone),portfolio:Number(visible.count)>0,cloud:!!db.cloud&&!!storage.cloud,production}});}));
  app.get('/api/admin/albums',asyncRoute(async(req,res)=>{const rows=await db.all('SELECT * FROM albums ORDER BY created DESC');res.set('Cache-Control','private,no-store').json(req.query.view==='summary'?await adminAlbumSummaries(rows):await albumDTOs(rows,true));}));
   app.post('/api/admin/albums',asyncRoute(async(req,res)=>{const title=clean(req.body.title,150),category=clean(req.body.category),status=clean(req.body.status)||'draft',password=clean(req.body.password,200);const requirePassword=status==='private'?(req.body.require_password!==undefined?Boolean(req.body.require_password):true):false;if((req.body.event_date&&!validDate(clean(req.body.event_date,10)))||!title||!categories.includes(category)||!albumStatuses.includes(status)||(requirePassword&&password.length<8)||(password&&password.length<8))throw fail(422,'Vui lòng kiểm tra tên, thể loại, trạng thái và ngày chụp. Mật khẩu bộ ảnh riêng cần từ 8 ký tự.');const key=id();const slug=await reserveAlbumSlug(db,clean(req.body.slug,150)||title,key);await db.run('INSERT INTO albums(id,slug,title,category,description,status,password,client_name,event_date,created) VALUES(?,?,?,?,?,?,?,?,?,?)',[key,slug,title,category,clean(req.body.description,2000),status,requirePassword?hashPassword(password):null,clean(req.body.client_name,150),clean(req.body.event_date,10),now()]);res.status(201).json({id:key,slug});}));
@@ -256,14 +270,30 @@ export async function createApp(options={}){
   let data;
   try{const image=sharp(req.file.buffer,{limitInputPixels:40000000});const meta=await image.metadata();if(!['jpeg','png','webp'].includes(meta.format))throw Error('Invalid portrait format');data=await image.rotate().resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).webp({quality:86}).toBuffer();}
   catch{throw fail(422,'Không đọc được ảnh chân dung. Vui lòng chọn ảnh JPEG, PNG hoặc WebP khác.');}
-  const key=id();await trace.run('store_portrait',()=>storage.put(key+'.webp',data));trace.mark('database_insert');
-  await db.run("INSERT INTO settings(key,value) VALUES('portrait',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[key]);
+  const key=id();let saved=false;
+  try{
+   await trace.run('store_portrait',()=>storage.put(key+'.webp',data));trace.mark('database_insert');
+   await db.transaction(async tx=>{
+    const old=await tx.get("SELECT value FROM settings WHERE key='portrait'"+(tx.cloud?' FOR UPDATE':''));
+    await tx.run("INSERT INTO settings(key,value) VALUES('portrait',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[key]);
+    if(/^[a-f0-9]{32}$/.test(old?.value||''))await tx.run('INSERT INTO photo_cleanup(photo_id,filename,has_download) VALUES(?,?,0) ON CONFLICT(photo_id) DO NOTHING',[old.value,old.value]);
+   });saved=true;
+  }finally{
+   if(!saved){
+    const unused=await db.transaction(async tx=>{const current=await tx.get("SELECT value FROM settings WHERE key='portrait'"+(tx.cloud?' FOR UPDATE':''));return current?.value!==key;}).catch(async()=>{await storage.markUncertainPrefix(key);return false;});
+    if(unused)await db.run('INSERT INTO photo_cleanup(photo_id,filename,has_download) VALUES(?,?,0) ON CONFLICT(photo_id) DO NOTHING',[key,key]);
+   }
+   deletedPhotos.schedule();
+  }
   res.status(201).json({success:true});
  }));
  app.get('/portrait/:id',asyncRoute(async(req,res)=>{
   res.set('Cache-Control','private,no-store');
   const s=await settings();if(!/^[a-f0-9]{32}$/.test(req.params.id)||s.portrait!==req.params.id)throw fail(404,'Không tìm thấy ảnh.');
-  res.type('webp').set('Cache-Control','private,no-cache').send(await storage.get(req.params.id+'.webp'));
+  res.type('webp').set({'Cache-Control':'private,no-cache','ETag':'"'+digest(req.params.id)+'"'});
+  if(req.fresh)return res.status(304).end();if(req.method==='HEAD')return res.end();
+  const controller=new AbortController(),disconnect=()=>controller.abort();res.once('close',disconnect);
+  try{const bytes=await storage.get(req.params.id+'.webp',{signal:controller.signal});if(!res.destroyed)res.send(bytes);}finally{res.removeListener('close',disconnect);}
  }));
  const albumUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:maxUploadBytes,files:8,fields:0}});
  app.post('/api/admin/albums/:id/photos',albumUpload.array('photos',8),asyncRoute(async(req,res)=>{
@@ -346,7 +376,13 @@ export async function createApp(options={}){
    }
    updates.push([key,value]);
   }
-  if(updates.length)await db.run('INSERT INTO settings(key,value) VALUES '+updates.map(()=>'(?,?)').join(',')+' ON CONFLICT(key) DO UPDATE SET value=excluded.value',updates.flat());
+  if(updates.length)await db.transaction(async tx=>{
+   const clearing=updates.some(([key,value])=>key==='portrait'&&value==='');
+   const previous=clearing?await tx.get("SELECT value FROM settings WHERE key='portrait'"+(tx.cloud?' FOR UPDATE':'')):null;
+   await tx.run('INSERT INTO settings(key,value) VALUES '+updates.map(()=>'(?,?)').join(',')+' ON CONFLICT(key) DO UPDATE SET value=excluded.value',updates.flat());
+   if(/^[a-f0-9]{32}$/.test(previous?.value||''))await tx.run('INSERT INTO photo_cleanup(photo_id,filename,has_download) VALUES(?,?,0) ON CONFLICT(photo_id) DO NOTHING',[previous.value,previous.value]);
+  });
+  deletedPhotos.schedule();
   res.json({success:true});
  }));
  app.get('/api/admin/export',asyncRoute(async(req,res)=>{const output={version:2,exported:now()};for(const table of ['settings','albums','photos','selections','inquiries','blocked_dates','album_slugs','album_sections'])output[table]=await db.all('SELECT * FROM '+table);res.attachment('chicong-backup.json').json(output);}));
@@ -355,7 +391,7 @@ export async function createApp(options={}){
  // Services content is retained in web/services.mjs for a future launch.
  app.get('/services',(req,res)=>res.redirect(302,'/'));
  app.get('/bookme',(req,res)=>res.redirect(301,'/contact'));
- app.get('/robots.txt',(req,res)=>res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /gallery/\nDisallow: /api/\nSitemap: ${(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'')}/sitemap.xml`));
+ app.get('/robots.txt',(req,res)=>res.type('text/plain').send(indexing?`User-agent: *\nDisallow: /admin\nDisallow: /gallery/\nDisallow: /api/\nSitemap: ${(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'')}/sitemap.xml`:'User-agent: *\nDisallow: /'));
  app.get('/sitemap.xml',asyncRoute(async(req,res)=>{
   const url=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');
   const albums=await db.all("SELECT slug,created FROM albums WHERE status='published' ORDER BY created DESC");
@@ -372,7 +408,7 @@ export async function createApp(options={}){
   res.type('application/xml; charset=utf-8').send(xml);
  }));
  const shell=await readFile(path.resolve('studio/web/index.html'),'utf8');
- const cfToken=env.CF_BEACON_TOKEN||env.CLOUDFLARE_ANALYTICS_TOKEN||(production?'fd0f089e6f094baca1d372c934fa801d':'');
+ const cfToken=env.ANALYTICS_ENABLED==='false'?'':env.CF_BEACON_TOKEN||env.CLOUDFLARE_ANALYTICS_TOKEN||(production?'fd0f089e6f094baca1d372c934fa801d':'');
  const cfBeacon=cfToken?`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${escape(cfToken)}"}'></script>`:'';
  const page=asyncRoute(async(req,res)=>{
   const s=await settings();
@@ -423,11 +459,11 @@ export async function createApp(options={}){
   // Only public data goes into HTML; escape script delimiters without enabling inline JS.
   const pageData=!privatePage&&res.statusCode!==404?`<script type="application/json" id="page-data">${JSON.stringify({path:req.path,site:s,...(cards?{albums:cards}:{})}).replace(/</g,'\\u003c')}</script>`:'';
   const preload=hero?[['(max-width:750px)',hero.tall,heroMobileSizes(hero.tall)],['(min-width:750.01px)',hero.wide,heroDesktopSizes]].map(([media,photo,sizes])=>`<link rel="preload" as="image" fetchpriority="high" media="${media}" href="${escape(photo.thumb)}" imagesrcset="${escape(imageSources(photo))}" imagesizes="${sizes}">`).join(''):'';
-  const values={__TITLE__:escape(title),__DESCRIPTION__:escape(description),__CANONICAL__:escape(url+canonicalPath),__ROBOTS__:privatePage||res.statusCode===404?'noindex,nofollow':'index,follow',__OG_META__:og+preload,__STRUCTURED_DATA__:structuredData+pageData,__ANALYTICS__:analytics};
+  const values={__TITLE__:escape(title),__DESCRIPTION__:escape(description),__CANONICAL__:escape(url+canonicalPath),__ROBOTS__:!indexing||privatePage||res.statusCode===404?'noindex,nofollow':'index,follow',__OG_META__:og+preload,__STRUCTURED_DATA__:structuredData+pageData,__ANALYTICS__:analytics};
   res.send(bodyShell.replace(/__TITLE__|__DESCRIPTION__|__CANONICAL__|__ROBOTS__|__OG_META__|__STRUCTURED_DATA__|__ANALYTICS__/g,key=>values[key]));
  });
  app.get(['/', '/portfolio','/about','/contact','/admin','/album/:key','/gallery/:id'],page);
  app.use((req,res)=>res.status(404).send(shell.replaceAll('__TITLE__','Không tìm thấy trang').replaceAll('__DESCRIPTION__','').replaceAll('__CANONICAL__','').replaceAll('__ROBOTS__','noindex').replaceAll('__OG_META__','').replaceAll('__STRUCTURED_DATA__','').replaceAll('__ANALYTICS__','')));
- app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const status=err instanceof multer.MulterError?422:err.status||500;if(status>=500)console.error('Request failed:',err.name);res.status(status).json({...(err.fields?{fields:err.fields}:{}),error:status>=500?'Hệ thống chưa xử lý được thao tác này. Vui lòng thử lại sau ít phút.':err instanceof multer.MulterError?`Mỗi lần tải tối đa 8 ảnh, dung lượng tối đa ${uploadSizeLabel} mỗi ảnh.`:err.message});});
- return {app,db,storage,mailer,photoCleanup:deletedPhotos};
+ app.use((err,req,res,next)=>{if(res.headersSent)return next(err);if(err.code==='MEDIA_LOCKED')return res.status(503).set('Retry-After','30').json({code:err.code,error:err.message});const status=err instanceof multer.MulterError?422:err.status||500;if(status>=500)console.error('Request failed:',err.name);res.status(status).json({...(err.fields?{fields:err.fields}:{}),error:status>=500?'Hệ thống chưa xử lý được thao tác này. Vui lòng thử lại sau ít phút.':err instanceof multer.MulterError?`Mỗi lần tải tối đa 8 ảnh, dung lượng tối đa ${uploadSizeLabel} mỗi ảnh.`:err.message});});
+ return {app,db,storage,mailer,mediaControl,photoCleanup:deletedPhotos};
 }

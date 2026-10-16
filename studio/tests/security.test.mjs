@@ -39,6 +39,16 @@ async function fixture({production=false,env={},origin}={}){
  }catch(error){await close();throw error;}
 }
 const setupBody={email:'audit@example.test',password:'temporary-test-password'};
+test('Staging excludes every response from indexing and omits production analytics',async()=>{
+ const f=await fixture({production:true,env:{SITE_INDEXING:'false',ANALYTICS_ENABLED:'false'}});try{
+  for(const route of ['/','/api/health','/robots.txt','/missing-page']){
+   const response=await f.request(route);assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');
+   const body=await response.text();
+   if(route==='/'){assert.match(body,/<meta name="robots" content="noindex,nofollow"/);assert.doesNotMatch(body,/beacon\.min\.js|data-cf-beacon/);}
+   if(route==='/robots.txt')assert.equal(body,'User-agent: *\nDisallow: /');
+  }
+ }finally{await f.close();}
+});
 function rawRequest(base,route,{method='GET',headers={},body}={}){
  return new Promise((resolve,reject)=>{
   const req=http.request(base+route,{method,headers:{'Content-Type':'application/json',...headers}},res=>{
@@ -152,5 +162,42 @@ test('Media and portrait cache revalidate and revoked media cannot return 304',a
    assert.equal((await f.request('/media/'+photo,undefined,'GET',cookie)).headers.get('cache-control'),'private,no-store');
   }
   await f.db.run("UPDATE settings SET value='' WHERE key='portrait'");assert.equal((await f.request('/portrait/'+portrait)).status,404);
+ }finally{await f.close();}
+});
+
+const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};};
+for(const initialPassword of ['previous-password',null])test('Unlock rereads credentials after concurrent password change: '+(initialPassword?'password replacement':'enable password'),async()=>{
+ const f=await fixture(),read=f.db.get;try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status,password) VALUES(?,?,?,?,?)',[album,'Before','wedding','private',initialPassword?hashPassword(initialPassword):null]);
+  const observed=deferred(),resume=deferred();let held=false;
+  f.db.get=async(sql,...args)=>{const value=await read(sql,...args);if(!held&&sql.startsWith('SELECT password FROM albums')){held=true;observed.resolve();await resume.promise;}return value;};
+  const unlock=f.request('/api/gallery/'+album+'/unlock',{password:initialPassword||''},'POST');await observed.promise;
+  assert.equal((await f.request('/api/admin/albums/'+album,{title:'After',category:'wedding',status:'private',password:'replacement-password',require_password:true},'PATCH',admin)).status,200);
+  resume.resolve();const response=await unlock;assert.equal(response.status,401);assert.equal(response.headers.get('set-cookie'),null);assert.equal((await f.db.all('SELECT * FROM sessions WHERE album_id=?',[album])).length,0);
+ }finally{f.db.get=read;await f.close();}
+});
+test('Unlock commits first: changing password revokes it, title-only editing preserves it',async()=>{
+ const f=await fixture(),transaction=f.db.transaction;try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status,password) VALUES(?,?,?,?,?)',[album,'Before','wedding','private',hashPassword('previous-password')]);
+  const observed=deferred(),resume=deferred();let held=false;
+  f.db.transaction=fn=>transaction(tx=>fn({...tx,get:async(sql,...args)=>{const value=await tx.get(sql,...args);if(!held&&sql.includes("status='private'")){held=true;observed.resolve();await resume.promise;}return value;}}));
+  const unlock=f.request('/api/gallery/'+album+'/unlock',{password:'previous-password'},'POST');await observed.promise;
+  const patch=f.request('/api/admin/albums/'+album,{title:'After',category:'wedding',status:'private',password:'replacement-password'},'PATCH',admin);
+  resume.resolve();const response=await unlock;assert.equal(response.status,200);assert.equal((await patch).status,200);
+  const stale=response.headers.get('set-cookie').split(';')[0];assert.equal((await(await f.request('/api/gallery/'+album,undefined,'GET',stale)).json()).locked,true);
+  const fresh=await f.request('/api/gallery/'+album+'/unlock',{password:'replacement-password'},'POST');const cookie=fresh.headers.get('set-cookie').split(';')[0];
+  assert.equal((await f.request('/api/admin/albums/'+album,{title:'Only the title',category:'wedding',status:'private'},'PATCH',admin)).status,200);
+  assert.equal((await(await f.request('/api/gallery/'+album,undefined,'GET',cookie)).json()).locked,undefined);
+ }finally{f.db.transaction=transaction;await f.close();}
+});
+
+test('Media maintenance blocks all admin media routes with a useful message while gallery reads remain available',async()=>{
+ const f=await fixture();try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status) VALUES(?,?,?,?)',[album,'Open','wedding','private']);
+  const lease=await f.mediaControl.acquire('test-backup');
+  for(const [route,method,body] of [['/api/admin/settings','PATCH',{brand:'Blocked'}],['/api/admin/albums','POST',{}],['/api/admin/albums/'+album,'PATCH',{}],['/api/admin/sections/'+id(),'DELETE',{}],['/api/admin/photos/'+id(),'DELETE',{}]]){
+   const response=await f.request(route,body,method,admin);assert.equal(response.status,503);assert.equal(response.headers.get('retry-after'),'30');assert.match((await response.json()).error,/tạm khóa/);
+  }
+  assert.equal((await f.request('/api/gallery/'+album)).status,200);assert.equal((await f.request('/api/admin/media-status',undefined,'GET',admin)).status,200);await f.mediaControl.release(lease);
  }finally{await f.close();}
 });

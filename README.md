@@ -122,7 +122,7 @@ Nếu quên mật khẩu quản trị, chạy `npm run admin:reset` trong termin
 
 - `studio/server/app.mjs`: API, auth/session, upload, album, gallery, lịch và serving.
 - `studio/server/db.mjs`: SQLite local / PostgreSQL khi deploy, schema.
-- `studio/server/storage.mjs`: file local / private Supabase Storage.
+- `studio/server/storage.mjs`: file local / private Supabase Storage / private R2.
 - `studio/web/`: giao diện khách và quản trị, vanilla JavaScript/CSS.
 - `studio/tests/`: integration tests, mock cloud Storage và fixture trình duyệt tách biệt.
 - `render.yaml`, `.env.example`: cấu hình hosting.
@@ -172,3 +172,11 @@ Trong **Website**, điền **Thời gian phản hồi thực tế** nếu đã c
 ## Xác minh email và luồng nhận khách · 09/10/2026
 
 Đã gửi form thử trên website thật và xác minh cả email studio lẫn email xác nhận có trạng thái Delivered trên Resend. Yêu cầu thử đã được đánh dấu Hoàn thành, không giữ lịch chụp. Xem [biên bản kiểm tra](docs/customer-flow-verification-2026-10-09.md) để phân biệt kết quả production, kiểm thử local và phạm vi chưa xác minh.
+
+## R2 và backup website
+
+Phần triển khai local ngày 16/10/2026 có adapter R2 private qua server, khóa media bền vững, journal ghi chưa rõ kết quả, công cụ kiểm kê/copy/verify và backup DB + media với restore offline. Cấu hình production bắt buộc có `MEDIA_STORAGE_PROVIDER=supabase` hoặc `r2`; database vẫn dùng `DATABASE_URL`. Bản tương thích đầu tiên phải tiếp tục chọn `supabase`.
+
+Chạy `npm run media -- help` để xem công cụ vận hành. Runner không tự đọc `.env`; truyền file cấu hình riêng khi chạy. Drive dùng OAuth `drive.file`, thư mục riêng, giữ 30 ngày lịch và bytes dùng chung; `.github/workflows/media-backup.yml` chỉ chạy thủ công cho tới khi chốt giờ/quota/cảnh báo. Chưa cấu hình hay chuyển kho production trong lượt triển khai này.
+
+Hướng dẫn, kết quả kiểm thử và các cổng cloud còn lại nằm trong [kế hoạch R2, mục 16](docs/r2-implementation-plan.md#16-kết-quả-triển-khai-local-ngày-16102026). JSON xuất từ admin vẫn là bản xuất một phần, không thay bộ backup hoàn chỉnh.

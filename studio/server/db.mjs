@@ -8,7 +8,7 @@ import pg from 'pg';
 export const id=()=>randomBytes(16).toString('hex');
 export function hashPassword(value){const salt=randomBytes(16).toString('hex');return salt+':'+scryptSync(value,salt,64).toString('hex');}
 export function verifyPassword(value,stored){try{const [salt,key]=stored.split(':');const actual=scryptSync(value,salt,64);const expected=Buffer.from(key,'hex');return actual.length===expected.length&&timingSafeEqual(actual,expected);}catch{return false;}}
-export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
+export async function openDatabase(dir,{url=process.env.DATABASE_URL,initialize=true}={}){
  let db;
  if(url){
   const pool=new pg.Pool({connectionString:url,max:3,connectionTimeoutMillis:15000});
@@ -26,6 +26,7 @@ export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
    raw.exec('BEGIN IMMEDIATE');try{const result=await fn(direct);raw.exec('COMMIT');return result;}catch(error){raw.exec('ROLLBACK');throw error;}
   })};
  }
+ if(!initialize)return db;
  await db.exec(`CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS admins(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,admin_id TEXT REFERENCES admins(id),album_id TEXT,expires BIGINT NOT NULL);
@@ -40,7 +41,11 @@ export async function openDatabase(dir,{url=process.env.DATABASE_URL}={}){
  CREATE UNIQUE INDEX IF NOT EXISTS one_confirmed_per_date ON inquiries(date) WHERE status='confirmed' AND date<>'';
  CREATE TABLE IF NOT EXISTS blocked_dates(date TEXT PRIMARY KEY,note TEXT NOT NULL DEFAULT '');
  CREATE TABLE IF NOT EXISTS rate_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires BIGINT NOT NULL);`);
- if(db.cloud){await db.exec(['settings','admins','sessions','albums','album_sections','photos','selections','photo_upload_receipts','photo_cleanup','inquiries','blocked_dates','rate_limits'].map(t=>`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'));}
+ await db.exec(`CREATE TABLE IF NOT EXISTS media_control(id INTEGER PRIMARY KEY,storage TEXT NOT NULL,owner TEXT,deadline BIGINT NOT NULL,generation INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS media_writers(id TEXT PRIMARY KEY,process_id TEXT NOT NULL,kind TEXT NOT NULL,started BIGINT NOT NULL);
+ CREATE TABLE IF NOT EXISTS media_writes(key TEXT PRIMARY KEY,storage TEXT NOT NULL,sha256 TEXT NOT NULL,bytes BIGINT NOT NULL,state TEXT NOT NULL,created BIGINT NOT NULL);
+ CREATE TABLE IF NOT EXISTS backup_runs(id TEXT PRIMARY KEY,created BIGINT NOT NULL,state TEXT NOT NULL,manifest_hash TEXT,detail TEXT NOT NULL DEFAULT '');`);
+ if(db.cloud){await db.exec(['media_control','media_writers','media_writes','backup_runs','settings','admins','sessions','albums','album_sections','photos','selections','photo_upload_receipts','photo_cleanup','inquiries','blocked_dates','rate_limits'].map(t=>`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n'));}
  // Additive migration: existing albums, photos and sessions stay intact.
  if(db.cloud)await db.exec('ALTER TABLE photos ADD COLUMN IF NOT EXISTS section_id TEXT REFERENCES album_sections(id) ON DELETE SET NULL;');
  else if(!(await db.all('PRAGMA table_info(photos)')).some(c=>c.name==='section_id'))await db.exec('ALTER TABLE photos ADD COLUMN section_id TEXT REFERENCES album_sections(id) ON DELETE SET NULL;');

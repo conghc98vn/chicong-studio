@@ -15,6 +15,9 @@ services:
         value: ./certs/supabase-root-2021.crt
       - key: SITE_URL
         value: https://chicongphoto.vn
+      # Keep Supabase for the compatible deployment. Switch only after the runbook gates.
+      - key: MEDIA_STORAGE_PROVIDER
+        value: supabase
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
