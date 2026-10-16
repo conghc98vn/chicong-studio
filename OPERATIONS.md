@@ -44,7 +44,7 @@ Trên Supabase, sao lưu PostgreSQL và toàn bộ bucket Storage riêng, kiểm
 | Hiện tượng | Cách xử lý |
 | --- | --- |
 | Upload gián đoạn | Giữ nguyên trang/file đã chọn, bấm thử lại. Ảnh đã lưu được nhận diện ở máy chủ. |
-| Ảnh bị từ chối | Dùng JPEG/PNG/WebP thật, tối đa 8MB/file và 40 megapixel. Ảnh hỏng hoặc kho ảnh hết dung lượng không được lưu. |
+| Ảnh bị từ chối | Dùng JPEG/PNG/WebP thật, tối đa 20 MiB/file và 40 megapixel. Ảnh hỏng hoặc kho ảnh hết dung lượng không được lưu. |
 | Phiên admin hết hạn | Đăng nhập lại. Ghi chú/cài đặt chưa gửi cần nhập lại; không lưu nháp các thông tin riêng vào localStorage. |
 | Gallery không mở | Kiểm tra trạng thái riêng, link và mật khẩu. Đổi mật khẩu hoặc trạng thái album làm phiên cũ hết hiệu lực. |
 | Ngày chụp không xác nhận được | Kiểm tra ngày bị chặn hoặc một lịch đã xác nhận cùng ngày. Mỗi ngày chỉ có một lịch xác nhận. |
@@ -108,3 +108,13 @@ Verification commands (run from the repository root):
   database and checks actual desktop/mobile admin forms, URL previews, photo
   upload, public links, canonical metadata and redirects. Screenshots go to
   `STUDIO_BROWSER_EVIDENCE_DIR` or the temporary `chicong-slug-evidence` directory.
+
+## Công cụ R2/backup mới (local đã kiểm chứng, cloud đang chờ cấu hình)
+
+Hướng dẫn đầy đủ được giữ tại [kế hoạch triển khai, mục 16](docs/r2-implementation-plan.md#16-kết-quả-triển-khai-local-ngày-16102026). `npm run media -- help` liệt kê lệnh. Không tự nạp `.env` để tránh dùng nhầm DB/bucket production khi restore. Bản restore local chỉ ghi vào thư mục chưa tồn tại, xóa sessions cũ, reset queue/journal/khóa và không cần kết nối Drive/R2 nguồn.
+
+`GET /api/admin/media-status` cho admin biết khóa, writer, unknown writes và số job cleanup. HTTP 503 báo tạm khóa media; gallery đọc, booking và lựa chọn vẫn hoạt động. Client ngắt upload không xóa writer trước khi handler kết thúc. Không xóa journal hoặc queue để ép cutover qua cổng kiểm tra.
+
+Nếu runner chết, lock vẫn lưu qua restart. `recover` chỉ nhận lock hết hạn và cấp lease mới, vẫn giữ khóa. Chỉ dùng `--writers-stopped yes` sau khi đã dừng mọi process cũ; giải quyết PUT/COMMIT chưa rõ và drain trước `unlock`. Một GET/HEAD 404 không chứng minh PUT đã kết thúc. Quyền quyết định này nằm ở người vận hành, không được tự động suy từ timeout.
+
+Drive/backup files chứa dữ liệu khách, admin password hash và sessions trong snapshot gốc. Bản này dùng TLS, folder Drive chỉ chủ sở hữu và quyền file local 0600; chưa thêm mã hóa phía client. Không chia sẻ folder hoặc copy bí mật runner vào bộ offline. Retention chỉ dọn files do công cụ tạo và đã được snapshot hết hạn tham chiếu, luôn giữ bản tốt mới nhất. Backup lỗi do đầy Drive không xóa bản tốt để lấy chỗ.

@@ -67,7 +67,7 @@ export async function uploadPhoto({db,storage,albumId,file,uploadKey,policy,sect
    const unused=!publishing||await db.transaction(async tx=>{
     await tx.get('SELECT id FROM albums WHERE id=?'+(tx.cloud?' FOR UPDATE':''),[albumId]);
     return !await tx.get('SELECT id FROM photos WHERE filename=?',[key]);
-   }).catch(()=>false);
+   }).catch(async()=>{await storage.markUncertainPrefix?.(key);return false;});
    if(unused){
     trace.mark('rollback');
     // Keep failed staging cleanup durable when storage is unavailable too.

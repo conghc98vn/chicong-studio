@@ -1,19 +1,20 @@
 // The database is the visibility boundary. Persist cleanup work in the same
 // transaction as deletion so a storage outage cannot leave a broken live photo.
-export function photoDeletion({db,storage}){
- let cleaning,pending=true,nextProbe=0,timer,closed=false;
+export function photoDeletion({db,storage,mediaControl,enabled=true}){
+ let cleaning,pending=true,nextProbe=0,timer,closed=!enabled;
  const schedule=(delay=0)=>{
   pending=true;if(closed||timer||cleaning)return;
   timer=setTimeout(()=>{timer=null;void cleanup(true).catch(()=>{});},delay);timer.unref?.();
  };
  const initialize=async()=>{pending=!!await db.get('SELECT photo_id FROM photo_cleanup LIMIT 1');nextProbe=Date.now()+60000;if(pending)schedule();};
- const cleanup=(force=false)=>{
+ const cleanup=(force=false,{owner}={})=>{
   if(closed)return Promise.resolve();
   if(force)pending=true;
-  if(cleaning)return cleaning;
+  if(cleaning)return force?cleaning.then(()=>cleanup(true,{owner})):cleaning;
   if(!pending&&Date.now()<nextProbe)return Promise.resolve();
   if(timer){clearTimeout(timer);timer=null;}
   return cleaning??=(async()=>{
+   const perform=async()=>{
    pending=false;let cursor='';
    // Keyset scanning drains all batches without a failed object starving later jobs.
    for(;;){
@@ -29,6 +30,8 @@ export function photoDeletion({db,storage}){
     if(closed||jobs.length<24)break;
    }
    nextProbe=Date.now()+60000;
+   };
+   return mediaControl?mediaControl.run('cleanup',perform,{owner,independent:true}):perform();
   })().catch(error=>{pending=true;throw error;}).finally(()=>{cleaning=null;if(pending)schedule(30000);});
  };
  const close=async()=>{closed=true;clearTimeout(timer);await cleaning?.catch(()=>{});};

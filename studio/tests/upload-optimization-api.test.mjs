@@ -62,16 +62,18 @@ test('Mixed valid, corrupt and disguised unsupported images report exact per-fil
  }finally{await f.close();}
 });
 test('Failed thumbnail storage rolls back files/record, reports retryable failure and retries once',async()=>{
+ // This synchronous fixture has a known, settled failure; no late provider PUT.
  const files=new Map();let broken=true;
- const storage={put:async(key,bytes)=>{if(broken&&key.endsWith('-thumb.webp'))throw Error('private backend credential must not leak');files.set(key,bytes);},remove:async key=>files.delete(key),get:async key=>files.get(key)};
+ const storage={put:async(key,bytes)=>{if(broken&&key.endsWith('-thumb.webp'))throw Object.assign(Error('private backend credential must not leak'),{uncertain:false});files.set(key,bytes);},remove:async key=>files.delete(key),get:async key=>files.get(key)};
  const f=await fixture(storage);try{
   const bytes=await sample(),response=await f.upload([bytes]);assert.equal(response.status,422);const result=(await response.json()).results[0];assert.equal(result.code,'SAVE_FAILED');assert.equal(result.retryable,true);assert.doesNotMatch(result.error,/credential/);assert.equal(files.size,0);assert.equal((await f.db.all('SELECT * FROM photos')).length,0);
   broken=false;const retry=await f.upload([bytes]);assert.equal(retry.status,201);assert.equal((await f.db.all('SELECT * FROM photos')).length,1);assert.equal(files.size,3);
  }finally{await f.close();}
 });
 test('Failed download rendition storage rolls back all files and a retry persists exactly three',async()=>{
+ // This synchronous fixture has a known, settled failure; no late provider PUT.
  const files=new Map();let broken=true;
- const storage={put:async(key,bytes)=>{files.set(key,bytes);if(broken&&key.endsWith('-download.jpg'))throw Error('private upload error');},remove:async key=>files.delete(key),get:async key=>files.get(key)};
+ const storage={put:async(key,bytes)=>{files.set(key,bytes);if(broken&&key.endsWith('-download.jpg'))throw Object.assign(Error('private upload error'),{uncertain:false});},remove:async key=>files.delete(key),get:async key=>files.get(key)};
  const f=await fixture(storage);try{
   const bytes=await sample(),response=await f.upload([bytes]);assert.equal(response.status,422);const result=(await response.json()).results[0];assert.equal(result.code,'SAVE_FAILED');assert.equal(result.retryable,true);assert.equal(files.size,0);assert.equal((await f.db.all('SELECT * FROM photos')).length,0);
   broken=false;const retry=await f.upload([bytes]);assert.equal(retry.status,201);const saved=(await retry.json()).results[0];assert.equal(files.size,3);assert.equal(saved.optimization.download_bytes,files.get(saved.id+'-download.jpg').length);
@@ -106,7 +108,7 @@ test('Prepared uploads store exact local renditions, keep section/name and dedup
 
 test('Malformed prepared files fail permanently; interrupted storage rolls back and retries safely',async()=>{
  const files=new Map();let failStorage=true;
- const storage={put:async(key,data)=>{files.set(key,data);if(failStorage&&key.endsWith('-download.jpg'))throw Error('private storage problem');},remove:async key=>files.delete(key),get:async key=>files.get(key)};
+ const storage={put:async(key,data)=>{files.set(key,data);if(failStorage&&key.endsWith('-download.jpg'))throw Object.assign(Error('private storage problem'),{uncertain:false});},remove:async key=>files.delete(key),get:async key=>files.get(key)};
  const f=await fixture(storage);try{
   const source=await sample(),bundle=encodePreparedPhoto({originalName:'sample.jpg',sourceHash:'e'.repeat(64),...await optimizePhoto(source)});
   const send=(bytes,key='f'.repeat(32))=>{const form=new FormData();form.append('photos',new Blob([bytes]),'sample.jpg.ccphoto');return f.request('/api/admin/albums/'+f.album+'/photos',form,'POST',{'X-Upload-Keys':JSON.stringify([key])});};
@@ -115,5 +117,16 @@ test('Malformed prepared files fail permanently; interrupted storage rolls back 
   const failed=(await(await send(bundle)).json()).results[0];assert.equal(failed.code,'SAVE_FAILED');assert.equal(failed.retryable,true);assert.equal(files.size,0);assert.equal((await f.db.all('SELECT id FROM photos')).length,0);
   failStorage=false;const response=await send(bundle);assert.equal(response.status,201);const saved=(await response.json()).results[0];assert.equal(files.size,3);
   const replay=(await(await send(bundle)).json()).results[0];assert.equal(replay.id,saved.id);assert.equal(replay.reused,true);assert.equal((await f.db.all('SELECT id FROM photos')).length,1);
+ }finally{await f.close();}
+});
+
+test('Ambiguous PUT keeps staging and journal after a late write; retry does not delete the new photo',async()=>{
+ const files=new Map();let fail=true,late;
+ const storage={put:async(key,bytes)=>{if(fail&&key.endsWith('-download.jpg')){late=()=>files.set(key,bytes);throw Error('lost PUT response');}files.set(key,bytes);},remove:async key=>files.delete(key),get:async key=>files.get(key)};
+ const f=await fixture(storage);try{
+  const bytes=await sample();assert.equal((await f.upload([bytes])).status,422);assert.equal(files.size,2);await f.photoCleanup.cleanup(true);assert.equal(files.size,2);
+  assert.equal((await f.db.all("SELECT * FROM media_writes WHERE state='unknown'")).length,1);late();assert.equal(files.size,3);
+  fail=false;assert.equal((await f.upload([bytes])).status,201);await f.photoCleanup.cleanup(true);assert.equal(files.size,6);assert.equal((await f.db.all('SELECT * FROM photos')).length,1);
+  assert.equal((await f.db.all('SELECT * FROM photo_cleanup')).length,1);
  }finally{await f.close();}
 });

@@ -39,6 +39,16 @@ async function fixture({production=false,env={},origin}={}){
  }catch(error){await close();throw error;}
 }
 const setupBody={email:'audit@example.test',password:'temporary-test-password'};
+test('Staging excludes every response from indexing and omits production analytics',async()=>{
+ const f=await fixture({production:true,env:{SITE_INDEXING:'false',ANALYTICS_ENABLED:'false'}});try{
+  for(const route of ['/','/api/health','/robots.txt','/missing-page']){
+   const response=await f.request(route);assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');
+   const body=await response.text();
+   if(route==='/'){assert.match(body,/<meta name="robots" content="noindex,nofollow"/);assert.doesNotMatch(body,/beacon\.min\.js|data-cf-beacon/);}
+   if(route==='/robots.txt')assert.equal(body,'User-agent: *\nDisallow: /');
+  }
+ }finally{await f.close();}
+});
 function rawRequest(base,route,{method='GET',headers={},body}={}){
  return new Promise((resolve,reject)=>{
   const req=http.request(base+route,{method,headers:{'Content-Type':'application/json',...headers}},res=>{
@@ -153,4 +163,92 @@ test('Media and portrait cache revalidate and revoked media cannot return 304',a
   }
   await f.db.run("UPDATE settings SET value='' WHERE key='portrait'");assert.equal((await f.request('/portrait/'+portrait)).status,404);
  }finally{await f.close();}
+});
+
+const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};};
+for(const initialPassword of ['previous-password',null])test('Unlock rereads credentials after concurrent password change: '+(initialPassword?'password replacement':'enable password'),async()=>{
+ const f=await fixture(),read=f.db.get;try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status,password) VALUES(?,?,?,?,?)',[album,'Before','wedding','private',initialPassword?hashPassword(initialPassword):null]);
+  const observed=deferred(),resume=deferred();let held=false;
+  f.db.get=async(sql,...args)=>{const value=await read(sql,...args);if(!held&&sql.startsWith('SELECT password FROM albums')){held=true;observed.resolve();await resume.promise;}return value;};
+  const unlock=f.request('/api/gallery/'+album+'/unlock',{password:initialPassword||''},'POST');await observed.promise;
+  assert.equal((await f.request('/api/admin/albums/'+album,{title:'After',category:'wedding',status:'private',password:'replacement-password',require_password:true},'PATCH',admin)).status,200);
+  resume.resolve();const response=await unlock;assert.equal(response.status,401);assert.equal(response.headers.get('set-cookie'),null);assert.equal((await f.db.all('SELECT * FROM sessions WHERE album_id=?',[album])).length,0);
+ }finally{f.db.get=read;await f.close();}
+});
+test('Unlock commits first: changing password revokes it, title-only editing preserves it',async()=>{
+ const f=await fixture(),transaction=f.db.transaction;try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status,password) VALUES(?,?,?,?,?)',[album,'Before','wedding','private',hashPassword('previous-password')]);
+  const observed=deferred(),resume=deferred();let held=false;
+  f.db.transaction=fn=>transaction(tx=>fn({...tx,get:async(sql,...args)=>{const value=await tx.get(sql,...args);if(!held&&sql.includes("status='private'")){held=true;observed.resolve();await resume.promise;}return value;}}));
+  const unlock=f.request('/api/gallery/'+album+'/unlock',{password:'previous-password'},'POST');await observed.promise;
+  const patch=f.request('/api/admin/albums/'+album,{title:'After',category:'wedding',status:'private',password:'replacement-password'},'PATCH',admin);
+  resume.resolve();const response=await unlock;assert.equal(response.status,200);assert.equal((await patch).status,200);
+  const stale=response.headers.get('set-cookie').split(';')[0];assert.equal((await(await f.request('/api/gallery/'+album,undefined,'GET',stale)).json()).locked,true);
+  const fresh=await f.request('/api/gallery/'+album+'/unlock',{password:'replacement-password'},'POST');const cookie=fresh.headers.get('set-cookie').split(';')[0];
+  assert.equal((await f.request('/api/admin/albums/'+album,{title:'Only the title',category:'wedding',status:'private'},'PATCH',admin)).status,200);
+  assert.equal((await(await f.request('/api/gallery/'+album,undefined,'GET',cookie)).json()).locked,undefined);
+ }finally{f.db.transaction=transaction;await f.close();}
+});
+
+test('Media maintenance blocks all admin media routes with a useful message while gallery reads remain available',async()=>{
+ const f=await fixture();try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status) VALUES(?,?,?,?)',[album,'Open','wedding','private']);
+  const lease=await f.mediaControl.acquire('test-backup');
+  for(const [route,method,body] of [['/api/admin/settings','PATCH',{brand:'Blocked'}],['/api/admin/albums','POST',{}],['/api/admin/albums/'+album,'PATCH',{}],['/api/admin/sections/'+id(),'DELETE',{}],['/api/admin/photos/'+id(),'DELETE',{}]]){
+   const response=await f.request(route,body,method,admin);assert.equal(response.status,503);assert.equal(response.headers.get('retry-after'),'30');assert.match((await response.json()).error,/tạm khóa/);
+  }
+  assert.equal((await f.request('/api/gallery/'+album)).status,200);assert.equal((await f.request('/api/admin/media-status',undefined,'GET',admin)).status,200);await f.mediaControl.release(lease);
+ }finally{await f.close();}
+});
+
+test('Alternate route casing cannot bypass media maintenance or the storage binding',async()=>{
+ const f=await fixture();try{
+  const admin=await f.setup(),body={title:'Case-sensitive gate regression',category:'wedding',status:'draft'};
+  const lease=await f.mediaControl.acquire('case-test');
+  for(const route of ['/API/ADMIN/ALBUMS','/api/admin/Albums?source=test','/Api/Admin/SETTINGS']){
+   const response=await f.request(route,body,route.endsWith('SETTINGS')?'PATCH':'POST',admin);
+   assert.equal(response.status,503);assert.equal((await response.json()).code,'MEDIA_LOCKED');
+  }
+  assert.equal((await f.db.all('SELECT id FROM albums')).length,0);
+  await f.mediaControl.release(lease);
+  assert.equal((await f.request('/API/ADMIN/ALBUMS',body,'POST',admin)).status,201);
+  const cutover=await f.mediaControl.acquire('case-cutover');await f.mediaControl.switchStorage(cutover,'another-provider');await f.mediaControl.release(cutover);
+  const stale=await f.request('/API/ADMIN/ALBUMS',{...body,title:'Stale provider'},'POST',admin);
+  assert.notEqual(stale.status,201);assert.equal((await f.db.all('SELECT id FROM albums')).length,1);
+ }finally{await f.close();}
+});
+
+test('PostgreSQL publication rejects admin mutations without starving public gallery reads',{skip:!process.env.STUDIO_TEST_POSTGRES_URL},async()=>{
+ const f=await fixture();let releasePublication,publication,timeout;const pending=[];
+ try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status) VALUES(?,?,?,?)',[album,'Available during backup','wedding','private']);
+  const lease=await f.mediaControl.acquire('slow-publisher');let entered;
+  const started=new Promise(resolve=>entered=resolve),hold=new Promise(resolve=>releasePublication=resolve);
+  publication=f.mediaControl.fenced(lease,async()=>{entered();await hold;});await started;
+  for(let i=0;i<3;i++)pending.push(f.request('/api/admin/albums',{title:'Blocked '+i,category:'wedding',status:'draft'},'POST',admin));
+  pending.push(f.request('/api/gallery/'+album));
+  const responses=await Promise.race([Promise.all(pending),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Publication blocked the web database pool')),1500);})]);
+  assert.deepEqual(responses.map(response=>response.status),[503,503,503,200]);
+  releasePublication();await publication;await f.mediaControl.release(lease);
+ }finally{clearTimeout(timeout);releasePublication?.();await publication?.catch(()=>{});await Promise.allSettled(pending);await f.close();}
+});
+
+test('PostgreSQL writer admission has a bounded wait when publication starts after its precheck',{skip:!process.env.STUDIO_TEST_POSTGRES_URL},async()=>{
+ const f=await fixture(),get=f.db.get;let releasePrechecks,releasePublication,publication,timeout;const pending=[];
+ try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status) VALUES(?,?,?,?)',[album,'Race gallery','wedding','private']);
+  let count=0,entered;const prechecked=new Promise(resolve=>entered=resolve),precheckHold=new Promise(resolve=>releasePrechecks=resolve);
+  f.db.get=async(sql,...args)=>{const result=await get(sql,...args);if(sql==='SELECT * FROM media_control WHERE id=1'&&count<3){count++;if(count===3)entered();await precheckHold;}return result;};
+  for(let i=0;i<3;i++)pending.push(f.request('/api/admin/albums',{title:'Race '+i,category:'wedding',status:'draft'},'POST',admin));
+  await prechecked;f.db.get=get;
+  const lease=await f.mediaControl.acquire('racing-publisher');let publishing;
+  const started=new Promise(resolve=>publishing=resolve),hold=new Promise(resolve=>releasePublication=resolve);
+  publication=f.mediaControl.fenced(lease,async()=>{publishing();await hold;});await started;releasePrechecks();
+  pending.push(f.request('/api/gallery/'+album));
+  const responses=await Promise.race([Promise.all(pending),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Racing admission waited for publication to finish')),4000);})]);
+  assert.deepEqual(responses.map(response=>response.status),[503,503,503,200]);
+  releasePublication();await publication;await f.mediaControl.release(lease);
+  assert.equal((await f.db.all('SELECT id FROM albums')).length,1);
+ }finally{f.db.get=get;clearTimeout(timeout);releasePrechecks?.();releasePublication?.();await publication?.catch(()=>{});await Promise.allSettled(pending);await f.close();}
 });

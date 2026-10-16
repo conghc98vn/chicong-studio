@@ -15,7 +15,8 @@ export async function validateSection(db,albumId,sectionId){
  return sectionId;
 }
 // Registered after the shared admin authentication middleware.
-export function registerSectionRoutes(app,db){
+export function registerSectionRoutes(app,db,routeWrapper=route){
+ const route=routeWrapper;
  const album=async key=>{if(!await db.get('SELECT id FROM albums WHERE id=?',[key]))throw fail(404,'Không tìm thấy bộ ảnh.');};
  const section=async key=>{const value=await db.get('SELECT * FROM album_sections WHERE id=?',[key]);if(!value)throw fail(404,'Không tìm thấy phần ảnh.');return value;};
  app.get('/api/admin/albums/:id/sections',route(async(req,res)=>{

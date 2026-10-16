@@ -41,6 +41,7 @@ Kết nối repository, chọn Node.js và gói Free. Có thể dùng Blueprint 
 - Start: `npm start`.
 - Health check: `/api/health`.
 - `NODE_ENV=production`.
+- `MEDIA_STORAGE_PROVIDER=supabase` cho bản tương thích trước chuyển kho; không đổi sang `r2` chỉ bằng chỉnh biến môi trường.
 - `NODE_EXTRA_CA_CERTS=./certs/supabase-root-2021.crt`.
 - `SITE_URL=https://chicongphoto.vn` (trước khi nối domain có thể đặt URL https://…onrender.com để preview).
 - Các biến Supabase ở bước 1.
@@ -77,3 +78,11 @@ Bộ kiểm thử tự động đạt 56/56 bài test (bao gồm SEO album slug,
 Biểu mẫu liên hệ trên website thật cũng đã gửi thành công yêu cầu thử; PostgreSQL lưu đúng một bản ghi và không giữ ngày chụp khi chưa chọn ngày.
 
 Ảnh upload được đổi sang WebP (cạnh dài tối đa 2400px + thumbnail 900px) và loại metadata; hệ thống phục vụ gallery xem/chọn, không phải kho giao file RAW/ảnh gốc độ phân giải đầy đủ. Email tự động chưa tích hợp: yêu cầu nằm trong **Yêu cầu đặt lịch**, bạn chủ động liên hệ khách. Không có thanh toán hoặc booking tự động được xác nhận.
+
+## Cấu hình R2 sau khi triển khai bản tương thích
+
+Code hỗ trợ `MEDIA_STORAGE_PROVIDER=r2`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Giữ `DATABASE_URL`, TLS và các biến website hiện tại. R2 không yêu cầu `SUPABASE_URL`/service-role cho Storage. Runtime chỉ dùng S3 Object Read & Write cho bucket đã tạo; không tạo bucket hoặc xác minh control-plane public access thay chủ tài khoản. Không bật r2.dev, custom media domain hoặc browser upload trực tiếp.
+
+Trước deploy bản mới vào hệ thống hiện tại, thêm `MEDIA_STORAGE_PROVIDER=supabase`. Startup gắn danh tính kho với DB. Đổi provider/bucket/endpoint trái binding sẽ bị từ chối; xem quy trình `lock → drain → backup/delta/verify → switch → restart mọi instance → smoke → unlock` ở [kế hoạch, mục 16](docs/r2-implementation-plan.md#16-kết-quả-triển-khai-local-ngày-16102026). `render.yaml` đang cố ý chọn Supabase; lúc cutover phải cập nhật cả Blueprint để lần sync sau không đổi lại kho.
+
+Không đưa OAuth Drive vào Render web service. Runner dùng secrets riêng, DB/schema/bucket thử tách biệt, không có biến Resend/SMTP/Google Calendar của production. Chưa kích hoạt billing, deploy hoặc schedule từ các thay đổi source này.
