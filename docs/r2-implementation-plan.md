@@ -627,7 +627,7 @@ Google Drive API đã bật trong project riêng. Consent chỉ khai báo scope 
 ### 17.4. Các bước còn lại
 
 1. OAuth/Drive thử đã đạt; còn hoàn tất trạng thái phát hành và kiểm runner dài hạn trước bật lịch.
-2. Render→R2 với PostgreSQL riêng đã qua HTTP smoke và redeploy (mục 17.5). Còn diễn tập chuyển/rollback cloud đầy đủ, bộ ảnh đại diện lớn và kiểm timeout/abort trên đường cloud; không suy từ tập ảnh giả nhỏ rằng mọi cổng đã đạt.
+2. Render→R2 với PostgreSQL riêng đã qua HTTP smoke, redeploy, ảnh lớn, client abort/retry và rehearsal R2→local→R2 có binding thật (mục 17.5). Còn cổng Supabase→R2, đa instance, ảnh khách đại diện và R2 PUT timeout/ghi muộn; không suy từ staging synthetic rằng mọi cổng production đã đạt.
 3. Kiểm inventory/quota production và đối chiếu cấu hình thật trước tải toàn kho; review rồi mới chuyển production theo mục 9–10.
 4. Chốt giờ backup, kênh/nguỡng cảnh báo, người nhận và cửa sổ chuyển; xử lý token production rồi mới bật lịch tự động.
 
@@ -642,3 +642,7 @@ Script opt-in studio/tests/render-live.smoke.mjs đạt **6/6 bước**, báo c�
 Tập ảnh 2400×1600, JPEG nguồn 849.146 bytes; bundle prepared 2.045.354 bytes. Trong trace Render Free, encode WebP khoảng 9,9–10,5 giây, thumbnail 1,7–2,1 giây và JPEG 6,5–6,6 giây; kiểm prepared khoảng 1,9 giây. Ghi từng rendition vào R2 khoảng 0,3–0,9 giây. Đây là số đo staging nhỏ, chưa kết luận tốc độ kho khách thật hoặc thay đổi chất lượng ảnh.
 
 Rà soát bổ sung phát hiện route admin viết hoa được Express chấp nhận nhưng chưa vào gate media. Đã tái hiện local, sửa phân loại route không phân biệt hoa/thường và thêm kiểm thử khóa cùng binding cũ. Đồng thời đã tái hiện việc writer chờ khóa publication lâu có thể chiếm hết pool PostgreSQL; đã bổ sung kiểm tra lease trước transaction và giới hạn chờ row lock 1 giây, vẫn kiểm tra nguyên tử binding/lease. Bộ test focused đạt 35/35, gồm race giữa precheck và publication. Bản vá được đưa lên staging trước nghiệm thu. Giờ backup: chủ website chọn chưa chốt và yêu cầu tiếp tục kiểm thử; chưa bật schedule.
+
+Commit `b728b13` thêm ba rehearsal được guard theo đúng URL, bucket, database staging và dữ liệu tổng hợp; CI PostgreSQL đạt **280/280**. Upload bị client ngắt sau 3,076 giây vẫn được theo dõi ít nhất 17,679 giây; retry cùng key dùng lại receipt sau 646 ms và không tạo ảnh trùng. Ảnh lớn 2100×1800, 11.056.407 bytes mất 82,063 giây cho JPEG và 13,935 giây cho package prepared 10.175.827 bytes; retry của cả hai giữ nguyên ID/receipt và sáu object khớp checksum R2. Sau cleanup, staging còn đúng 2 ảnh, 1 lựa chọn, 7 object ban đầu; writer, unknown, cleanup và lease đều rỗng.
+
+Rehearsal cloud R2→local tạm→R2 đã chạy trong schema PostgreSQL riêng: copy/verify ban đầu, đổi binding, chặn control cũ, ghi/overwrite/xóa/lựa chọn/booking mới sau đổi kho, snapshot delta rồi copy ngược và rollback với database hiện hành. Sáu object cuối khớp checksum/MIME/size; 2 ảnh, 2 lựa chọn, booking và session phát sinh được giữ trong fixture. Chỉ 9 object thuộc fixture bị xóa, fingerprint public schema không đổi trừ marker, schema riêng được xóa; sau đối chiếu staging công khai còn 2 ảnh/1 lựa chọn và không khóa. Đây là bằng chứng cơ chế R2/local trên một instance, **không** thay thế rehearsal Supabase→R2 hoặc nhiều instance production.
