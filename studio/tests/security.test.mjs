@@ -201,3 +201,54 @@ test('Media maintenance blocks all admin media routes with a useful message whil
   assert.equal((await f.request('/api/gallery/'+album)).status,200);assert.equal((await f.request('/api/admin/media-status',undefined,'GET',admin)).status,200);await f.mediaControl.release(lease);
  }finally{await f.close();}
 });
+
+test('Alternate route casing cannot bypass media maintenance or the storage binding',async()=>{
+ const f=await fixture();try{
+  const admin=await f.setup(),body={title:'Case-sensitive gate regression',category:'wedding',status:'draft'};
+  const lease=await f.mediaControl.acquire('case-test');
+  for(const route of ['/API/ADMIN/ALBUMS','/api/admin/Albums?source=test','/Api/Admin/SETTINGS']){
+   const response=await f.request(route,body,route.endsWith('SETTINGS')?'PATCH':'POST',admin);
+   assert.equal(response.status,503);assert.equal((await response.json()).code,'MEDIA_LOCKED');
+  }
+  assert.equal((await f.db.all('SELECT id FROM albums')).length,0);
+  await f.mediaControl.release(lease);
+  assert.equal((await f.request('/API/ADMIN/ALBUMS',body,'POST',admin)).status,201);
+  const cutover=await f.mediaControl.acquire('case-cutover');await f.mediaControl.switchStorage(cutover,'another-provider');await f.mediaControl.release(cutover);
+  const stale=await f.request('/API/ADMIN/ALBUMS',{...body,title:'Stale provider'},'POST',admin);
+  assert.notEqual(stale.status,201);assert.equal((await f.db.all('SELECT id FROM albums')).length,1);
+ }finally{await f.close();}
+});
+
+test('PostgreSQL publication rejects admin mutations without starving public gallery reads',{skip:!process.env.STUDIO_TEST_POSTGRES_URL},async()=>{
+ const f=await fixture();let releasePublication,publication,timeout;const pending=[];
+ try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status) VALUES(?,?,?,?)',[album,'Available during backup','wedding','private']);
+  const lease=await f.mediaControl.acquire('slow-publisher');let entered;
+  const started=new Promise(resolve=>entered=resolve),hold=new Promise(resolve=>releasePublication=resolve);
+  publication=f.mediaControl.fenced(lease,async()=>{entered();await hold;});await started;
+  for(let i=0;i<3;i++)pending.push(f.request('/api/admin/albums',{title:'Blocked '+i,category:'wedding',status:'draft'},'POST',admin));
+  pending.push(f.request('/api/gallery/'+album));
+  const responses=await Promise.race([Promise.all(pending),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Publication blocked the web database pool')),1500);})]);
+  assert.deepEqual(responses.map(response=>response.status),[503,503,503,200]);
+  releasePublication();await publication;await f.mediaControl.release(lease);
+ }finally{clearTimeout(timeout);releasePublication?.();await publication?.catch(()=>{});await Promise.allSettled(pending);await f.close();}
+});
+
+test('PostgreSQL writer admission has a bounded wait when publication starts after its precheck',{skip:!process.env.STUDIO_TEST_POSTGRES_URL},async()=>{
+ const f=await fixture(),get=f.db.get;let releasePrechecks,releasePublication,publication,timeout;const pending=[];
+ try{
+  const admin=await f.setup(),album=id();await f.db.run('INSERT INTO albums(id,title,category,status) VALUES(?,?,?,?)',[album,'Race gallery','wedding','private']);
+  let count=0,entered;const prechecked=new Promise(resolve=>entered=resolve),precheckHold=new Promise(resolve=>releasePrechecks=resolve);
+  f.db.get=async(sql,...args)=>{const result=await get(sql,...args);if(sql==='SELECT * FROM media_control WHERE id=1'&&count<3){count++;if(count===3)entered();await precheckHold;}return result;};
+  for(let i=0;i<3;i++)pending.push(f.request('/api/admin/albums',{title:'Race '+i,category:'wedding',status:'draft'},'POST',admin));
+  await prechecked;f.db.get=get;
+  const lease=await f.mediaControl.acquire('racing-publisher');let publishing;
+  const started=new Promise(resolve=>publishing=resolve),hold=new Promise(resolve=>releasePublication=resolve);
+  publication=f.mediaControl.fenced(lease,async()=>{publishing();await hold;});await started;releasePrechecks();
+  pending.push(f.request('/api/gallery/'+album));
+  const responses=await Promise.race([Promise.all(pending),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Racing admission waited for publication to finish')),4000);})]);
+  assert.deepEqual(responses.map(response=>response.status),[503,503,503,200]);
+  releasePublication();await publication;await f.mediaControl.release(lease);
+  assert.equal((await f.db.all('SELECT id FROM albums')).length,1);
+ }finally{f.db.get=get;clearTimeout(timeout);releasePrechecks?.();releasePublication?.();await publication?.catch(()=>{});await Promise.allSettled(pending);await f.close();}
+});

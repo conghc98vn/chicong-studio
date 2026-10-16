@@ -586,7 +586,7 @@ Các bước này cần quyền tài khoản/bằng chứng cloud còn thiếu; 
 
 ### 17.1. Render và bucket R2 thử
 
-Đã chọn workspace Render `chicong-studio` theo xác nhận của chủ tài khoản. Workspace chỉ có web service `chicong-photo-studio`, region Singapore, gói Free, auto-deploy tắt, preview tắt; chưa có service staging. Deploy đang live dùng commit `1ea50e86f78e1de13010c736acdb367b6b35d247`. Chỉ đọc metadata, chưa đổi env, build/deploy hoặc dữ liệu production.
+Đã chọn workspace Render `chicong-studio` theo xác nhận của chủ tài khoản. Khi đối chiếu baseline, workspace chỉ có web service `chicong-photo-studio`, region Singapore, gói Free, auto-deploy tắt, preview tắt. Sau đó đã tạo staging riêng như mục 17.5. Deploy đang live dùng commit `1ea50e86f78e1de13010c736acdb367b6b35d247`. Chỉ đọc metadata, chưa đổi env, build/deploy hoặc dữ liệu production.
 
 R2 đã được kích hoạt trong tài khoản khi kiểm tra thực tế. Đã tạo bucket **`chicong-staging`**, Standard, vị trí APAC, private: `r2.dev` tắt, không custom domain/CORS; không có quy tắc tự hết hạn ảnh. Quy tắc mặc định hủy multipart upload bỏ dở sau 7 ngày không phải TTL gallery.
 
@@ -618,7 +618,7 @@ JPEG đầu vào 849.146 bytes; `.ccphoto` 2.045.354 bytes. Trên ảnh texture 
 
 Ba lượt đầu dừng do giả định sai trong script diễn tập: cleanup đã bị tắt, thiếu MIME portrait và dùng route xóa album không tồn tại. Đã sửa script, dọn đúng các key ảnh giả được journal từng lượt và chạy lại thành công; không cần sửa mã runtime ứng dụng cho các lỗi đó. Chưa diễn tập PUT muộn/abort thật ở nhà cung cấp hoặc chuyển/rollback cloud từ service Render riêng.
 
-### 17.3. Google Drive đang thiết lập
+### 17.3. Google Drive thử đã kiểm chứng
 
 Đã tạo project `chicong-website-backup`, app **ChiCong Website Backup**, External Testing. Chủ tài khoản đã chấp thuận chính sách Google API Services và việc tạo/lưu Desktop client **ChiCong Backup Runner Desktop**. Client ID/secret nằm trong `.env.oauth-client`, quyền 0600, ngoài Git; không được đưa vào website runtime hoặc bộ backup.
 
@@ -627,6 +627,18 @@ Google Drive API đã bật trong project riêng. Consent chỉ khai báo scope 
 ### 17.4. Các bước còn lại
 
 1. OAuth/Drive thử đã đạt; còn hoàn tất trạng thái phát hành và kiểm runner dài hạn trước bật lịch.
-2. Triển khai staging riêng, kiểm đường Render→R2 với PostgreSQL riêng, tập ảnh đại diện, timeout/abort và chuyển/rollback cloud. Không coi kiểm thử local→R2 là đã qua cổng này.
+2. Render→R2 với PostgreSQL riêng đã qua HTTP smoke và redeploy (mục 17.5). Còn diễn tập chuyển/rollback cloud đầy đủ, bộ ảnh đại diện lớn và kiểm timeout/abort trên đường cloud; không suy từ tập ảnh giả nhỏ rằng mọi cổng đã đạt.
 3. Kiểm inventory/quota production và đối chiếu cấu hình thật trước tải toàn kho; review rồi mới chuyển production theo mục 9–10.
 4. Chốt giờ backup, kênh/nguỡng cảnh báo, người nhận và cửa sổ chuyển; xử lý token production rồi mới bật lịch tự động.
+
+### 17.5. Staging Render và kiểm thử HTTP
+
+Đã tạo riêng PostgreSQL 16 **chicong-r2-staging-db**, Singapore, Free 1 GB, chặn toàn bộ kết nối ngoài Internet; hạn database thử **15/11/2026**. Web service **chicong-r2-staging**, Free Singapore, dùng nhánh **codex/r2-staging-2026-10-16**, auto-deploy tắt, Node 24.19.0, internal database URL, bucket thử chicong-staging. Không đưa Drive/email/calendar hoặc credentials production vào runtime. SITE_INDEXING=false và ANALYTICS_ENABLED=false; health check /api/health. Credentials staging ở file .env.render-staging 0600 bị Git ignore.
+
+[Draft PR #1](https://github.com/conghc98vn/chicong-studio/pull/1) giữ thay đổi để review, chưa merge. CI đầu tiên tại commit 111ff9c đạt **277/277 tests PostgreSQL**. [Website thử](https://chicong-r2-staging.onrender.com) chỉ chứa dữ liệu tổng hợp; tài khoản quản trị đã được tạo bằng setup token riêng.
+
+Script opt-in studio/tests/render-live.smoke.mjs đạt **6/6 bước**, báo cáo output/r2-implementation-2026-10-16/live-render-01/report.json: health/noindex/analytics, PostgreSQL+R2, JPEG và prepared checksum, retry receipt, private media/HEAD/JPEG, selection qua overwrite, thu hồi session sau đổi mật khẩu, portrait và xóa ảnh. Sau khi kiểm mapping, bật cleanup trên staging rồi redeploy: 2 ảnh và 1 lựa chọn vẫn còn, 6 object cũ đã được xóa, queue/writers/unknown đều 0. Báo cáo tiếp theo: live-render-01/redeploy-report.json.
+
+Tập ảnh 2400×1600, JPEG nguồn 849.146 bytes; bundle prepared 2.045.354 bytes. Trong trace Render Free, encode WebP khoảng 9,9–10,5 giây, thumbnail 1,7–2,1 giây và JPEG 6,5–6,6 giây; kiểm prepared khoảng 1,9 giây. Ghi từng rendition vào R2 khoảng 0,3–0,9 giây. Đây là số đo staging nhỏ, chưa kết luận tốc độ kho khách thật hoặc thay đổi chất lượng ảnh.
+
+Rà soát bổ sung phát hiện route admin viết hoa được Express chấp nhận nhưng chưa vào gate media. Đã tái hiện local, sửa phân loại route không phân biệt hoa/thường và thêm kiểm thử khóa cùng binding cũ. Đồng thời đã tái hiện việc writer chờ khóa publication lâu có thể chiếm hết pool PostgreSQL; đã bổ sung kiểm tra lease trước transaction và giới hạn chờ row lock 1 giây, vẫn kiểm tra nguyên tử binding/lease. Bộ test focused đạt 35/35, gồm race giữa precheck và publication. Bản vá được đưa lên staging trước nghiệm thu. Giờ backup: chủ website chọn chưa chốt và yêu cầu tiếp tục kiểm thử; chưa bật schedule.

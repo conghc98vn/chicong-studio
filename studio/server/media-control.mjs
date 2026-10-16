@@ -3,25 +3,34 @@ import {createHash,randomUUID} from 'node:crypto';
 const context=new AsyncLocalStorage();
 const blocked=()=>Object.assign(Error('Ảnh đang tạm khóa để bảo trì hoặc sao lưu. Vui lòng thử lại sau.'),{status:503,code:'MEDIA_LOCKED'});
 const hash=buffer=>createHash('sha256').update(buffer).digest('hex');
-export const mediaMutation=req=>!['GET','HEAD','OPTIONS'].includes(req.method)&&/^\/api\/admin\/(albums|photos|sections|portrait|settings)(\/|$)/.test(req.originalUrl.split('?')[0]);
+// Match Express's default case-insensitive routing so alternate casing cannot
+// bypass the writer registration and maintenance/storage-binding gates.
+export const mediaMutation=req=>!['GET','HEAD','OPTIONS'].includes(req.method)&&/^\/api\/admin\/(albums|photos|sections|portrait|settings)(\/|$)/i.test(req.originalUrl.split('?')[0]);
 
 export async function createMediaControl(db,identity){
  const processId=randomUUID(),active=new Set();let closing=false;
  await db.run("INSERT INTO media_control(id,storage,owner,deadline,generation) VALUES(1,?,NULL,0,0) ON CONFLICT(id) DO NOTHING",[identity]);
  const row=tx=>tx.get('SELECT * FROM media_control WHERE id=1'+(tx.cloud?' FOR UPDATE':''));
  const assertIdentity=r=>{if(r.storage!==identity)throw Object.assign(Error('Media provider differs from the bound database. Complete the locked storage cutover first.'),{code:'STORAGE_BINDING_MISMATCH'});};
+ const assertWritePermit=(r,owner)=>{assertIdentity(r);if(r.owner&&!(owner===r.owner&&Number(r.deadline)>Date.now()))throw blocked();};
  const initialize=async()=>assertIdentity(await db.get('SELECT * FROM media_control WHERE id=1'));
  await initialize();
  const status=async()=>({control:await db.get('SELECT * FROM media_control WHERE id=1'),writers:await db.all('SELECT * FROM media_writers ORDER BY started'),unknown:await db.all("SELECT * FROM media_writes WHERE state<>'stored' ORDER BY created"),cleanup:await db.get('SELECT COUNT(*) AS count FROM photo_cleanup')});
  const execute=async(kind,fn,{owner,independent=false}={})=>{
   if(!independent&&context.getStore()?.control===api&&context.getStore().active)return fn();
   if(closing)throw blocked();
+  // Publication holds the control row locked across remote I/O. Reject normal
+  // writers from the committed lease first, keeping the web pool free for reads.
+  // Recheck under the row lock below so acquiring a lease cannot race admission.
+  if(db.cloud)assertWritePermit(await db.get('SELECT * FROM media_control WHERE id=1'),owner);
   const token=randomUUID();
-  await db.transaction(async tx=>{
-   const r=await row(tx);assertIdentity(r);
-   if(r.owner&&!(owner===r.owner&&Number(r.deadline)>Date.now()))throw blocked();
+  try{await db.transaction(async tx=>{
+   // A lease can start after the nonlocking read. Bound that race's row-lock
+   // wait as well, without making normal brief concurrent admissions fail.
+   if(tx.cloud)await tx.exec("SET LOCAL lock_timeout = '1s'");
+   assertWritePermit(await row(tx),owner);
    await tx.run('INSERT INTO media_writers(id,process_id,kind,started) VALUES(?,?,?,?)',[token,processId,kind,Date.now()]);
-  });
+  });}catch(error){if(error.code==='55P03')throw blocked();throw error;}
   const scope={control:api,token,active:true};
   try{return await context.run(scope,fn);}
   finally{scope.active=false;await db.run('DELETE FROM media_writers WHERE id=?',[token]);}
