@@ -627,7 +627,7 @@ Google Drive API đã bật trong project riêng. Consent chỉ khai báo scope 
 ### 17.4. Các bước còn lại
 
 1. OAuth/Drive thử đã đạt; còn hoàn tất trạng thái phát hành và kiểm runner dài hạn trước bật lịch.
-2. Render→R2 với PostgreSQL riêng đã qua HTTP smoke và redeploy (mục 17.5). Client abort/retry trên Render đã đạt (mục 17.5); còn diễn tập chuyển/rollback cloud đầy đủ, bộ ảnh khách đại diện và tình huống R2 PUT timeout/ghi muộn. Không suy từ việc client ngắt HTTP rằng deadline của nhà cung cấp đã được diễn tập.
+2. Render→R2 với PostgreSQL riêng đã qua HTTP smoke, redeploy, ảnh lớn, client abort/retry và rehearsal R2→local→R2 có binding thật (mục 17.5). Còn cổng Supabase→R2, đa instance, ảnh khách đại diện và R2 PUT timeout/ghi muộn; không suy từ staging synthetic rằng mọi cổng production đã đạt.
 3. Kiểm inventory/quota production và đối chiếu cấu hình thật trước tải toàn kho; review rồi mới chuyển production theo mục 9–10.
 4. Chốt giờ backup, kênh/nguỡng cảnh báo, người nhận và cửa sổ chuyển; xử lý token production rồi mới bật lịch tự động.
 
@@ -650,6 +650,8 @@ Kiểm thử client ngắt upload (`studio/tests/render-abort.smoke.mjs`) đạt
 
 
 Kiểm thử ảnh lớn trên Render (script `studio/tests/render-large.smoke.mjs`) đạt: JPEG thật **11.056.407 bytes**, 2100×1800, upload/encode **82,063 giây**; package prepared cùng ảnh **10.175.827 bytes**, upload **13,935 giây** (chuẩn bị local 5,753 giây). Retry cả hai dùng receipt/ID cũ; 6 object khớp SHA-256 metadata R2, cả 3 rendition prepared giữ nguyên bytes local. Hai ảnh thử đã được xóa; R2 trở về đúng 7 object ban đầu, 2 ảnh/1 lựa chọn và không còn writer/unknown/cleanup/khóa. Replay script bỏ qua, không tạo mutation. Báo cáo `live-render-large-01/report.json`. Ảnh pixel ngẫu nhiên kiểm tải lớn, không đại diện màu/chi tiết/tỷ lệ nén của ảnh khách; thời gian gồm mạng và điều kiện gói Render Free hiện tại.
+
+Rehearsal cloud R2→local tạm→R2 đã chạy trong schema PostgreSQL riêng: copy/verify ban đầu, đổi binding, chặn control cũ, ghi/overwrite/xóa/lựa chọn/booking mới sau đổi kho, snapshot delta rồi copy ngược và rollback với database hiện hành. Sáu object cuối khớp checksum/MIME/size; 2 ảnh, 2 lựa chọn, booking và session phát sinh được giữ trong fixture. Chỉ 9 object thuộc fixture bị xóa, fingerprint public schema không đổi trừ marker, schema riêng được xóa; sau đối chiếu staging công khai còn 2 ảnh/1 lựa chọn và không khóa. Đây là bằng chứng cơ chế R2/local trên một instance, **không** thay thế rehearsal Supabase→R2 hoặc nhiều instance production.
 
 ### 17.6. Tổng hợp kiểm chứng cuối và dọn dẹp (16/10/2026)
 
