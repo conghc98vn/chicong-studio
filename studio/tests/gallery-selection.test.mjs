@@ -52,7 +52,7 @@ for(const engine of ['sqlite','postgres'])test('Shared gallery consistency on '+
    const transaction=db.transaction;let hold=true;
    db.transaction=fn=>transaction(tx=>fn({...tx,run:async(sql,...args)=>{if(hold&&sql.includes("selection_status='submitted'")){hold=false;entered();await gate;}return tx.run(sql,...args);}}));
    try{
-    const submitting=request('/submit',{photos:[photos[1]]});await seen;
+    const submitting=request('/submit',{photos:[photos[1]],request_key:'concurrent-submit-new-request'});await seen;
     let done=false;const deselecting=pick(photos[1],false).then(r=>{done=true;return r;});
     await new Promise(r=>setTimeout(r,80));assert.equal(done,false);release();
     assert.equal((await submitting).status,200);assert.equal((await deselecting).status,200);
@@ -75,7 +75,9 @@ for(const engine of ['sqlite','postgres'])test('Shared gallery consistency on '+
    assert.equal(await db.get('SELECT id FROM photos WHERE id=?',[photos[0]]),undefined);
    const after=await state();assert.deepEqual(after.selected,[]);assert.equal(after.selection_status,'draft');assert.notEqual(after.photo_version,before.photo_version);
    assert.equal((await db.get('SELECT cover_id FROM albums WHERE id=?',[album])).cover_id,photos[1]);
-   assert.equal((await db.all('SELECT * FROM photo_cleanup')).length,1);assert.equal(files.size,2);
+   assert.equal((await db.all('SELECT * FROM photo_cleanup')).length,1);assert.equal(files.size,3);
+   const retirement=await db.get('SELECT * FROM photo_cleanup');assert.equal(Number(retirement.not_before)-Number(retirement.retention_started_at),300000);
+   await db.run('UPDATE photo_cleanup SET not_before=0');
    await db.close();db=await openDatabase(dir,{url});broken=false;
    await photoDeletion({db,storage}).cleanup();assert.equal(files.size,0);assert.equal((await db.all('SELECT * FROM photo_cleanup')).length,0);
   });

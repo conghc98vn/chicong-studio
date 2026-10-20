@@ -1,3 +1,4 @@
+import {saveSubmission,selectionRevisions} from './selection-submission.mjs';
 import {createHash} from 'node:crypto';
 export const photoVersion=photos=>createHash('sha256').update(photos.map(p=>p.id).join(',')).digest('hex');
 // Public and admin metadata versions exclude selections and private password material.
@@ -19,14 +20,50 @@ export function galleryVersion(album,photos,sections){
 const fail=(status,message)=>Object.assign(Error(message),{status});
 const handler=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
 
-export async function selectionState(db,albumId,{catalogAlbum,galleryAlbum}={}){
- const rows=await db.all('SELECT a.selection_status,s.photo_id FROM albums a LEFT JOIN selections s ON s.album_id=a.id WHERE a.id=? ORDER BY s.photo_id',[albumId]);
- const photos=await db.all('SELECT '+(catalogAlbum?'id,filename,caption,original,width,height,position,section_id,source_bytes,image_bytes,thumb_bytes,download_bytes':galleryAlbum?'id,filename,caption,original,width,height,position,section_id':'id')+' FROM photos WHERE album_id=? ORDER BY position,id',[albumId]);
- const sections=catalogAlbum||galleryAlbum?await db.all('SELECT id,title,position FROM album_sections WHERE album_id=? ORDER BY position,id',[albumId]):[];
- return {selected:rows.map(row=>row.photo_id).filter(Boolean),selection_status:rows[0]?.selection_status||'draft',photo_version:photoVersion(photos),...(catalogAlbum?{catalog_version:catalogVersion(catalogAlbum,photos,sections)}:{}),...(galleryAlbum?{gallery_version:galleryVersion(galleryAlbum,photos,sections)}:{})};
+// Public polling needs only two digests, not another copy of every photo. The
+// catalogue triggers cover every photo/section field in galleryVersion. Keep
+// admin catalogVersion uncached: its byte counts (and album.created) are not
+// covered by those triggers. Transaction handles must not publish a cache entry
+// because their writes and revision increments may subsequently roll back.
+const galleryVersionsByDatabase=new WeakMap();
+const maxCachedGalleries=128;
+const galleryAlbumKey=album=>JSON.stringify([album.title,album.description,album.event_date,!!album.password]);
+async function publicGalleryVersions(db,albumId,album,revision){
+ const cacheable=typeof db.transaction==='function'&&revision!=null;
+ let cache=cacheable?galleryVersionsByDatabase.get(db):null;
+ if(cacheable&&!cache){cache=new Map();galleryVersionsByDatabase.set(db,cache);}
+ const key=JSON.stringify([String(revision),galleryAlbumKey(album)]),cached=cache?.get(albumId);
+ if(cached?.key===key){cache.delete(albumId);cache.set(albumId,cached);return cached.versions;}
+ const photos=await db.all('SELECT id,filename,caption,original,width,height,position,section_id FROM photos WHERE album_id=? ORDER BY position,id',[albumId]);
+ const sections=await db.all('SELECT id,title,position FROM album_sections WHERE album_id=? ORDER BY position,id',[albumId]);
+ const versions={photo_version:photoVersion(photos),gallery_version:galleryVersion(album,photos,sections)};
+ // A concurrent publication can fall between the two reads above. Never save
+ // that mixed snapshot under an earlier revision for subsequent poll requests.
+ if(cache){
+  const after=await db.get('SELECT catalog_revision FROM albums WHERE id=?',[albumId]);
+  if(after&&String(after.catalog_revision)===String(revision)){
+   cache.delete(albumId);cache.set(albumId,{key,versions});
+   if(cache.size>maxCachedGalleries)cache.delete(cache.keys().next().value);
+  }
+ }
+ return versions;
 }
 
-export function registerGallerySelection(app,{db,allowed}){
+export async function selectionState(db,albumId,{catalogAlbum,galleryAlbum}={}){
+ const revisionAlbum=await db.get('SELECT catalog_revision,selection_revision,submission_generation,drive_review_required FROM albums WHERE id=?',[albumId]);
+ const submission=await db.get('SELECT stale FROM gallery_submissions WHERE album_id=? ORDER BY submission_generation DESC LIMIT 1',[albumId]);
+ const rows=await db.all('SELECT a.selection_status,s.photo_id FROM albums a LEFT JOIN selections s ON s.album_id=a.id WHERE a.id=? ORDER BY s.photo_id',[albumId]);
+ let versions;
+ if(galleryAlbum&&!catalogAlbum)versions=await publicGalleryVersions(db,albumId,galleryAlbum,revisionAlbum?.catalog_revision);
+ else{
+  const photos=await db.all('SELECT '+(catalogAlbum?'id,filename,caption,original,width,height,position,section_id,source_bytes,image_bytes,thumb_bytes,download_bytes':'id')+' FROM photos WHERE album_id=? ORDER BY position,id',[albumId]);
+  const sections=catalogAlbum?await db.all('SELECT id,title,position FROM album_sections WHERE album_id=? ORDER BY position,id',[albumId]):[];
+  versions={photo_version:photoVersion(photos),...(catalogAlbum?{catalog_version:catalogVersion(catalogAlbum,photos,sections)}:{}),...(galleryAlbum?{gallery_version:galleryVersion(galleryAlbum,photos,sections)}:{})};
+ }
+ return {...selectionRevisions(revisionAlbum||{}),submission_stale:!!submission?.stale,selected:rows.map(row=>row.photo_id).filter(Boolean),selection_status:rows[0]?.selection_status||'draft',...versions};
+}
+
+export function registerGallerySelection(app,{db,allowed,requireRevisions=false}){
  const authorize=async(req,connection,lock=false)=>{
   const album=await connection.get("SELECT * FROM albums WHERE id=? AND status='private'"+(lock&&connection.cloud?' FOR UPDATE':''),[req.params.id]);
   if(!album||!await allowed(req,album,connection))throw fail(401,'Vui lòng nhập mật khẩu để mở bộ ảnh riêng.');
@@ -52,16 +89,12 @@ export function registerGallerySelection(app,{db,allowed}){
   res.json({success:true,...state});
  }));
  app.post('/api/gallery/:id/submit',handler(async(req,res)=>{
-  const expected=req.body.photos;
-  if(expected!==undefined&&(!Array.isArray(expected)||expected.some(id=>typeof id!=='string')||new Set(expected).size!==expected.length))throw fail(422,'Danh sách ảnh không hợp lệ. Vui lòng kiểm tra rồi gửi lại.');
   const result=await db.transaction(async tx=>{
-   const a=await authorize(req,tx,true),state=await selectionState(tx,a.id);
-   if(expected!==undefined&&(expected.length!==state.selected.length||expected.some(id=>!state.selected.includes(id))))return {conflict:true,...state};
-   if(!state.selected.length)throw fail(422,'Vui lòng chọn ít nhất một ảnh trước khi gửi danh sách.');
-   await tx.run("UPDATE albums SET selection_status='submitted' WHERE id=?",[a.id]);
-   return {...state,selection_status:'submitted'};
+   const album=await authorize(req,tx,true);
+   const state=await selectionState(tx,album.id);
+   return saveSubmission(tx,album,req.body,state,{requireRevisions});
   });
-  if(result.conflict)return res.status(409).json({...result,error:'Danh sách ảnh đã thay đổi ở một phiên khác. Hãy xem lại trước khi gửi.'});
+  if(result.conflict)return res.status(409).json({...result,error:'Bộ ảnh hoặc lựa chọn đã thay đổi. Hãy cập nhật và xem lại trước khi gửi.'});
   res.json({success:true,...result});
  }));
 }

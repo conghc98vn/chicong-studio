@@ -1,3 +1,5 @@
+> **Tài liệu lịch sử — đã hợp nhất ngày 16/10/2026.** Đọc [kế hoạch triển khai R2 và backup chính](r2-implementation-plan.md) để có các quyết định và điều kiện hiện hành. Nội dung bên dưới được giữ làm lịch sử review; những câu hỏi/trạng thái cũ có thể đã được giải quyết trong bản hợp nhất.
+
 **Kế hoạch tích hợp Cloudflare R2 cho ChiCong Studio — bản thảo để cùng chốt**
 
 Ngày lập: 14/10/2026, giờ Việt Nam. Đây là kế hoạch, chưa triển khai, chưa chuyển dữ liệu và chưa thay đổi mã ứng dụng. Căn cứ: mã nguồn hiện tại trong workspace, tài liệu dự án và tài liệu chính thức của nhà cung cấp. Trạng thái production và dung lượng thực tế cần kiểm kê lại trước khi thực hiện; không lấy số ảnh trong tài liệu cũ làm số hiện tại.
@@ -5,6 +7,8 @@ Ngày lập: 14/10/2026, giờ Việt Nam. Đây là kế hoạch, chưa triển
 Rà soát sâu ngày 15/10/2026: kiến trúc được giữ, các bước vận hành đã sửa theo chức năng mới trong workspace. HEAD lúc lấy mẫu là 0c6a493, có nhiều thay đổi chưa commit; kiểm thử dùng bản sao riêng với danh mục SHA-256. Không coi HEAD đơn lẻ hay bản sao này là bản production. Xem [biên bản xác minh](r2-plan-verification-2026-10-15.md) để phân biệt kết quả đã chạy, giới hạn hiện tại và các điều kiện còn thiếu.
 
 Để chuẩn bị vòng xác nhận với chủ website, xem [danh sách chuẩn bị và câu hỏi trước triển khai](r2-preimplementation-checklist-2026-10-15.md). Tài liệu tách các quyết định trước code khỏi các điều kiện phải có trước khi thử cloud và chuyển website thật.
+
+Cập nhật theo trao đổi tiếp ngày 15/10/2026: người dùng chốt giữ gallery tới khi tự xóa, giữ cách vào album bằng mật khẩu hiện tại, đồng ý đưa việc review/cải thiện lỗi phiên vào kế hoạch; vẫn yêu cầu làm rõ trước khi code. Đã có tài khoản Cloudflare nhưng chưa bật R2. Drive và ổ cứng đang giữ ảnh gốc/ảnh xuất Lightroom thành các bản riêng, xóa một nơi không tự xóa nơi kia; chưa có bằng chứng backup website đầy đủ. HEAD khi rà lại là 1ea50e8; kết quả 69 test trước đó thuộc snapshot cũ, không được coi là test bản mới.
 
 **1. Những điều đã chốt và còn mở**
 
@@ -16,11 +20,16 @@ Rà soát sâu ngày 15/10/2026: kiến trúc được giữ, các bước vận
 | Nội dung đợt đầu | Người dùng đã chọn ảnh portfolio và gallery khách; video để sau |
 | Các phiên bản ảnh cần giữ | Người dùng đã chọn chỉ các bản web/JPG như hiện tại; không thêm nguồn JPEG/RAW |
 | Ưu tiên chi phí | Người dùng đã chọn ưu tiên miễn phí, chấp nhận phí nhỏ khi vượt hạn mức; chưa đặt số tiền trần |
-| Giữ gallery khách bao lâu | Chưa chốt; không tự đặt lịch xóa |
-| R2 đã kích hoạt, tài khoản Cloudflare nào quản lý | Xác minh khi chuẩn bị môi trường |
+| Giữ gallery khách bao lâu | Đã chốt: tới khi người dùng chủ động xóa; không tự xóa theo ngày |
+| Mật khẩu album | Giữ cơ chế hiện tại; không thêm bước đăng nhập/OTP hoặc bắt mọi album có mật khẩu |
+| Lỗi phiên khi đổi mật khẩu | Người dùng đồng ý review/cải thiện trong phạm vi dự kiến; chưa bắt đầu sửa code |
+| R2 đã kích hoạt, tài khoản Cloudflare nào quản lý | Đã có tài khoản Cloudflare, chưa bật R2; xác minh tài khoản/region/quota khi chuẩn bị |
+| Bản sao đang có | Ảnh gốc và ảnh xuất Lightroom trên Drive + ổ cứng, copy riêng; chưa xác nhận backup database/media website |
+| Backup website | Đã chọn tự động hằng ngày lên Drive nếu tận dụng được hạ tầng hiện có; người dùng copy thêm xuống ổ cứng khi thuận tiện. Lịch sử giữ 30 ngày gần nhất nếu đủ dung lượng |
+| Drive đích | Ngày 16/10 người dùng chỉ định Gmail cá nhân, còn khoảng 5TB theo thông tin cung cấp; chưa truy vấn tài khoản/quota |
 | Khung giờ chuyển dữ liệu và người bấm deploy | Chốt trước triển khai; tài liệu hiện ghi deploy thủ công |
 
-Phạm vi đợt đầu đã được làm rõ: ảnh portfolio và gallery khách, chỉ giữ các bản web/JPG hiện tại, R2 private, giữ cách khách xem/chọn/tải ảnh. Ưu tiên hạn mức miễn phí và theo dõi phí phát sinh; chưa có yêu cầu đặt trần tự ngừng upload. Video và lưu thêm file nguồn được để ngoài đợt đầu. Thời hạn giữ gallery và các bước chuẩn bị tài khoản/triển khai vẫn cần làm rõ khi phù hợp.
+Phạm vi đợt đầu đã được làm rõ: ảnh portfolio và gallery khách, chỉ giữ các bản web/JPG hiện tại, R2 private, giữ cách khách xem/chọn/tải ảnh. Ưu tiên hạn mức miễn phí và theo dõi phí phát sinh; người dùng tiếp tục chấp nhận phí nhỏ, chưa chọn con số hoặc trần tự ngừng upload. Video và lưu thêm file nguồn được để ngoài đợt đầu. Gallery giữ tới khi tự xóa; backup hằng ngày lên Drive, lịch sử 30 ngày nếu đủ chỗ, bản local copy thủ công đã chốt. Nơi chạy sau kiểm chứng và điều kiện chuyển thật còn mở. Không yêu cầu người dùng chọn một số tiền tùy ý chỉ để tiếp tục lập kế hoạch; đưa dự toán sau khi đo dữ liệu thực.
 
 **2. Hiểu hệ thống bằng công việc trong một studio**
 
@@ -68,7 +77,7 @@ Khi khách xem:
 Khi khách tải lựa chọn:
 
 1. Server kiểm tra đúng gallery và đúng những ảnh đang được chọn.
-2. Một ảnh trả JPG; nhiều ảnh chuẩn bị ZIP theo giới hạn hiện tại. Ngoài tải lựa chọn, hệ thống còn có nút tải một ảnh riêng trong gallery và album công khai; đường này không yêu cầu ảnh đã được chọn.
+2. Một ảnh trả JPG; nhiều ảnh chuẩn bị ZIP theo giới hạn hiện tại. Ngoài tải lựa chọn, gallery có nút tải một ảnh riêng, không yêu cầu ảnh đã được chọn. Tại HEAD 1ea50e8, giao diện portfolio đã ẩn nút tải/phóng to; API tải riêng theo album công khai vẫn tồn tại. Giữ giao diện mới, không nhầm ẩn nút là chặn API hoặc chống lưu ảnh.
 3. Server kiểm tra lại quyền/lựa chọn trước khi gửi file đã chuẩn bị.
 4. File tạm trên Render được dọn; R2 không phải nơi lưu ZIP lâu dài trong thiết kế này.
 
@@ -92,7 +101,7 @@ Một ảnh mới thường có ba file. Ảnh cũ có thể chỉ có hai WebP;
 
 Công thức dự tính: tổng dung lượng = các bản ảnh đang lưu + ảnh chân dung + bản sao cần giữ + file dư chưa dọn + nguồn/video nếu sau này bổ sung. Album ẩn hoặc lưu trữ vẫn chiếm chỗ khi file còn tồn tại.
 
-Ví dụ minh họa, không phải kết quả đo toàn bộ kho: nếu tổng ba bản trung bình 2MB/ảnh, 500 ảnh mới/tháng tăng khoảng 1GB/tháng; 900 ảnh tăng khoảng 1,8GB/tháng. Sau sáu tháng lần lượt tăng khoảng 6GB hoặc 10,8GB, chưa cộng dữ liệu có sẵn. Vì vậy dưới 1.000 ảnh/tháng vẫn có thể vượt mức miễn phí nếu giữ nhiều tháng. Nên đo trung bình bằng tập ảnh đại diện trước khi quyết định thời hạn lưu.
+Ví dụ minh họa, không phải kết quả đo toàn bộ kho: nếu tổng ba bản trung bình 2MB/ảnh, 500 ảnh mới/tháng tăng khoảng 1GB/tháng; 900 ảnh tăng khoảng 1,8GB/tháng. Sau sáu tháng lần lượt tăng khoảng 6GB hoặc 10,8GB, chưa cộng dữ liệu có sẵn. Vì vậy dưới 1.000 ảnh/tháng vẫn có thể vượt mức miễn phí nếu giữ nhiều tháng. Người dùng đã chọn giữ tới khi tự xóa; phép đo dung lượng dùng để dự toán và cảnh báo, không để tự rút ngắn thời hạn giữ ảnh.
 
 R2 Standard hiện có hạn mức miễn phí hàng tháng 10GB-month, 1 triệu Class A và 10 triệu Class B; phần lưu trữ vượt mức là $0,015/GB-month. R2 không thu phí egress trực tiếp. Đây không phải trần hóa đơn hay cam kết chính sách vĩnh viễn. [Giá R2](https://developers.cloudflare.com/r2/pricing/)
 
@@ -104,13 +113,13 @@ Render gửi file mới sang R2 cũng là outbound, bên cạnh Render gửi ả
 
 Đợt đầu dùng số liệu và cảnh báo nhà cung cấp nếu tài khoản hỗ trợ; không ngầm xây một hệ thống billing riêng. Cloudflare Budget alerts theo chi phí usage của tài khoản, không phải trần thanh toán hay cảnh báo chính xác mốc dung lượng 10GB. Người nhận/ngưỡng được chốt khi cấu hình; chưa tạo cảnh báo hoặc automation trong lượt lập kế hoạch. [Budget alerts](https://developers.cloudflare.com/billing/manage/budget-alerts/)
 
-Chưa có chính sách tự xóa gallery. Nếu sau này cần “giữ 90 ngày”, phải định nghĩa rõ thông báo, quyền gia hạn, bản sao và xử lý lựa chọn của khách trước khi làm tự động.
+Đã chốt không tự xóa gallery theo ngày. Xóa trên website chỉ tác động dữ liệu hoạt động theo chức năng hiện tại, không tự gửi lệnh xóa tới Drive/ổ cứng. Lịch sử backup website được chọn riêng là 30 ngày gần nhất nếu đủ chỗ; không hiểu “giữ đến khi tôi xóa” là lệnh xóa mọi bản sao. Nếu sau này đổi gallery sang “giữ 90 ngày”, phải xác định lại thông báo, gia hạn và xử lý lựa chọn khách trước khi làm tự động.
 
 **6. Lộ trình triển khai và điều kiện qua từng bước**
 
 | Bước | Công việc | Kết quả cần có trước bước tiếp |
 |---|---|---|
-| A — Chốt phạm vi | Ảnh, bản web/JPG, R2 private và ưu tiên chi phí đã chốt; làm rõ thời hạn lưu | Giữ đúng lựa chọn đã nhận; không tự suy ra quyền xóa ảnh hay nâng gói |
+| A — Chốt phạm vi | Ảnh, bản web/JPG, R2 private, mật khẩu hiện tại và giữ tới khi tự xóa đã chốt; làm rõ backup website | Giữ đúng lựa chọn đã nhận; không tự suy ra quyền xóa bản sao hay nâng gói |
 | B — Kiểm kê và đo | Xác nhận bản đang chạy, danh mục file, dung lượng, điểm nghẽn upload | Báo cáo hiện trạng và danh sách file cần chuyển |
 | C — Chuẩn bị R2 thử | Bucket riêng tư, quyền tối thiểu, cấu hình thử | Ghi/đọc/xóa file thử được; truy cập công khai bị chặn |
 | D — Tích hợp trên môi trường thử | Adapter R2, chọn provider rõ ràng, xử lý lỗi và kiểm thử | Các chức năng cũ hoạt động với R2, chưa ảnh hưởng web thật |
@@ -132,7 +141,7 @@ Chưa chốt ngày công hay số phút tạm dừng upload: cần biết dung l
 
 **Bước C — chuẩn bị tài khoản và môi trường**
 
-Bạn kiểm soát tài khoản Cloudflare và bước kích hoạt thanh toán nếu được yêu cầu. Khóa bí mật được nhập vào môi trường server hoặc nơi quản lý secrets; không gửi trong chat hay commit vào Git.
+Người dùng đã có tài khoản Cloudflare nhưng chưa kích hoạt R2. Bước kích hoạt sẽ được hướng dẫn trước khi thử cloud; chưa thực hiện trong giai đoạn review. Bạn kiểm soát tài khoản và bước xác nhận thanh toán nếu được yêu cầu. Khóa bí mật được nhập vào môi trường server hoặc nơi quản lý secrets; không gửi trong chat hay commit vào Git.
 
 Dự kiến có bucket thử và bucket thật tách biệt, đều dùng Standard và private. Tên cuối cùng được ghi trong cấu hình; không hard-code tên riêng vào logic xử lý ảnh. Tạo token object chỉ cho bucket cần dùng, thay vì cấp quyền quản trị toàn tài khoản. [Hướng dẫn S3 và token R2](https://developers.cloudflare.com/r2/get-started/s3/)
 
@@ -223,6 +232,8 @@ Kiểm tra browser desktop/mobile cho các luồng thực tế và chạy thử 
 
 Giới hạn quyền đang được kiểm tra riêng: một request media đã bắt đầu có thể hoàn tất sau khi quyền thay đổi; file đã nhận không thu hồi được. Lượt xác minh 15/10 cũng tái hiện mở khóa bằng mật khẩu cũ đang xử lý đồng thời với đổi mật khẩu có thể tạo phiên mới còn hợp lệ. Đây là vấn đề có sẵn trong snapshot, không do R2; cần sửa và regression riêng trước khi tuyên bố cơ chế đổi mật khẩu đạt yêu cầu triển khai. Không ghi “đổi mật khẩu luôn vô hiệu mọi truy cập” khi chưa kiểm tra các race này. Chi tiết bằng chứng ở biên bản xác minh.
 
+Đã tái hiện lại ba tình huống quyền trên bản sao HEAD 1ea50e8, kết quả stale unlock vẫn còn; không chạy production/PostgreSQL thật. Hướng sửa ưu tiên là cho cấp phiên phối hợp cùng khóa/transaction của đổi mật khẩu: đọc mật khẩu hiện hành, kiểm tra và ghi session trong thứ tự đã đồng bộ, chỉ cấp cookie khi commit thành công. Cần test trên SQLite và PostgreSQL trước nghiệm thu; không thêm tài khoản khách hoặc cơ chế phân quyền mới chỉ để sửa lỗi này.
+
 **9. Vận hành sau chuyển**
 
 - Bạn tiếp tục đăng ảnh, tạo album và gửi link từ trang quản trị như hiện tại; không phải vào Cloudflare để upload từng ảnh.
@@ -230,7 +241,36 @@ Giới hạn quyền đang được kiểm tra riêng: một request media đã 
 - Khi upload lỗi, dùng mã request để phân biệt truyền mạng, xử lý ảnh, ghi R2 hay ghi database; thử lại theo hàng đợi hiện tại.
 - Giữ bản gốc ở nơi bạn đang quản lý. Nếu chọn lưu gốc trên R2, thiết kế đó được bổ sung riêng; kho đang hoạt động vẫn cần bản sao độc lập để bảo vệ trước xóa nhầm.
 - Backup gồm database và media tương ứng. Cần có hướng dẫn khôi phục đã thử, không chỉ thông báo “đã có bản sao”.
+- Người dùng đang copy ảnh gốc/ảnh xuất Lightroom thành bản riêng trên Drive và ổ cứng. Giữ cách quản lý đó; chưa tích hợp Drive vào website. Đề xuất thêm thư mục backup website riêng có thời điểm phiên bản, gồm dữ liệu database, file ảnh đúng tên khóa và danh mục đối chiếu. Nơi lưu không tự bảo đảm tính đầy đủ; phải kiểm tra khôi phục.
+- Nút “Sao lưu dữ liệu” hiện xuất JSON của tám bảng theo lượt đọc riêng, thiếu bytes ảnh, tài khoản quản trị, sessions, receipts và queue cleanup. Giao diện đã nhắc ảnh/admin cần sao lưu riêng; không coi JSON này là snapshot đầy đủ, nhất quán để chuyển kho. Backup database của nhà cung cấp cũng không bao gồm bytes Storage; media phải sao lưu riêng. [Supabase backups](https://supabase.com/docs/guides/platform/backups)
+- Người dùng đã chọn ưu tiên backup website tự động hằng ngày lên Drive nếu tận dụng hạ tầng hiện có, lịch sử 30 ngày nếu đủ dung lượng; tự copy xuống ổ cứng khi thuận tiện. Không cam kết bản local luôn mới bằng Drive. Nơi chạy sau kiểm chứng, giờ chạy và kênh theo dõi lỗi còn mở. Backup phải tính cả booking/lựa chọn khách phát sinh khi chủ studio không đăng ảnh. Lịch hằng ngày không tự bảo đảm khôi phục mọi thay đổi ngay trước sự cố; dữ liệu sau lần thành công cuối có thể chưa được bảo vệ. Chưa tạo lịch tự động hoặc dịch vụ mới trong lượt lập kế hoạch.
+- Backup hằng ngày phải giữ tính nhất quán khi có upload/overwrite/delete: database snapshot tham chiếu phiên bản nào thì bộ file phải chứa đúng phiên bản đó. Cần phối hợp cleanup hoặc cơ chế giữ file đang backup; bộ thiếu file không được đánh dấu hoàn tất. Ưu tiên đọc media mới/đổi và tái sử dụng bản đã xác minh khi phù hợp, không tải lại nguyên kho mỗi ngày. Job chạy tách tiến trình phục vụ website và chỉ dùng quyền phù hợp; không đặt scheduler chỉ trong vòng đời web process.
 - Kiểm tra file dư bằng đối chiếu danh mục; chỉ xóa sau khi xác nhận chúng không còn được cần dùng và có bản sao theo chính sách đã chọn.
+
+**Phần bổ sung: phương án backup hằng ngày đang đề xuất**
+
+Repository hiện có GitHub Actions chạy test trên Linux, chưa có workflow backup hoặc script restore. Ưu tiên xem xét một job GitHub Actions riêng → thư mục backup website riêng trên Drive; đây là phần cần xây mới. Trước chọn phải kiểm tra Actions đang bật, hạn mức dùng chung của chủ repository, thời gian chạy thử và dung lượng Drive còn lại. Không dùng Actions artifacts làm kho ảnh dài hạn. [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
+
+Lịch GitHub có thể trễ/bỏ lượt; cần theo dõi tuổi của bản backup thành công cuối và có cách chạy bù. Chỉ thông báo job thất bại chưa phát hiện được lượt không khởi động. Không cam kết lúc nào cũng có bản mới trong vòng 24 giờ. [GitHub schedule](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
+
+Luồng tối thiểu dự kiến:
+
+1. Một lượt backup có ID, trạng thái, deadline; không chồng với lượt khác hoặc chuyển kho.
+2. Dùng cơ chế khóa media dự kiến, đợi tác vụ ghi thực sự hoàn tất và dừng/chờ cleanup. Chỉ dừng worker chưa đủ vì upload lỗi còn có thể xóa file trực tiếp.
+3. Lấy một snapshot database nhất quán; dựng manifest từ chính snapshot đó, không đọc lại danh mục ở DB đã thay đổi.
+4. Nếu chứng minh được key ảnh bất biến và tất cả đường xóa bytes tuân thủ bảo vệ, có thể mở lại quản trị ảnh sau snapshot, giữ các file snapshot cần cho tới khi backup xong. Nếu chưa chứng minh được thì bản đầu cần giữ khóa media trong lúc copy; phải đo và thông báo tác động, không hứa backup không bao giờ ảnh hưởng upload.
+5. Runner sao lưu media mới/đổi, tái dùng file backup đã xác minh khi phù hợp; không sao chép lệnh xóa của kho hoạt động thành xóa backup. Bộ thiếu file, sai checksum hoặc thiếu bảo vệ phải thất bại, giữ nguyên bản tốt trước.
+6. Lưu dữ liệu khách có bảo vệ phù hợp trong folder Drive riêng. Hoàn thiện kết nối tự động và nơi giữ khóa khôi phục nếu mã hóa; tài khoản Drive đang có không có nghĩa đã cấp quyền cho job. Không dùng credentials runtime website để xóa backup.
+7. Sau kiểm chứng đủ, công bố trạng thái thành công rồi giải phóng bảo vệ. Runner chết/timeout/restart phải có cách phục hồi khóa; lượt mất bảo vệ không được tiếp tục tự báo thành công.
+8. Thử khôi phục trên môi trường riêng. Cung cấp cách người dùng tải một bộ hoàn chỉnh xuống ổ cứng, biết snapshot thời điểm nào, không tải nhầm bản đang chạy.
+
+Test cần có: snapshot giữ file A trong khi overwrite thành B; xóa ngay sau snapshot; upload còn rollback sau client ngắt; worker đang xóa/restart; thiếu thumbnail/JPG bắt buộc; Drive đầy/mất quyền; runner chết; không phá bản tốt trước; restore đủ ảnh legacy/mới/chân dung. Chính sách đã chọn ngày 16/10 là 30 ngày gần nhất nếu đủ dung lượng. Dọn theo thời điểm snapshot, không theo tuổi từng file: chỉ loại bytes không còn snapshot được giữ nào tham chiếu. Chỉ dọn sau bản mới hoàn chỉnh, bảo vệ bản tốt cuối khi job lỗi kéo dài kể cả bản đó quá cửa sổ 30 ngày; báo tình trạng quá cũ/thiếu chỗ. Không áp chính sách này lên R2 hoạt động hoặc ảnh gốc trên Drive. Chưa bật dọn tự động trong lượt lập kế hoạch.
+
+Bộ xuất local phải tự chứa snapshot DB, manifest, toàn bộ bytes được tham chiếu kể cả file dùng chung từ các lần trước, thông tin phiên bản và hướng dẫn khôi phục. Test restore từ bộ này khi không dùng Drive/R2 nguồn. Ưu tiên một lệnh xuất bộ độc lập; chưa thêm UI backup/restore. Khi chỉ hỏng một file thì phục hồi đúng phiên bản file; khi xóa nhầm album thì mở snapshot riêng, đối chiếu dữ liệu hiện hành và xung đột trước khi nhập phần cần lấy. Không full-restore database cũ để cứu một album rồi làm mất booking/lựa chọn mới. Mất toàn bộ DB thì dữ liệu sau snapshot có thể không phục hồi được; không hứa giữ phần không còn nguồn. Không tái kích hoạt session cũ từ bản backup.
+
+Drive đích là Gmail cá nhân đã được người dùng chỉ định; khoảng 5TB trống là thông tin người dùng cung cấp, chưa kiểm trực tiếp. Hướng kết nối ưu tiên OAuth của chủ Drive với drive.file cho file do công cụ tạo/quản lý, thêm giới hạn folder ID trong code; scope này không phải quyền khóa riêng một thư mục. Cần thử làm mới quyền trên runner, không để cấu hình External Testing hết refresh token sau bảy ngày trở thành cấu hình vận hành. Lưu secrets trực tiếp ở môi trường quản lý, không trong chat/Git. [Drive scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth), [OAuth expiration](https://developers.google.com/identity/protocols/oauth2#expiration)
+
+Drive API hiện công bố standard usage không thu thêm phí, đồng thời có kế hoạch tính phí khi vượt quota trong năm 2026. Kiểm tra lại quota/billing khi thiết lập; không mặc định API miễn phí vĩnh viễn hoặc tự bật billing. Không suy ra có quyền dùng hết 5TB chỉ vì người dùng báo còn chỗ. [Drive API limits](https://developers.google.com/workspace/drive/api/guides/limits)
 
 **10. CDN và các mở rộng để sau**
 

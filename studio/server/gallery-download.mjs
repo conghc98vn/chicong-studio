@@ -9,6 +9,22 @@ import {encodeDownloadJpeg} from './image-optimizer.mjs';
 import {findAlbum} from './album-slugs.mjs';
 
 export const downloadPolicy=Object.freeze({maxPhotos:50,maxBytes:100*1024*1024,maxConcurrent:2});
+export const downloadDeadlineMs = 180000;
+// Start before authentication or metadata queries, so old filename snapshots can
+// never outlive the five minute retirement retention in another process.
+function readDeadline(req, res) {
+ const controller = new AbortController();
+ const disconnected = () => controller.abort();
+ res.once('close', disconnected);
+ if (req.aborted || res.destroyed) controller.abort();
+ const timer = setTimeout(() => controller.abort(), downloadDeadlineMs);
+ timer.unref();
+ return {signal: controller.signal, close() {
+  clearTimeout(timer);
+  res.removeListener('close', disconnected);
+ }};
+}
+
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 export const safeName=value=>{
  const base=String(value||'anh').toWellFormed().normalize('NFC').split(/[\\/]/).at(-1)
@@ -48,6 +64,8 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
   return ()=>{res.removeListener('finish',release);release();};
  };
  app.post('/api/gallery/:id/download',(req,res,next)=>{
+  const deadline = readDeadline(req, res);
+  const {signal} = deadline;
   const run=async()=>{
    res.set('Cache-Control','private,no-store');
    const ids=req.body.photos;
@@ -59,6 +77,7 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
     return album;
    };
    const album=await authorize();
+   signal.throwIfAborted();
    if(!Array.isArray(ids)||!ids.length||ids.length>downloadPolicy.maxPhotos||new Set(ids).size!==ids.length||ids.some(id=>typeof id!=='string'||! /^[a-f0-9]{32}$/.test(id)))throw fail(422,'Hãy chọn từ 1 đến 50 ảnh cho mỗi tệp tải xuống.');
    const selected=async()=>{
     const photos=await db.all(`SELECT p.* FROM photos p JOIN selections s ON s.photo_id=p.id AND s.album_id=p.album_id LEFT JOIN album_sections section ON section.id=p.section_id WHERE p.album_id=? AND p.id IN (${ids.map(()=>'?').join(',')}) ORDER BY CASE WHEN section.id IS NULL THEN 1 ELSE 0 END,section.position,section.id,p.position,p.id`,[album.id,...ids]);
@@ -66,16 +85,13 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
     return photos;
    };
    const photos=await selected();
+   signal.throwIfAborted();
    // The client can disconnect while authentication/selection queries are pending.
    // In that case the close event has already fired: do not reserve a worker slot.
    if(req.aborted||res.destroyed)return;
    if(active.has(album.id)||active.size>=downloadPolicy.maxConcurrent){res.set('Retry-After','5');throw fail(429,'Đang chuẩn bị lượt tải khác. Vui lòng thử lại sau ít giây.');}
    const releaseSlot=reserve(album.id,res);
-   const controller=new AbortController(),signal=controller.signal;
-   const disconnected=()=>controller.abort();
-   res.once('close',disconnected);
-   if(res.destroyed||req.aborted)controller.abort();
-   const timeout=setTimeout(()=>controller.abort(),180000);timeout.unref();
+
    let directory;
    try{
     signal.throwIfAborted();
@@ -106,15 +122,19 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
     if(error.status)throw error;
     throw fail(503,'Chưa chuẩn bị được ảnh để tải xuống. Vui lòng thử lại sau ít phút.');
    }finally{
-    clearTimeout(timeout);res.removeListener('close',disconnected);releaseSlot();
+    releaseSlot();
     if(directory)await rm(directory,{recursive:true,force:true});
    }
   };
-  run().catch(next);
+  run().catch(error => {
+   if (!res.destroyed) next(signal.aborted ? fail(503, 'Lượt tải đã hết thời gian. Vui lòng thử lại.') : error);
+  }).finally(() => deadline.close());
  });
  // Direct links use the same capacity budget as selected archives. In particular,
  // legacy WebP conversion must not create unlimited sharp jobs on repeated clicks.
  const singlePhoto=(privateGallery)=>(req,res,next)=>{
+  const deadline = readDeadline(req, res);
+  const {signal} = deadline;
   const run=async()=>{
    res.set('Cache-Control','private,no-store');
    const authorize=async()=>{
@@ -126,6 +146,7 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
     return {album,photo};
    };
    const {album,photo}=await authorize();
+   signal.throwIfAborted();
    if(req.aborted||res.destroyed)return;
    if(Number(photo.download_bytes)>downloadPolicy.maxBytes)throw fail(413,'Tệp ảnh quá lớn để tải xuống. Vui lòng liên hệ nhiếp ảnh gia.');
    const filename=safeName(photo.original||photo.caption)+'.jpg';
@@ -136,10 +157,7 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
    }
    if(active.has(album.id)||active.size>=downloadPolicy.maxConcurrent){res.set('Retry-After','5');throw fail(429,'Đang chuẩn bị lượt tải khác. Vui lòng thử lại sau ít giây.');}
    const releaseSlot=reserve(album.id,res);
-   const controller=new AbortController(),signal=controller.signal;
-   const disconnected=()=>controller.abort();
-   res.once('close',disconnected);
-   const timeout=setTimeout(()=>controller.abort(),180000);timeout.unref();
+
    try{
     signal.throwIfAborted();
     const data=photo.download_bytes!=null?await storage.get(photo.filename+'-download.jpg',{signal}):await encodeDownloadJpeg(await storage.get(photo.filename+'.webp',{signal}),{onDemand:true});
@@ -156,10 +174,12 @@ export function registerGalleryDownloads(app,{db,storage,allowed}){
     if(error.status)throw error;
     throw fail(503,'Chưa chuẩn bị được ảnh để tải xuống. Vui lòng thử lại sau ít phút.');
    }finally{
-    clearTimeout(timeout);res.removeListener('close',disconnected);releaseSlot();
+    releaseSlot();
    }
   };
-  run().catch(next);
+  run().catch(error => {
+   if (!res.destroyed) next(signal.aborted ? fail(503, 'Lượt tải đã hết thời gian. Vui lòng thử lại.') : error);
+  }).finally(() => deadline.close());
  };
  app.get('/api/gallery/:id/photos/:photoId/download',singlePhoto(true));
  app.get('/api/albums/:key/photos/:photoId/download',singlePhoto(false));

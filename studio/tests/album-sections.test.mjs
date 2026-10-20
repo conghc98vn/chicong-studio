@@ -115,7 +115,7 @@ test('All photos follow section order; filters compose with picks without mutati
 test('Caption edits preserve a section assignment changed by another admin',async()=>{
  const f=await fixture();const original=f.db.get;try{
   const a=await f.album(),s=await f.add(a,'Lễ');await f.photo(a,'p');let intercepted=false;
-  f.db.get=async(sql,params)=>{const row=await original(sql,params);if(!intercepted&&sql==='SELECT * FROM photos WHERE id=?'){intercepted=true;await f.db.run('UPDATE photos SET section_id=? WHERE id=?',[s.id,'p']);}return row;};
+  f.db.get=async(sql,params)=>{const row=await original(sql,params);if(!intercepted&&sql==='SELECT album_id FROM photos WHERE id=?'){intercepted=true;await f.db.run('UPDATE photos SET section_id=? WHERE id=?',[s.id,'p']);}return row;};
   assert.equal((await f.request('/api/admin/photos/p',{caption:'New caption'},'PATCH')).status,200);
   const after=await original("SELECT * FROM photos WHERE id='p'");assert.equal(after.section_id,s.id);assert.equal(after.caption,'New caption');
  }finally{f.db.get=original;await f.close();}
@@ -128,13 +128,40 @@ test('Renaming a section preserves its concurrently changed order',async()=>{
   const after=await original('SELECT * FROM album_sections WHERE id=?',[s.id]);assert.equal(after.position,17);assert.equal(after.title,'Tên mới');
  }finally{f.db.get=original;await f.close();}
 });
-test('Concurrent section creation does not break an in-flight reorder',async()=>{
- const f=await fixture();const original=f.db.all;try{
-  const a=await f.album(),s=await f.add(a,'Lễ');let intercepted=false;
-  f.db.all=async(sql,params)=>{const rows=await original(sql,params);if(!intercepted&&sql==='SELECT id FROM album_sections WHERE album_id=?'){intercepted=true;await f.db.run('INSERT INTO album_sections(id,album_id,title,position) VALUES(?,?,?,?)',['new-section',a,'New',1]);}return rows;};
-  assert.equal((await f.request(`/api/admin/albums/${a}/sections/order`,{sections:[s.id]},'PUT')).status,200);
-  assert.equal((await f.db.get("SELECT position FROM album_sections WHERE id='new-section'")).position,1);
- }finally{f.db.all=original;await f.close();}
+test('Concurrent section creation waits for an in-flight reorder', {timeout: 15000}, async () => {
+ const f=await fixture();
+ const transaction=f.db.transaction;
+ let release;
+ let entered;
+ const gate=new Promise(resolve=>{release=resolve;});
+ const seen=new Promise(resolve=>{entered=resolve;});
+ try{
+  const album=await f.album();
+  const section=await f.add(album,'Lễ');
+  let held=false;
+  f.db.transaction=work=>transaction(tx=>work({...tx,run:async(sql,...args)=>{
+   if(!held&&sql.startsWith('UPDATE album_sections SET position=CASE')){
+    held=true;
+    entered();
+    await gate;
+   }
+   return tx.run(sql,...args);
+  }}));
+  const reorder=f.request(`/api/admin/albums/${album}/sections/order`,{sections:[section.id]},'PUT');
+  await seen;
+  let created=false;
+  const create=f.add(album,'New').then(value=>{created=true;return value;});
+  await new Promise(resolve=>setTimeout(resolve,50));
+  assert.equal(created,false);
+  release();
+  assert.equal((await reorder).status,200);
+  const added=await create;
+  assert.equal((await f.db.get('SELECT position FROM album_sections WHERE id=?',[added.id])).position,1);
+ }finally{
+  release();
+  f.db.transaction=transaction;
+  await f.close();
+ }
 });
 test('Section creation is retry-safe with a stable request ID',async()=>{
  const f=await fixture();try{

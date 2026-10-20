@@ -1,15 +1,10 @@
-# Đưa ChiCong Studio lên host miễn phí và chicongphoto.vn
+# Đưa ChiCong Studio lên máy chủ và tên miền chicongphoto.vn
 
-Phương án đã triển khai: **Render Free** chạy Node.js, **Supabase Free** lưu PostgreSQL và ảnh trong bucket riêng. Website chính thức đang hoạt động tại [chicongphoto.vn](https://chicongphoto.vn) (được định tuyến qua Cloudflare proxy đến Render) từ ngày 09/10/2026; [trang quản trị](https://chicongphoto.vn/admin) dùng tài khoản studio đã cấu hình. Tên miền `chicongphoto.vn` đã trỏ đúng và kích hoạt HTTPS thành công.
+> **Cập nhật ngày 16/10/2026:** Sau sự cố hết 5 GB băng thông miễn phí trên Render, website chính thức `chicongphoto.vn` đã được **chuyển đổi thành công sang máy chủ ảo riêng (Cloud Server Linux 2) tại iNET (Việt Nam)**, thời hạn 3 năm (2026–2029). Xem chi tiết cấu hình, vận hành và nghiệm thu tại [báo cáo di dời Cloud Server iNET](docs/inet-vps-migration-2026-10-16.md).
 
-Tài liệu nhà cung cấp được kiểm tra ngày 07/10/2026:
+> **Cập nhật Drive ngày 17/10/2026:** Source web/worker/backup mới đã lên VPS; nhập Drive và scheduler vẫn tắt. Worker systemd riêng đang kiểm kết nối, chưa enable khởi động cùng máy. [Biên bản rollout](docs/google-drive-sync-production-release-2026-10-17.md) ghi các cổng còn lại, backup và rollback.
 
-- [Render Free](https://render.com/docs/free): hỗ trợ custom domain, nhưng ngủ sau 15 phút không có traffic và filesystem không lưu bền vững qua restart/deploy.
-- [Supabase Free](https://supabase.com/pricing): 500MB database, 1GB file storage, 5GB egress và 5GB cached egress; có thể pause khi không hoạt động một tuần. Không bao gồm automatic database backups.
-- [Kết nối PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres).
-- [Custom domain trên Render](https://render.com/docs/custom-domains).
-
-Vì vậy bản production yêu cầu database và Storage bên ngoài; không được dùng SQLite/filesystem tạm của Render để lưu ảnh khách. Free phù hợp khởi đầu và thử nghiệm, không phải cam kết uptime. Giữ bản ảnh gốc và tự sao lưu dữ liệu.
+Phương án ban đầu (lịch sử): **Render Free** chạy Node.js, **Supabase Free** lưu PostgreSQL và ảnh trong bucket riêng. Website chính thức đang hoạt động tại [chicongphoto.vn](https://chicongphoto.vn) (được định tuyến qua Cloudflare proxy đến máy chủ mới) từ ngày 09/10/2026; [trang quản trị](https://chicongphoto.vn/admin) dùng tài khoản studio đã cấu hình. Tên miền `chicongphoto.vn` đã trỏ đúng và kích hoạt HTTPS thành công với Cloudflare Origin Certificate (15 năm).
 
 ## 1. Tạo Supabase project Free
 
@@ -41,6 +36,7 @@ Kết nối repository, chọn Node.js và gói Free. Có thể dùng Blueprint 
 - Start: `npm start`.
 - Health check: `/api/health`.
 - `NODE_ENV=production`.
+- `MEDIA_STORAGE_PROVIDER=supabase` cho bản tương thích trước chuyển kho; không đổi sang `r2` chỉ bằng chỉnh biến môi trường.
 - `NODE_EXTRA_CA_CERTS=./certs/supabase-root-2021.crt`.
 - `SITE_URL=https://chicongphoto.vn` (trước khi nối domain có thể đặt URL https://…onrender.com để preview).
 - Các biến Supabase ở bước 1.
@@ -77,3 +73,11 @@ Bộ kiểm thử tự động đạt 56/56 bài test (bao gồm SEO album slug,
 Biểu mẫu liên hệ trên website thật cũng đã gửi thành công yêu cầu thử; PostgreSQL lưu đúng một bản ghi và không giữ ngày chụp khi chưa chọn ngày.
 
 Ảnh upload được đổi sang WebP (cạnh dài tối đa 2400px + thumbnail 900px) và loại metadata; hệ thống phục vụ gallery xem/chọn, không phải kho giao file RAW/ảnh gốc độ phân giải đầy đủ. Email tự động chưa tích hợp: yêu cầu nằm trong **Yêu cầu đặt lịch**, bạn chủ động liên hệ khách. Không có thanh toán hoặc booking tự động được xác nhận.
+
+## Cấu hình R2 sau khi triển khai bản tương thích
+
+Code hỗ trợ `MEDIA_STORAGE_PROVIDER=r2`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Giữ `DATABASE_URL`, TLS và các biến website hiện tại. R2 không yêu cầu `SUPABASE_URL`/service-role cho Storage. Runtime chỉ dùng S3 Object Read & Write cho bucket đã tạo; không tạo bucket hoặc xác minh control-plane public access thay chủ tài khoản. Không bật r2.dev, custom media domain hoặc browser upload trực tiếp.
+
+Trước deploy bản mới vào hệ thống hiện tại, thêm `MEDIA_STORAGE_PROVIDER=supabase`. Startup gắn danh tính kho với DB. Đổi provider/bucket/endpoint trái binding sẽ bị từ chối; xem quy trình `lock → drain → backup/delta/verify → switch → restart mọi instance → smoke → unlock` ở [kế hoạch, mục 16](docs/r2-implementation-plan.md#16-kết-quả-triển-khai-local-ngày-16102026). `render.yaml` đang cố ý chọn Supabase; lúc cutover phải cập nhật cả Blueprint để lần sync sau không đổi lại kho.
+
+Không đưa OAuth Drive vào Render web service. Runner dùng secrets riêng, DB/schema/bucket thử tách biệt, không có biến Resend/SMTP/Google Calendar của production. Chưa kích hoạt billing, deploy hoặc schedule từ các thay đổi source này.

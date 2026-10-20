@@ -110,11 +110,11 @@ Tải JSON trong phần sao lưu để giữ cấu trúc album/lựa chọn/yêu
 
 ## Hosting và Tên miền
 
-Xem [HOSTING.md](HOSTING.md): Render Free + Supabase PostgreSQL/Storage, cấu hình chính thức cho [chicongphoto.vn](https://chicongphoto.vn). Production từ chối chạy nếu không cấu hình database và Storage lưu bền vững. Đây là app Node.js chạy server, không phải thư mục HTML tĩnh để upload vào hosting cPanel PHP.
+Website [chicongphoto.vn](https://chicongphoto.vn) đã chuyển web server sang VPS iNET ngày 16/10/2026; database và kho ảnh vẫn dùng Supabase. Xem [báo cáo di dời](docs/inet-vps-migration-2026-10-16.md) và [vận hành hiện tại](OPERATIONS.md). [HOSTING.md](HOSTING.md) giữ hướng dẫn Render trước đây. Production từ chối chạy nếu không cấu hình database và Storage lưu bền vững. Đây là app Node.js chạy server, không phải thư mục HTML tĩnh để upload vào hosting cPanel PHP.
 
 Đã triển khai và kết nối tên miền chính thức ngày 09/10/2026: [website](https://chicongphoto.vn), [quản trị](https://chicongphoto.vn/admin). Tên miền `chicongphoto.vn` hoạt động qua HTTPS với proxy Cloudflare, kết hợp Cloudflare Web Analytics và Schema.org JSON-LD structured data. Database dùng TLS xác thực CA/hostname, bucket ảnh `chicong-private` trên Supabase giữ riêng tư.
 
-Hệ thống đã xác minh 56 bài test tự động (gồm SEO URL slug, retry upload, bảo mật gallery, CSRF và Schema.org). Portfolio hiện đã công khai 7 album với 284 ảnh thực tế phục vụ định dạng WebP tối ưu. Đăng nhập tài khoản studio để cập nhật ảnh chân dung, thông tin liên hệ và quản trị album/gallery theo [HOSTING.md](HOSTING.md) và [OPERATIONS.md](OPERATIONS.md).
+Mốc nghiệm thu ban đầu gồm 56 bài test tự động (SEO URL slug, retry upload, bảo mật gallery, CSRF và Schema.org), 7 album công khai với 284 ảnh WebP. Đây là số liệu lịch sử; kết quả source Drive Sync hiện tại được ghi ở cuối tài liệu. Đăng nhập tài khoản studio để cập nhật ảnh chân dung, thông tin liên hệ và quản trị album/gallery theo [OPERATIONS.md](OPERATIONS.md).
 
 Nếu quên mật khẩu quản trị, chạy `npm run admin:reset` trong terminal của máy/server có đúng database; tự nhập email và mật khẩu mới. Mật khẩu không hiển thị khi nhập, các phiên cũ bị vô hiệu. Không có reset password công khai hoặc gửi mail khôi phục.
 
@@ -122,7 +122,7 @@ Nếu quên mật khẩu quản trị, chạy `npm run admin:reset` trong termin
 
 - `studio/server/app.mjs`: API, auth/session, upload, album, gallery, lịch và serving.
 - `studio/server/db.mjs`: SQLite local / PostgreSQL khi deploy, schema.
-- `studio/server/storage.mjs`: file local / private Supabase Storage.
+- `studio/server/storage.mjs`: file local / private Supabase Storage / private R2.
 - `studio/web/`: giao diện khách và quản trị, vanilla JavaScript/CSS.
 - `studio/tests/`: integration tests, mock cloud Storage và fixture trình duyệt tách biệt.
 - `render.yaml`, `.env.example`: cấu hình hosting.
@@ -172,3 +172,25 @@ Trong **Website**, điền **Thời gian phản hồi thực tế** nếu đã c
 ## Xác minh email và luồng nhận khách · 09/10/2026
 
 Đã gửi form thử trên website thật và xác minh cả email studio lẫn email xác nhận có trạng thái Delivered trên Resend. Yêu cầu thử đã được đánh dấu Hoàn thành, không giữ lịch chụp. Xem [biên bản kiểm tra](docs/customer-flow-verification-2026-10-09.md) để phân biệt kết quả production, kiểm thử local và phạm vi chưa xác minh.
+
+## R2 và backup website
+
+Phần triển khai local ngày 16/10/2026 có adapter R2 private qua server, khóa media bền vững, journal ghi chưa rõ kết quả, công cụ kiểm kê/copy/verify và backup DB + media với restore offline. Cấu hình production bắt buộc có `MEDIA_STORAGE_PROVIDER=supabase` hoặc `r2`; database vẫn dùng `DATABASE_URL`. Bản tương thích đầu tiên phải tiếp tục chọn `supabase`.
+
+Chạy `npm run media -- help` để xem công cụ vận hành. Runner không tự đọc `.env`; truyền file cấu hình riêng khi chạy. Drive dùng OAuth `drive.file`, thư mục riêng, giữ 30 ngày lịch và bytes dùng chung; `.github/workflows/media-backup.yml` chỉ chạy thủ công cho tới khi chốt giờ/quota/cảnh báo. Chưa cấu hình hay chuyển kho production trong lượt triển khai này.
+
+Hướng dẫn, kết quả kiểm thử và các cổng cloud còn lại nằm trong [kế hoạch R2, mục 16](docs/r2-implementation-plan.md#16-kết-quả-triển-khai-local-ngày-16102026). JSON xuất từ admin vẫn là bản xuất một phần, không thay bộ backup hoàn chỉnh.
+
+## Google Drive Sync · cập nhật 20/10/2026
+
+Bản mới có kết nối folder studio qua tài khoản dịch vụ riêng ở quyền Người xem, gắn thủ công vào album, xem trước và duyệt thay đổi. Worker riêng nhập JPEG full-resolution thành WebP/JPG tối đa 2400px; ảnh gốc giữ trên Drive. Ảnh upload tay cùng tồn tại, ảnh nguồn mất khỏi Drive được giữ trên web. Sau khi khách gửi lựa chọn, thay đổi từ Drive luôn chờ studio duyệt.
+
+Admin và gallery lớn có phân trang để giới hạn số ảnh trong DOM. Submission kiểm revision để tránh gửi lựa chọn trên bộ ảnh đã đổi. Snapshot v2 hỗ trợ dữ liệu nguồn mới và vẫn đọc được snapshot v1; restore vô hiệu kết nối/lịch/tác vụ cũ.
+
+Production đang dùng bản phát hành ngày 19/10/2026; **nhập Drive production vẫn tắt**, scheduler tắt. Bản duyệt folder và chế độ nhận các folder đã chia sẻ ngày 20/10 đã bật và kiểm thử thành công trên local, chưa phát hành lên VPS; xem [biên bản duyệt folder](docs/google-drive-folder-browser-2026-10-20.md) để biết trạng thái nghiệm thu mới nhất. Xem [biên bản rollout và cổng còn lại](docs/google-drive-sync-production-release-2026-10-17.md). Xem [hướng dẫn vận hành Drive Sync](docs/google-drive-sync-operations.md) cho cấu hình, worker, xử lý lỗi và rollback; [trạng thái nghiệm thu](docs/google-drive-sync-implementation-plan.md#17-trạng-thái-triển-khai-và-kiểm-chứng) phân biệt test nội bộ với cloud thật. Kết nối nhập ảnh này tách biệt hoàn toàn với OAuth backup website.
+
+Luồng mới: chọn **Google Drive → nhập tên và link folder → Duyệt và chọn folder → Chọn folder này → Kiểm tra folder → Tạo bộ ảnh → Xem trước thay đổi → Duyệt và đồng bộ**. Có thể mở folder con, quay lại qua đường dẫn và tải thêm folder; folder không có folder con vẫn chọn được. Chế độ **Các folder đã chia sẻ** nhận bất kỳ folder nào tài khoản dịch vụ đọc được, không yêu cầu chung folder cha. Duyệt/chọn folder chưa nhập ảnh; mỗi album chỉ nhập ảnh trực tiếp trong folder đã chọn. Folder được gắn cùng giao dịch tạo album; chưa duyệt thì chưa nhập ảnh. Danh sách album có trạng thái/tiến độ/lần sync, preview có lọc/phân trang và so sánh ảnh trước/sau; có thể thử lại riêng file lỗi khi bản duyệt còn hợp lệ.
+
+Đã nhập thử 346 JPEG thật và kiểm sync lại không nhân đôi; mốc kiểm chứng workflow ngày 17/10 đạt **373/373 test** trên SQLite/PostgreSQL. Kết quả cho thay đổi ngày 20/10 được ghi riêng trong [biên bản duyệt folder](docs/google-drive-folder-browser-2026-10-20.md). Quy trình 5.000 ảnh giả đã qua nhập, tiếp tục sau gián đoạn và backup/restore offline đủ 15.000 rendition trên local lẫn VPS Linux cách ly. Đây không phải benchmark JPEG full-resolution hoặc storage cloud; xem [báo cáo workflow và giới hạn](docs/google-drive-sync-workflow-2026-10-17.md).
+
+Bản thử riêng tại [admin local](http://127.0.0.1:4175/admin) giữ tài khoản đã tạo và 346 ảnh. Dùng Node 24 chạy `npm run drive:preview` để xem/chỉnh bản sao; thêm `-- --service-account-file /absolute/private/key.json` để bật worker thủ công. [Hướng dẫn dùng thử và khởi động lại](docs/google-drive-sync-operations.md#9-checklist-dùng-thử-local) nêu đường dẫn runtime đã kiểm chứng trên máy này. Runner giữ nguyên bằng chứng live và không đọc cấu hình production. Production giữ bản ngày 19/10 và chưa bật nhập Drive; worker đang kiểm kết nối, chưa enable khởi động cùng máy. Khóa mới đã cài và khóa cũ đã thu hồi ngày 19/10/2026; lịch vẫn tắt. Quyết định ngày 20/10 thay yêu cầu chốt root chung bằng chế độ các folder đã chia sẻ; dữ liệu cũ vẫn mặc định chế độ giới hạn trong root cho đến khi đổi cấu hình, kiểm kết nối và nghiệm thu. Xem [cập nhật ngày 19/10](docs/google-drive-sync-followup-2026-10-19.md).

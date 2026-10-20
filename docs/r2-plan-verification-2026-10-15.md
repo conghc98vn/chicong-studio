@@ -1,6 +1,10 @@
+> **Tài liệu lịch sử — đã hợp nhất ngày 16/10/2026.** Đọc [kế hoạch triển khai R2 và backup chính](r2-implementation-plan.md) để có các quyết định và điều kiện hiện hành. Nội dung bên dưới được giữ làm lịch sử review; những câu hỏi/trạng thái cũ có thể đã được giải quyết trong bản hợp nhất.
+
 **Biên bản xác minh kế hoạch Cloudflare R2 — 15/10/2026**
 
 Kết luận: kiến trúc Supabase PostgreSQL + Render + R2 private phù hợp với phạm vi người dùng đã chọn. Kế hoạch ngày 14/10 chưa đủ cụ thể để dùng làm quy trình chuyển production vì mã nguồn có thêm chức năng và công việc nền. Đã cập nhật kế hoạch, không triển khai R2 hay sửa ứng dụng trong lượt review này.
+
+Biên bản giữ bằng chứng của lượt đầu ở snapshot 0c6a493 + thay đổi chưa commit. Phần bổ sung cuối tài liệu ghi lần rà lại HEAD 1ea50e8 và các quyết định mới của người dùng; không coi 69 test cũ là kiểm thử bản mới.
 
 **Phạm vi và bằng chứng**
 
@@ -103,7 +107,38 @@ Các tài liệu chính thức được kiểm tra cho thiết kế, chưa kiể
 | Dung lượng/manifest/checksum kho thật | Chưa chạy; cần dự toán lượt đọc trước |
 | Diễn tập copy/restore/rollback | Chưa chạy |
 | Backup độc lập và kiểm tra khôi phục | Chưa xác minh |
-| Thời hạn giữ gallery | Chưa được trả lời; không bật tự xóa/lifecycle |
+| Thời hạn giữ gallery | Đã được chốt trong trao đổi bổ sung: giữ tới khi người dùng tự xóa; không tự xóa theo ngày |
 | Khung giờ và người deploy | Chốt khi có bản thử và kết quả diễn tập |
 
 Các lựa chọn vận hành còn mở không làm mất giá trị của kiến trúc. Có thể chuẩn bị code sau khi người dùng yêu cầu, nhưng không coi bản kế hoạch hoặc bộ test local này là bằng chứng đủ để chuyển dữ liệu thật ngay.
+
+**Bổ sung sau các bình luận và câu trả lời của chủ website ngày 15/10**
+
+Đã chốt giữ gallery tới khi tự xóa, giữ mật khẩu album hiện tại không thêm thao tác bảo mật, đưa lỗi cấp phiên cũ vào phạm vi review/cải thiện trước nghiệm thu. Ưu tiên miễn phí và phí nhỏ được giữ, chưa đặt số tiền trần. Đã có Cloudflare nhưng chưa bật R2. Drive và ổ cứng là hai bản copy riêng của ảnh gốc/ảnh xuất Lightroom; chưa phải backup đầy đủ của website. Người dùng chọn ưu tiên backup website hằng ngày lên Drive bằng hạ tầng hiện có, tự copy xuống ổ cứng khi thuận tiện. Các lựa chọn là đầu vào kế hoạch; người dùng vẫn yêu cầu làm rõ trước khi code.
+
+**Kiểm tra mã mới và bằng chứng thực nghiệm**
+
+- HEAD được đọc: 1ea50e86f78e1de13010c736acdb367b6b35d247. So hash 18 file server với snapshot trước: app.mjs và photo-upload.mjs thay đổi. Không dùng hash HEAD thay cho việc xác minh production.
+- Chạy lại riêng ba tình huống quyền trên bản sao code mới, Node 24.19.0, SQLite tạm và Map storage; không đọc .env/khóa/dữ liệu khách, không gọi cloud. Unlock bằng dữ liệu mật khẩu cũ vẫn tạo session sau khi đổi mật khẩu; session đó đọc media được (200), trong khi yêu cầu mới dùng mật khẩu cũ bị từ chối (401). Hai tình huống request media/portrait đang chạy vẫn hoàn tất, còn request mới bị chặn, giống kết quả trước.
+- Bằng chứng mới nằm riêng: [metadata](../output/r2-plan-verification-2026-10-15/current-auth-review-1ea50e8/metadata.json), [log](../output/r2-plan-verification-2026-10-15/current-auth-review-1ea50e8/auth-race-reproduction.log), [hash source](../output/r2-plan-verification-2026-10-15/current-auth-review-1ea50e8/source-sha256.json), [cách chạy lại](../output/r2-plan-verification-2026-10-15/current-auth-review-1ea50e8/README.md). Không chạy lại bộ 69 test, không khẳng định đã kiểm PostgreSQL hay production.
+- UPDATE mật khẩu và DELETE sessions hiện có transaction/khóa album; luồng unlock chưa dùng cùng cơ chế. Hướng sửa nhỏ là đồng bộ kiểm tra mật khẩu hiện hành và ghi session với đổi mật khẩu, chỉ trả cookie sau commit. Giữ album không mật khẩu, link và giao diện; thêm test đúng thứ tự chồng lấn trên cả hai loại DB khi triển khai.
+- photo-upload.mjs thêm callback đánh thức cleanup khi đã ghi job nhưng dọn chưa xong/kết quả publish cần đối chiếu. Mapping filename, receipts và checksum không đổi trong diff. Upload trả lỗi vẫn có thể kích hoạt worker; bước drain phải đợi cả việc nền. Đây là đọc diff, chưa phải test callback mới.
+- Giao diện HEAD mới ẩn nút JPG/zoom ở portfolio, giữ trong gallery. API tải theo album công khai vẫn tồn tại. Kế hoạch đã sửa mô tả giao diện, không khôi phục nút cũ hoặc coi endpoint public đã chặn.
+
+**Phần backup mới cần triển khai riêng**
+
+Đã đọc endpoint /api/admin/export: xuất tám bảng lần lượt, không bytes ảnh, admin, sessions, upload receipts hoặc cleanup queue. Giao diện đã nói rõ ảnh/admin phải sao lưu riêng. JSON này có ích để lưu một phần dữ liệu, chưa là snapshot đầy đủ để khôi phục cả website. [Mã export hiện tại](../studio/server/app.mjs), [giao diện hiện tại](../studio/web/main.js). Supabase cũng xác nhận backup database không chứa bytes Storage. [Tài liệu backup](https://supabase.com/docs/guides/platform/backups)
+
+Repository chỉ có workflow CI test, chưa có schedule/script backup hoặc restore. Vì vậy đề xuất GitHub Actions → Drive là tận dụng nơi chạy có thể dùng, không phải một khả năng backup đang hoạt động. Cần xác minh remote/quota, xây công cụ backup/restore, quyền kết nối Drive và theo dõi lần thành công cuối. [Workflow hiện tại](../.github/workflows/check.yml), [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [giới hạn schedule](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
+
+Phát hiện thiết kế: backup hằng ngày không được dump DB và copy ảnh độc lập khi cleanup đang xóa file. Snapshot có thể trỏ tới khóa A trong lúc overwrite đã thay B và worker dọn A. Kế hoạch bổ sung khóa/drain ban đầu, snapshot nhất quán, bảo vệ file được snapshot tham chiếu, không công bố thành công nếu thiếu file/mất bảo vệ, và diễn tập restore. Lượt backup không được chồng với migration; runner chết phải có cơ chế phục hồi khóa. Các yêu cầu này chưa được code hoặc test trong lần review.
+
+Tại cuối trao đổi ngày 15/10, các điểm còn mở là dung lượng Drive, thời hạn lịch sử backup, nơi chạy sau kiểm tra quota, cách nhận biết backup quá cũ và khung giờ/chủ thể chuyển thật. Không hỏi lại chính sách mật khẩu, thời hạn gallery hoặc ép số tiền trần khi người dùng đã chọn ưu tiên free và ít phí nếu cần.
+
+**Làm rõ tiếp ngày 16/10 — không có kiểm thử ứng dụng mới**
+
+Người dùng xác nhận Drive Gmail cá nhân đã chỉ định còn khoảng 5TB, chọn giữ lịch sử backup website 30 ngày gần nhất nếu đủ dung lượng. Đây là thông tin do người dùng cung cấp và quyết định sản phẩm; chưa truy vấn tài khoản. HEAD vẫn 1ea50e8, không chạy lại các test trước hoặc thay đổi ứng dụng.
+
+Kế hoạch/checklist đã bổ sung ba chi tiết vận hành: dọn theo thời gian snapshot, giữ bytes còn snapshot dùng và bảo vệ bản tốt cuối khi job lỗi; xuất một bộ local tự chứa đủ DB/media để restore khi không truy cập Drive; phân biệt cứu một file/album với khôi phục toàn bộ website để không đè mất booking/lựa chọn hiện hành. Phương án 30 ngày không hứa luôn có đủ 30 bản hoặc phục hồi được thay đổi sau snapshot thành công cuối.
+
+Đã đối chiếu tài liệu Google cho hướng Drive cá nhân dùng OAuth với quyền hạn chế, kiểm thử làm mới quyền và hạn mức API hiện hành. Chưa tạo OAuth project, xin token, tạo folder, bật billing hoặc chạy lịch. Các lựa chọn chính đã đủ cụ thể cho thiết kế; các điểm còn lại là xác minh kỹ thuật trước chạy thật và khung giờ triển khai sau diễn tập. [Drive scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth), [OAuth expiration](https://developers.google.com/identity/protocols/oauth2#expiration), [Drive API limits](https://developers.google.com/workspace/drive/api/guides/limits)

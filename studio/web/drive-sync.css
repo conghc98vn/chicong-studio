@@ -1,0 +1,263 @@
+.drive-panel {
+  margin-block: 24px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.drive-panel form {
+  max-width: 680px;
+  display: grid;
+  gap: 16px;
+}
+.drive-panel label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.drive-panel .checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  margin-block: 18px;
+}
+.drive-panel input[type="checkbox"] {
+  width: auto;
+  flex-shrink: 0;
+}
+.drive-panel input,
+.drive-panel select {
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}
+.drive-panel button {
+  max-width: 100%;
+  white-space: normal;
+}
+.drive-next-step {
+  padding: 12px 14px;
+  background: var(--surface, #f4f6f0);
+  border-left: 3px solid var(--green, #40533f);
+}
+.drive-feedback:empty {
+  display: none;
+}
+.drive-feedback:not(.form-error) {
+  color: var(--muted, #5f6a60);
+  font-size: 13px;
+}
+.drive-actions,
+.photo-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-block: 20px;
+}
+.drive-actions {
+  justify-content: flex-start;
+}
+.drive-job {
+  border-top: 1px solid #d9d4cb;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+.drive-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+.drive-compare-button {
+  display: block;
+  margin-top: 10px;
+}
+.drive-comparison {
+  box-sizing: border-box;
+  width: min(1080px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #d9d4cb;
+  border-radius: 12px;
+  color: var(--text, #252923);
+  background: var(--surface, #faf9f6);
+  overflow-wrap: anywhere;
+}
+.drive-comparison::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+.drive-comparison-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.drive-comparison-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.drive-comparison button {
+  min-height: 44px;
+  flex-shrink: 0;
+}
+.drive-comparison-images {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.drive-comparison figure {
+  min-width: 0;
+  margin: 0;
+}
+.drive-comparison figcaption {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.drive-comparison img {
+  display: block;
+  width: 100%;
+  height: min(55dvh, 520px);
+  object-fit: contain;
+  background: #e9e6df;
+}
+.drive-comparison-loading {
+  padding-block: 32px;
+}
+.drive-panel td {
+  overflow-wrap: anywhere;
+  max-width: 460px;
+}
+.drive-sources {
+  padding: 0;
+  list-style: none;
+}
+.drive-sources li {
+  padding-block: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  border-bottom: 1px solid #e4dfd6;
+  overflow-wrap: anywhere;
+}
+[data-submission-status] {
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 380px;
+}
+@media (max-width: 750px) {
+  .drive-filters,
+  .drive-comparison-images {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .drive-comparison {
+    padding: 16px;
+  }
+  .drive-comparison img {
+    height: min(35dvh, 320px);
+  }
+  .drive-panel .drive-compare-button {
+    min-height: 44px;
+  }
+  .drive-panel .drive-actions {
+    gap: 10px;
+  }
+  .drive-panel .drive-actions button {
+    min-height: 44px;
+  }
+  .drive-panel tbody tr {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .drive-panel td {
+    max-width: none;
+  }
+  .drive-panel td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted, #5f6a60);
+    font-size: 11px;
+    margin-bottom: 3px;
+  }
+  .public-view .client-toolbar {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    flex-wrap: wrap;
+    border-radius: 20px;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .photo-pagination {
+    gap: 10px;
+    font-size: 12px;
+  }
+  .photo-pagination span {
+    order: -1;
+    flex-basis: 100%;
+    text-align: center;
+  }
+  .public-view .client-toolbar-main {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .public-view .client-toolbar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    padding-left: 0;
+    border-left: 0;
+  }
+  [data-submission-status] {
+    flex-basis: 100%;
+  }
+  body.public-view:has(.client-toolbar) #toast {
+    bottom: 170px;
+  }
+  body.public-view:has(.client-toolbar) .back-to-top {
+    bottom: calc(170px + env(safe-area-inset-bottom));
+  }
+  body.public-view:has(.client-toolbar) .public-footer {
+    padding-bottom: 190px;
+  }
+}
+
+.album-drive-entry {padding:16px;background:var(--paper,#f7f5f0);border:1px solid var(--line,#ddd);border-radius:8px;min-width:0;margin-bottom:16px}
+.album-drive-entry[hidden],.album-drive-status[hidden] {display:none}
+.album-drive-entry input {min-width:0;width:100%}
+.album-drive-entry .small-btn {min-height:44px}
+.album-drive-entry p {overflow-wrap:anywhere}
+.album-drive-status {display:block;font-size:12px;line-height:1.6;margin-top:8px;color:var(--muted,#655d52);overflow-wrap:anywhere}
+
+.drive-folder-browser {box-sizing:border-box;width:min(680px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:hidden;padding:0;border:1px solid var(--line,#ddd);border-radius:12px;background:var(--paper,#faf9f6);color:var(--text,#252923);overflow-wrap:anywhere}
+.drive-folder-browser[open] {display:flex;flex-direction:column}
+.drive-folder-scroll {min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 24px 16px;scroll-padding:12px}
+.drive-folder-browser header {flex-shrink:0;padding:20px 24px 12px}
+.drive-folder-browser::backdrop {background:rgb(0 0 0 / 55%)}
+.drive-folder-browser header,.drive-folder-browser footer {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.drive-folder-browser header {flex-wrap:nowrap}
+.drive-folder-browser h2 {font-size:22px;margin:0;min-width:0}
+.drive-folder-browser [data-close] {flex-shrink:0}
+.drive-folder-browser h3 {font-size:17px}
+.drive-folder-browser form,.drive-folder-browser label {display:grid;gap:10px;min-width:0}
+.drive-folder-browser input {box-sizing:border-box;width:100%;min-width:0}
+.drive-folder-browser button {min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.drive-folder-browser nav {display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.drive-folder-browser nav button {text-align:left}
+.drive-folder-browser [data-content] {min-height:60px}
+.drive-folder-list {list-style:none;padding:0;display:grid;gap:8px}
+.drive-folder-list button {width:100%;text-align:left}
+.drive-folder-browser footer {flex-shrink:0;border-top:1px solid var(--line,#ddd);padding:12px 24px 16px;background:var(--paper,#faf9f6)}
+@media(max-width:480px){.drive-folder-scroll{padding:0 16px 12px}.drive-folder-browser header{padding:16px 16px 8px}.drive-folder-browser h2{font-size:19px}.drive-folder-browser footer{padding:12px 16px;gap:8px}.drive-folder-browser footer>*{width:100%}.album-drive-entry>[data-browse-drive-folder]{margin-bottom:8px}}
+
+.drive-folder-preview {margin:12px 0 16px}
+.drive-folder-preview>p {font-size:13px;color:var(--muted,#6b7269);margin:0 0 8px}
+.drive-folder-preview-images {display:grid;grid-template-columns:repeat(6,minmax(0,72px));gap:8px}
+.drive-folder-preview-images img {display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:6px;background:var(--line,#e5e7e2)}
+@media(max-width:400px){.drive-folder-preview-images{grid-template-columns:repeat(3,minmax(0,64px));gap:6px}}
+.drive-folder-heading {display:flex;align-items:center;justify-content:space-between;gap:12px}
+.drive-folder-heading h3 {min-width:0;margin:12px 0}
+.drive-folder-heading [data-refresh] {flex-shrink:0;white-space:nowrap}
+.drive-folder-overview {font-size:15px;font-weight:600;margin:8px 0;padding:10px 12px;border-radius:8px;background:var(--line,#e5e7e2)}
+.drive-folder-summary-note,.drive-folder-loaded {font-size:12px;color:var(--muted,#6b7269);margin:8px 0}
+.drive-folder-browser [hidden] {display:none!important}

@@ -1,3 +1,7 @@
+import {driveAlbumFields,mountDriveAlbumEntry,checkedDriveAlbumData,driveEntryError} from './drive-album-entry.mjs';
+import {mountDriveAlbumStatuses} from './drive-album-status.mjs';
+import {mountDrivePanel} from './drive-panel.mjs';
+import {pageWindow,photoPager,albumPageSize,adminPageSize,largeGalleryThreshold,largeAdminThreshold} from './photo-pagination.mjs';
 import {adminVisiblePhotos,matchesAdminPhoto,selectedFileNames} from './admin-proofing.mjs';
 import {uploadRequest,uploadProgressText} from './upload-request.mjs';
 import {api} from './api-request.mjs';
@@ -26,8 +30,9 @@ let googleCalendarState={configured:false};
 let site={},albums=[],album=null,adminAlbums=[],inquiries=[],dates=[],availability={blocked:[],today:''},adminView='dashboard',adminAlbumId=null,filter='all',selectedOnly=false,lightIndex=0,calendarMonth=new Date(),bookingDate='';
 const latestUploadReports=new Map();const uploadQueues=new WeakMap();let uploadBusy=false;let sectionReturnFocus=null;
 let sectionFilter='all',adminSectionFilter='all',sectionAlbumId=null,sectionBusy=false;
-let adminPhotoQuery='',adminPickedOnly=false,adminArrange=false,adminToolsOpen={upload:false,sections:false},adminLight=false,adminLightIds=[];
+let adminPhotoQuery='',adminPickedOnly=false,adminArrange=false,adminToolsOpen={upload:false,sections:false,drive:false},adminLight=false,adminLightIds=[];
 let adminNavigation=0;
+let newDriveAlbumId=null;
 let pendingBulkDelete=null;
 let adminSyncPromise=null,adminSyncedAt=null,adminSyncError='',adminExportBusy=false;
 const sectionSelected=new Set(),sectionRequestIds=new Map();
@@ -40,8 +45,54 @@ const send=(url,data,method='POST')=>api(url,{method,body:JSON.stringify(data)})
 let clientGallery=false,pickBusy=false,activeUploadQueue=null;
 let selectionUncertain=false,selectionEpoch=0,selectionRefreshing=false;
 let selectionRefreshQueued=false,selectionRefreshQueuedFull=false;
+let submissionBusy=false;
+const submissionRequests=new Map();
+function copySelectionRevisions(state){
+ // A selection response does not contain the displayed image contents.
+ // Only a full catalog response may advance the revision used for submission.
+ for(const key of ['selection_revision','submission_generation','submission_stale']){
+  if(state[key]!==undefined)album[key]=state[key];
+ }
+}
+function updateSubmissionUI(){
+ const button=$('[data-action=submit-selection]');
+ const status=$('[data-submission-status]');
+ if(!button||!status)return;
+ const submitted=album.selection_status==='submitted'&&!album.submission_stale;
+ button.disabled=submissionBusy||pickBusy||selectionUncertain||!album.photos.some(photo=>photo.selected)||submitted;
+ button.textContent=submissionBusy?'Đang gửi…':submitted?'Đã gửi lựa chọn':'Gửi lựa chọn';
+ status.textContent=album.submission_stale?'Bộ ảnh đã thay đổi sau lần gửi trước. Hãy xem lại rồi gửi lựa chọn mới.':submitted?'Studio đã nhận danh sách ảnh của bạn.':'';
+}
+async function submitSelection(){
+ if(submissionBusy||pickBusy||selectionUncertain)return;
+ const current=album;
+ const revisions={catalog_revision:current.catalog_revision,selection_revision:current.selection_revision};
+ const key=JSON.stringify([current.id,revisions]);
+ if(!submissionRequests.has(key))submissionRequests.set(key,crypto.randomUUID());
+ submissionBusy=true;
+ updateSubmissionUI();
+ try{
+  const result=await send('/api/gallery/'+current.id+'/submit',{
+   ...revisions,
+   request_key:submissionRequests.get(key)
+  });
+  if(album===current){applySharedSelection(result);toast('Studio đã nhận lựa chọn của bạn.');}
+ }catch(error){
+  if(error.status===409&&album===current){
+   await refreshSharedSelection(true);
+   toast('Bộ ảnh hoặc lựa chọn đã thay đổi. Hãy xem lại và bấm gửi lần nữa.');
+  }else throw error;
+ }finally{
+  submissionBusy=false;
+  if(clientGallery)updateSubmissionUI();
+ }
+}
 const galleryBatchSize=90;
 let galleryLoadObserver=null;
+let galleryPhotoPage=0;
+let galleryPageKey='';
+let adminPhotoPage=0;
+let adminPageKey='';
 // Download code loads on demand so opening a gallery does not wait for it.
 let galleryDownloads,photoDownloads,galleryDownloadsLoading,photoDownloadsLoading;
 const loadGalleryDownloads=()=>galleryDownloadsLoading??=import('./gallery-download.mjs').then(({createGalleryDownloads})=>galleryDownloads=createGalleryDownloads({onExpired:async()=>{try{await expireGallery();}catch(error){toast(error.message);}},onSelectionChanged:async()=>{try{await route();$('[data-action=download-selected]')?.focus({preventScroll:true});toast('Đã cập nhật danh sách ảnh đã lưu.');}catch(error){toast(error.message);}}})).catch(error=>{galleryDownloadsLoading=null;throw error;});
@@ -95,13 +146,20 @@ function clientPhotoMarkup(p,i){
 }
 function galleryMoreMarkup(total,shown){return shown<total?`<div class="gallery-more" data-gallery-more aria-live="polite"><button class="link-btn" data-action="gallery-more">Hiển thị thêm ${Math.min(galleryBatchSize,total-shown)} ảnh</button><span>${shown} / ${total} ảnh</span></div>`:'';}
 function photosMarkup(photos,client=false){
+ const key=JSON.stringify([album.id,sectionFilter,selectedOnly]);
+ if(key!==galleryPageKey){galleryPageKey=key;galleryPhotoPage=0;}
+ const paged=album.photos.length>largeGalleryThreshold;
+ const window=pageWindow(photos,galleryPhotoPage,albumPageSize);
+ galleryPhotoPage=window.page;
+ const shownPhotos=paged?window.items:photos;
+ const pager=paged?photoPager(window,'gallery-page'):'';
  const photoMarkup=(p,i,sizes)=>{const name=p.caption||p.original||'Ảnh '+(i+1);return `<article class="photo-item"><button class="photo-open" data-action="open-photo" data-photo="${p.id}" aria-label="Xem ảnh ${esc(name)}">${img(p,'',i===0,true,sizes)}</button><div class="photo-info">${client?'':`<span title="${esc(name)}">${esc(name)}</span>`}${client?`<button class="pick ${p.selected?'picked':''}" data-action="pick" data-photo="${p.id}" aria-pressed="${!!p.selected}" aria-label="${p.selected?'Bỏ chọn lưu':'Lưu'} ảnh ${esc(name)}">${icon('bookmark')}</button>`:''}</div></article>`;};
  if(client){
-  const shown=Math.min(galleryBatchSize,photos.length);
-  return `<div class="photo-grid client-masonry" data-count="${shown}" data-gallery-total="${photos.length}">${photos.slice(0,shown).map(clientPhotoMarkup).join('')}</div>${galleryMoreMarkup(photos.length,shown)}`;
+  const shown=Math.min(galleryBatchSize,shownPhotos.length);
+  return `<div class="photo-grid client-masonry" data-count="${shown}" data-gallery-total="${photos.length}">${shownPhotos.slice(0,shown).map(clientPhotoMarkup).join('')}</div>${paged?pager:galleryMoreMarkup(photos.length,shown)}`;
  }
  let index=0;
- return `<div class="photo-grid album-sequence">${albumRows(photos).map(row=>`<div class="album-photo-row ${row.length===1?'single-frame':''} ${row.length===1&&row[0].width<row[0].height?'portrait-frame':''}">${row.map(p=>photoMarkup(p,index++,albumPhotoSizes(row,p))).join('')}</div>`).join('')}</div>`;
+ return `<div class="photo-grid album-sequence">${albumRows(shownPhotos).map(row=>`<div class="album-photo-row ${row.length===1?'single-frame':''} ${row.length===1&&row[0].width<row[0].height?'portrait-frame':''}">${row.map(p=>photoMarkup(p,index++,albumPhotoSizes(row,p))).join('')}</div>`).join('')}</div>${pager}`;
 }
 function relatedStories(){
  const stories=nextStories(albums,album.id,site.storySelection,site.heroSelection);
@@ -134,6 +192,7 @@ function updateClientSelection(){
  $('.client-toolbar').classList.toggle('has-sync-error',selectionUncertain);
  if($('#lightbox').open)updateLightSelection();
  syncDownloadButton();
+ updateSubmissionUI();
 }
 function updateLightSelection(){
  if(adminLight){const p=lightPhotos()[lightIndex];$('#lightbox-selection').textContent=album.status==='private'?(p?.selected?'♥ Khách đã chọn':'Khách chưa chọn'):'';return;}
@@ -147,11 +206,12 @@ function updateLightPick(photo){
 }
 function applySharedSelection(state){
  if(!Array.isArray(state?.selected)||!['draft','submitted'].includes(state.selection_status))throw Error('Chưa xác nhận được danh sách ảnh. Vui lòng đồng bộ lại.');
+ copySelectionRevisions(state);
  const selected=new Set(state.selected),removed=[],added=[];
  const previousStatus=album.selection_status;
  const currentPhoto=lightPhotos()[lightIndex]?.id;
  for(const p of album.photos){if(p.selected&&!selected.has(p.id))removed.push(p.id);if(!p.selected&&selected.has(p.id))added.push(p.id);p.selected=selected.has(p.id);}
- if(!removed.length&&!added.length&&previousStatus===state.selection_status&&!selectionUncertain)return;
+ if(!removed.length&&!added.length&&previousStatus===state.selection_status&&!selectionUncertain){updateSubmissionUI();return;}
  album.selection_status=state.selection_status;selectionUncertain=false;
  if(selectedOnly&&added.length){const top=scrollY;albumPage(true);scrollTo({top,behavior:'instant'});}
  else if(selectedOnly)for(const id of removed)removeSelectedCard(id);
@@ -183,7 +243,8 @@ async function refreshSharedSelection(full=false){
    if(wasOpen){const index=lightPhotos().findIndex(p=>p.id===photoId);if(index<0)$('#lightbox').close();else showLight(index);}
   }
   album.photo_version=data.photo_version;album.gallery_version=data.gallery_version;
-  applySharedSelection({selected:data.photos.filter(p=>p.selected).map(p=>p.id),selection_status:data.selection_status});
+  album.catalog_revision=data.catalog_revision;
+  applySharedSelection({...data,selected:data.photos.filter(p=>p.selected).map(p=>p.id)});
  }else applySharedSelection(data);
  return true;
 }
@@ -192,7 +253,7 @@ async function expireGallery(){
  await route();toast('Phiên xem bộ ảnh đã hết hạn. Vui lòng nhập lại mật khẩu.');
 }
 async function backgroundSelectionRefresh(full=false){
- if(!clientGallery||document.hidden||pickBusy||$('#editor').open)return;
+ if(!clientGallery||document.hidden||pickBusy||submissionBusy||$('#editor').open)return;
  if(selectionRefreshing){selectionRefreshQueued=true;selectionRefreshQueuedFull||=full;return;}
  selectionRefreshing=true;
  try{await refreshSharedSelection(full);}catch(error){if(error.status===401){try{await expireGallery();}catch(error){toast(error.message);}}else{selectionUncertain=true;if(clientGallery)updateClientSelection();}}
@@ -211,6 +272,12 @@ window.addEventListener('focus',()=>void backgroundSelectionRefresh(true));
 window.addEventListener('online',()=>void backgroundSelectionRefresh(true));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void backgroundSelectionRefresh(true);});
 function removeSelectedCard(photoId){
+ if(album.photos.length>largeGalleryThreshold){
+  const top=scrollY;
+  albumPage(true);
+  scrollTo({top,behavior:'instant'});
+  return;
+ }
  const card=$(`.pick[data-photo="${photoId}"]`)?.closest('.photo-item');
  const cards=[...document.querySelectorAll('.client-masonry .photo-item')],index=cards.indexOf(card),neighbor=index>=0?(cards[index+1]||cards[index-1]):null;
  const top=neighbor?.getBoundingClientRect().top;if(card)card.remove();
@@ -226,7 +293,7 @@ function removeSelectedCard(photoId){
  }else if(lightReturnPhoto===photoId)lightReturnPhoto=neighbor?.querySelector('.photo-open')?.dataset.photo||null;
 }
 function scrollToGallery(){
- const target=$('.section-tabs')||$('.client-masonry')||$('.client-photos .empty-state');
+ const target=$('.section-tabs')||$('.photo-grid')||$('.client-photos .empty-state');
  if(target&&target.getBoundingClientRect().top<0)target.scrollIntoView({block:'start',behavior:'instant'});
 }
 function visibleClientPhotos(){return sectionPhotos(album,sectionFilter,selectedOnly);}
@@ -243,6 +310,7 @@ function setupGalleryLoader(){
  galleryLoadObserver.observe(more);
 }
 function appendGalleryBatch(limit=galleryBatchSize){
+ if(album.photos.length>largeGalleryThreshold)return;
  const grid=$('.client-masonry');if(!grid)return;
  const visible=visibleClientPhotos(),shown=grid.querySelectorAll('.photo-item').length;
  if(shown>=visible.length)return;
@@ -265,10 +333,10 @@ function albumPage(client=false){
  ${client?`<div class="client-intro"><p>${icon('bookmark')} Chạm biểu tượng lưu ở mỗi ảnh bạn muốn giữ lại.</p></div>`:''}
  ${sectionTabs(album,sectionFilter,false,selectedOnly,client)}<p class="sr-only" data-gallery-status role="status">${visible.length} ảnh trong bộ ảnh. ${Math.min(galleryBatchSize,visible.length)} ảnh đang hiển thị.</p>
  ${visible.length?photosMarkup(visible,client):`<div class="empty-state">${selectedOnly?'Chưa có ảnh được chọn trong mục này.':sectionFilter!=='all'?'Phần này chưa có ảnh.':'Bộ ảnh đang được chuẩn bị.'}</div>`}
- ${client?`<div class="client-toolbar" role="region" aria-label="Thao tác với ảnh đã lưu"><div class="client-toolbar-main">${icon('bookmark')}<strong role="status" aria-live="polite">${count} ảnh đã lưu</strong><button class="link-btn" data-action="retry-selection" hidden>Đồng bộ lại</button><span class="client-save-status" role="status" hidden></span></div><div class="client-toolbar-actions"><button class="toolbar-icon" data-action="selected-only" aria-label="${selectedOnly?'Xem tất cả ảnh':'Chỉ xem ảnh đã lưu'}" aria-pressed="${selectedOnly}">${icon('bookmark')}</button><button class="toolbar-icon" data-action="download-selected" aria-label="Tải ảnh đã lưu" ${!count||pickBusy?'disabled':''}>${icon('download')}</button></div></div>`:''}
+ ${client?`<div class="client-toolbar" role="region" aria-label="Thao tác với ảnh đã lưu"><div class="client-toolbar-main">${icon('bookmark')}<strong role="status" aria-live="polite">${count} ảnh đã lưu</strong><button class="link-btn" data-action="retry-selection" hidden>Đồng bộ lại</button><span class="client-save-status" role="status" hidden></span><span data-submission-status role="status"></span></div><div class="client-toolbar-actions"><button class="small-btn" data-action="submit-selection">Gửi lựa chọn</button><button class="toolbar-icon" data-action="selected-only" aria-label="${selectedOnly?'Xem tất cả ảnh':'Chỉ xem ảnh đã lưu'}" aria-pressed="${selectedOnly}">${icon('bookmark')}</button><button class="toolbar-icon" data-action="download-selected" aria-label="Tải ảnh đã lưu" ${!count||pickBusy?'disabled':''}>${icon('download')}</button></div></div>`:''}
  ${copy?.credit?`<p class="album-credit">${esc(copy.credit)}</p>`:''}</section>${client?'':relatedStories()}`);
  alignSectionTabs();
- if(client)setupGalleryLoader();
+ if(client){setupGalleryLoader();updateSubmissionUI();}
 }
 function lockedGallery(){clientGallery=false;selectionUncertain=false;$('#editor').close();$('#lightbox').close();publicPage(`<section class="gallery-lock page-width">${label('DÀNH RIÊNG CHO BẠN')}<div class="lock-icon">${icon('lock')}</div><h1>Bộ ảnh của bạn.</h1><p>Nhập mật khẩu studio đã gửi để xem và chọn ảnh.</p><form data-form="unlock"><label>Mật khẩu bộ ảnh<input name="password" type="password" autocomplete="current-password" required autofocus></label><p class="form-error" role="alert"></p><button class="btn">Mở bộ ảnh</button></form></section>`);}
 function about(){
@@ -358,19 +426,43 @@ async function navigateAdmin(view,albumId=null,{push=true,scroll=true}={}){
 function readinessPanel(r){return `<section class="panel readiness-panel"><div class="panel-heading"><h2>Thiết lập website</h2><span class="badge">${r.production?'Môi trường chính thức':'Môi trường thử nghiệm'}</span></div><div class="readiness-grid">${[[r.contact,'Thông tin liên hệ',r.contact?'Khách đã có kênh liên hệ với bạn.':'Thêm email hoặc số điện thoại trong Cài đặt.','settings'],[r.portfolio,'Bộ ảnh công khai',r.portfolio?'Đã có bộ ảnh công khai kèm ảnh.':'Đăng ảnh rồi chuyển bộ ảnh sang Công khai.','portfolio'],[r.cloud,'Lưu trữ dữ liệu',r.cloud?'Đã cấu hình cơ sở dữ liệu và kho ảnh trên đám mây.':'Dữ liệu đang lưu trên máy. Cần cấu hình lưu trữ bền vững khi triển khai website.','settings']].map(([done,title,note,view])=>`<button class="readiness-item" data-action="admin-view" data-view="${view}"><span class="readiness-icon ${done?'done':''}">${done?icon('check'):icon('plus')}</span><div><strong>${title}</strong><p>${note}</p></div></button>`).join('')}</div></section>`;}
 function adminHeading(title,subtitle,action=''){return `<div class="admin-heading"><div><h1>${title}</h1><p>${subtitle}</p></div>${action}</div>`;}
 function inquiryRows(rows,emptyTitle='Chưa có yêu cầu tư vấn',emptyNote='Yêu cầu khách gửi qua website sẽ xuất hiện tại đây.'){return rows.length?`<div class="table-wrap"><table><thead><tr><th>Khách hàng</th><th>Dịch vụ quan tâm</th><th>Ngày dự kiến</th><th>Trạng thái</th><th><span class="sr-only">Thao tác</span></th></tr></thead><tbody>${rows.map(r=>`<tr data-search="${esc([r.name,r.email,r.phone,r.service,r.date].join(' '))}" data-status="${r.status}"><td class="customer-cell" data-label="Khách hàng"><strong>${esc(r.name)}</strong><small>${esc(r.email||r.phone)}</small></td><td data-label="Dịch vụ quan tâm">${esc(r.service)}</td><td data-label="Ngày dự kiến">${dateLabel(r.date)}</td><td class="status-cell" data-label="Trạng thái">${badge(r.status)}</td><td class="row-action"><button class="link-btn" data-action="inquiry-detail" data-id="${r.id}" aria-label="Xem yêu cầu của ${esc(r.name)}">Xem chi tiết ${icon('arrow')}</button></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty-state"><span class="empty-icon">${icon('inbox')}</span><h3>${esc(emptyTitle)}</h3><p>${esc(emptyNote)}</p></div>`;}
-async function dashboard(current=()=>true){const d=await api('/api/admin/dashboard');if(!current())return;const count=(rows,status)=>Number(rows.find(r=>r.status===status)?.count||0);adminShell(adminHeading('Tổng quan','Theo dõi bộ ảnh, yêu cầu tư vấn và lựa chọn của khách.',`<button class="btn" data-action="new-album">${icon('plus')} Tạo bộ ảnh</button>`)+`<div class="stats-grid">${[['Bộ ảnh công khai',count(d.albums,'published'),'Bộ ảnh đang hiển thị'],['Ảnh của khách',count(d.albums,'private'),'Bộ ảnh chia sẻ riêng'],['Yêu cầu mới',count(d.inquiries,'new'),'Đang chờ bạn xử lý'],['Ảnh trong studio',d.photos,'Tổng số ảnh đã tải lên']].map(([title,n,note])=>`<div class="stat-card"><span>${title}</span><strong>${n}</strong><small>${note}</small></div>`).join('')}</div>${readinessPanel(d.readiness)}<section class="panel"><div class="panel-heading"><h2>Yêu cầu gần đây</h2><button class="link-btn" data-action="admin-view" data-view="inquiries">Xem tất cả</button></div>${inquiryRows(d.recent)}</section><div class="admin-two"><section class="panel quick-start"><h2>Tạo bộ ảnh mới</h2><p>Tạo bộ ảnh, thêm ảnh, chọn bìa và chuyển sang công khai khi đã sẵn sàng.</p><button class="underlink" data-action="new-album">${d.albums.some(a=>Number(a.count)>0)?'Tạo bộ ảnh mới':'Tạo bộ ảnh đầu tiên'}</button></section><section class="panel"><div class="panel-heading"><h2>Ảnh khách đã chọn</h2>${adminSyncMarkup()}</div><div class="admin-selection-list">${adminSelectionList(d.selections)}</div></section></div>`);}
-function adminAlbumsPage(){const client=adminView==='clients';const rows=adminAlbums.filter(a=>client?a.status==='private':a.status!=='private');adminShell(adminHeading(client?'Ảnh của khách':'Bộ ảnh',client?'Gửi đường dẫn (và mật khẩu nếu có) để khách xem và chọn ảnh. Lựa chọn được cập nhật trực tiếp vào bộ ảnh.':'Tạo bộ ảnh, sắp xếp nội dung và chọn những gì sẽ hiển thị trên website.',`<button class="btn" data-action="new-album">${icon('plus')} ${client?'Tạo bộ ảnh riêng':'Tạo bộ ảnh'}</button>`)+(client?adminSyncMarkup():'')+searchToolbar(client?['private']:['draft','published','archived'])+`<div class="admin-album-grid">${rows.length?rows.map(a=>`<button class="admin-album" data-search="${esc([a.title,a.client_name,categories[a.category]].join(' '))}" data-status="${a.status}" data-action="edit-album" data-id="${a.id}">${img(cover(a))}<div class="admin-album-info">${badge(a.status)}<h3>${esc(a.title)}</h3><p>${a.photo_count??a.photos?.length??0} ảnh · ${esc(categories[a.category])}${client?' · <span data-album-pick-count="'+a.id+'">'+(a.selected_count??a.photos?.filter(p=>p.selected).length??0)+' khách chọn</span> · '+(a.has_password?'Có mật khẩu':'Không mật khẩu'):''}</p></div></button>`).join(''):`<div class="empty-state"><span class="empty-icon">${icon('image')}</span><h3>${client?'Bộ ảnh riêng đầu tiên':'Bộ ảnh đầu tiên của bạn'}</h3><p>${client?'Tạo bộ ảnh để chia sẻ riêng với khách.':'Tạo bộ ảnh, thêm ảnh và công khai khi đã sẵn sàng.'}</p></div>`}</div>`);applyAdminFilters();}
-function albumForm(a={}){const isPrivate=(a.status||(adminView==='clients'?'private':'draft'))==='private';const hasPassword=a.id?Boolean(a.has_password):true;return `<form data-form="album" data-id="${a.id||''}"><label>Tên bộ ảnh *<input name="title" required maxlength="150" value="${esc(a.title)}" placeholder="Tên bộ ảnh"></label><label>Tên trong đường dẫn (slug)<input name="slug" maxlength="150" value="${esc(a.slug)}" placeholder="Để trống để tạo từ tên bộ ảnh"><small data-slug-preview>chicongphoto.vn/album/${esc(a.slug||albumSlug(a.title))}</small></label><p class="form-note">Tên trong đường dẫn được thêm số nếu bị trùng. Đổi tên bộ ảnh không tự đổi đường dẫn; nếu sửa đường dẫn, đường dẫn cũ vẫn chuyển tiếp. Bộ ảnh riêng dùng đường dẫn riêng có mã định danh.</p><div class="form-pair"><label>Thể loại<select name="category">${Object.entries(categories).map(([k,v])=>`<option value="${k}" ${a.category===k?'selected':''}>${v}</option>`).join('')}</select></label><label>Trạng thái<select name="status">${['draft','published','private','archived'].map(k=>`<option value="${k}" ${(a.status||(adminView==='clients'?'private':'draft'))===k?'selected':''}>${statuses[k]}</option>`).join('')}</select></label></div><label>Mô tả<textarea name="description" rows="3" maxlength="2000">${esc(a.description)}</textarea></label><div class="form-pair"><label>Tên khách hàng<input name="client_name" maxlength="150" value="${esc(a.client_name)}"></label><label>Ngày chụp<input name="event_date" type="date" value="${esc(a.event_date)}"></label></div><div class="private-password-section" ${isPrivate?'':'hidden'}><label class="checkbox-label"><input type="checkbox" name="require_password" ${hasPassword?'checked':''}> Cài mật khẩu khi xem trên web</label><div class="password-field" ${hasPassword?'':'hidden'}><label>Mật khẩu bộ ảnh riêng<input name="password" type="password" autocomplete="new-password" minlength="8" placeholder="${hasPassword?'Để trống nếu giữ mật khẩu hiện tại':'Ít nhất 8 ký tự nếu cài mật khẩu'}"></label></div><p class="form-note">Nếu không bật mật khẩu, khách chỉ cần mở đường dẫn là xem và chọn ảnh được ngay trên web. Nếu bật mật khẩu, khách cần nhập đúng mật khẩu để mở bộ ảnh.</p></div><p class="form-note">Chỉ bộ ảnh có trạng thái Công khai mới hiển thị trên website.</p><p class="form-error" role="alert"></p><button class="btn">${a.id?'Lưu thay đổi':'Tạo bộ ảnh'} </button></form>`;}
+async function dashboard(current=()=>true){const d=await api('/api/admin/dashboard');if(!current())return;const count=(rows,status)=>Number(rows.find(r=>r.status===status)?.count||0);adminShell(adminHeading('Tổng quan','Theo dõi bộ ảnh, yêu cầu tư vấn và lựa chọn của khách.',`<button class="btn" data-action="new-album">${icon('plus')} Tạo bộ ảnh</button>`)+`<div class="stats-grid">${[['Bộ ảnh công khai',count(d.albums,'published'),'Bộ ảnh đang hiển thị'],['Ảnh của khách',count(d.albums,'private'),'Bộ ảnh chia sẻ riêng'],['Yêu cầu mới',count(d.inquiries,'new'),'Đang chờ bạn xử lý'],['Ảnh trong studio',d.photos,'Tổng số ảnh đã tải lên']].map(([title,n,note])=>`<div class="stat-card"><span>${title}</span><strong>${n}</strong><small>${note}</small></div>`).join('')}</div>${readinessPanel(d.readiness)}<section class="panel"><div class="panel-heading"><h2>Yêu cầu gần đây</h2><button class="link-btn" data-action="admin-view" data-view="inquiries">Xem tất cả</button></div>${inquiryRows(d.recent)}</section><div class="admin-two"><section class="panel quick-start"><h2>Tạo bộ ảnh mới</h2><p>Tạo bộ ảnh, tải ảnh từ máy hoặc nhập từ folder Google Drive, rồi chọn bìa và công khai khi sẵn sàng.</p><button class="underlink" data-action="new-album">${d.albums.some(a=>Number(a.count)>0)?'Tạo bộ ảnh mới':'Tạo bộ ảnh đầu tiên'}</button></section><section class="panel"><div class="panel-heading"><h2>Ảnh khách đã chọn</h2>${adminSyncMarkup()}</div><div class="admin-selection-list">${adminSelectionList(d.selections)}</div></section></div>`);}
+function adminAlbumsPage(){const client=adminView==='clients';const rows=adminAlbums.filter(a=>client?a.status==='private':a.status!=='private');adminShell(adminHeading(client?'Ảnh của khách':'Bộ ảnh',client?'Gửi đường dẫn (và mật khẩu nếu có) để khách xem và chọn ảnh. Lựa chọn được cập nhật trực tiếp vào bộ ảnh.':'Tạo bộ ảnh, sắp xếp nội dung và chọn những gì sẽ hiển thị trên website.',`<button class="btn" data-action="new-album">${icon('plus')} ${client?'Tạo bộ ảnh riêng':'Tạo bộ ảnh'}</button>`)+(client?adminSyncMarkup():'')+searchToolbar(client?['private']:['draft','published','archived'])+`<div class="admin-album-grid">${rows.length?rows.map(a=>`<button class="admin-album" data-search="${esc([a.title,a.client_name,categories[a.category]].join(' '))}" data-status="${a.status}" data-action="edit-album" data-id="${a.id}">${img(cover(a))}<div class="admin-album-info">${badge(a.status)}<h3>${esc(a.title)}</h3><p>${a.photo_count??a.photos?.length??0} ảnh · ${esc(categories[a.category])}${client?' · <span data-album-pick-count="'+a.id+'">'+(a.selected_count??a.photos?.filter(p=>p.selected).length??0)+' khách chọn</span> · '+(a.has_password?'Có mật khẩu':'Không mật khẩu'):''}</p><span class="album-drive-status" data-drive-album-status="${a.id}" hidden></span></div></button>`).join(''):`<div class="empty-state"><span class="empty-icon">${icon('image')}</span><h3>${client?'Bộ ảnh riêng đầu tiên':'Bộ ảnh đầu tiên của bạn'}</h3><p>${client?'Tạo bộ ảnh để chia sẻ riêng với khách.':'Tạo bộ ảnh, thêm ảnh và công khai khi đã sẵn sàng.'}</p></div>`}</div>`);applyAdminFilters();mountDriveAlbumStatuses($('.admin-album-grid'));}
+function albumForm(a={}){const isPrivate=(a.status||(adminView==='clients'?'private':'draft'))==='private';const hasPassword=a.id?Boolean(a.has_password):true;return `<form data-form="album" data-id="${a.id||''}">${a.id?'':`<label>Nguồn ảnh ban đầu<select name="photo_source" aria-describedby="album-source-note"><option value="upload">Tải ảnh từ máy</option><option value="drive">Google Drive</option></select></label><p class="form-note" id="album-source-note">Dán link folder và kiểm tra trước khi tạo. Sau đó bạn sẽ xem trước và duyệt nhập ảnh; vẫn có thể thêm ảnh từ máy.</p>${driveAlbumFields()}`}<label>Tên bộ ảnh *<input name="title" required maxlength="150" value="${esc(a.title)}" placeholder="Tên bộ ảnh"></label><label>Tên trong đường dẫn (slug)<input name="slug" maxlength="150" value="${esc(a.slug)}" placeholder="Để trống để tạo từ tên bộ ảnh"><small data-slug-preview>chicongphoto.vn/album/${esc(a.slug||albumSlug(a.title))}</small></label><p class="form-note">Tên trong đường dẫn được thêm số nếu bị trùng. Đổi tên bộ ảnh không tự đổi đường dẫn; nếu sửa đường dẫn, đường dẫn cũ vẫn chuyển tiếp. Bộ ảnh riêng dùng đường dẫn riêng có mã định danh.</p><div class="form-pair"><label>Thể loại<select name="category">${Object.entries(categories).map(([k,v])=>`<option value="${k}" ${a.category===k?'selected':''}>${v}</option>`).join('')}</select></label><label>Trạng thái<select name="status">${['draft','published','private','archived'].map(k=>`<option value="${k}" ${(a.status||(adminView==='clients'?'private':'draft'))===k?'selected':''}>${statuses[k]}</option>`).join('')}</select></label></div><label>Mô tả<textarea name="description" rows="3" maxlength="2000">${esc(a.description)}</textarea></label><div class="form-pair"><label>Tên khách hàng<input name="client_name" maxlength="150" value="${esc(a.client_name)}"></label><label>Ngày chụp<input name="event_date" type="date" value="${esc(a.event_date)}"></label></div><div class="private-password-section" ${isPrivate?'':'hidden'}><label class="checkbox-label"><input type="checkbox" name="require_password" ${hasPassword?'checked':''}> Cài mật khẩu khi xem trên web</label><div class="password-field" ${hasPassword?'':'hidden'}><label>Mật khẩu bộ ảnh riêng<input name="password" type="password" autocomplete="new-password" minlength="8" placeholder="${hasPassword?'Để trống nếu giữ mật khẩu hiện tại':'Ít nhất 8 ký tự nếu cài mật khẩu'}"></label></div><p class="form-note">Nếu không bật mật khẩu, khách chỉ cần mở đường dẫn là xem và chọn ảnh được ngay trên web. Nếu bật mật khẩu, khách cần nhập đúng mật khẩu để mở bộ ảnh.</p></div><p class="form-note">Chỉ bộ ảnh có trạng thái Công khai mới hiển thị trên website.</p><p class="form-error" data-album-error role="alert"></p><button type="submit" class="btn">${a.id?'Lưu thay đổi':'Tạo bộ ảnh'} </button></form>`;}
+function adminPhotoWindow(a){
+ const key=JSON.stringify([a.id,adminSectionFilter,adminPhotoQuery,adminPickedOnly]);
+ if(key!==adminPageKey){adminPageKey=key;adminPhotoPage=0;}
+ const window=pageWindow(visibleAdminPhotos(a),adminPhotoPage,adminPageSize);
+ adminPhotoPage=window.page;
+ return window;
+}
+function adminPagePhotos(a){
+ return a.photos.length>largeAdminThreshold?adminPhotoWindow(a).items:visibleAdminPhotos(a);
+}
+function updateAdminPhotoWindow(a){
+ if(a.photos.length<=largeAdminThreshold)return;
+ const window=adminPhotoWindow(a);
+ const grid=$('.admin-photo-grid');
+ const mounted=[...grid.querySelectorAll('[data-admin-photo]')].map(card=>card.dataset.adminPhoto);
+ if(mounted.join(',')!==window.items.map(photo=>photo.id).join(','))grid.innerHTML=managedPhotos(a);
+ const pager=$('[data-admin-photo-pager]');
+ if(pager)pager.innerHTML=photoPager(window,'admin-photo-page');
+}
 function managedPhotos(a){
- const visible=sectionPhotos(a,adminSectionFilter);
- return visible.map((p,i)=>`<article class="manage-photo ${p.selected?'client-picked':''}" data-admin-photo="${p.id}">
+ const ordered=sectionPhotos(a,adminSectionFilter);
+ const visible=a.photos.length>largeAdminThreshold?adminPhotoWindow(a).items:ordered;
+ const positions=new Map(ordered.map((photo,index)=>[photo.id,index]));
+ return visible.map(p=>{
+ const i=positions.get(p.id);
+ return`<article class="manage-photo ${p.selected?'client-picked':''}" data-admin-photo="${p.id}">
  <button class="admin-photo-open" data-action="admin-open-photo" data-photo="${p.id}" aria-label="Xem ảnh ${esc(p.original||p.caption)}">${img(p)}</button>
  <div class="managed-photo-meta"><div class="managed-photo-heading"><p class="managed-filename" title="${esc(p.original||p.caption)}">${esc(p.original||p.caption||'Ảnh')}</p>
  <details class="photo-menu"><summary aria-label="Thao tác với ảnh ${esc(p.original||p.caption)}">⋯</summary><div class="photo-actions">
- <button data-action="photo-details" data-id="${p.id}">Chi tiết ảnh</button><button data-action="cover-photo" data-id="${p.id}">${a.cover_id===p.id?'Ảnh bìa hiện tại':'Đặt làm ảnh bìa'}</button><button data-action="caption-photo" data-id="${p.id}">Sửa chú thích</button><button class="danger-text" data-action="remove-photo" data-id="${p.id}">Xóa ảnh</button></div></details></div>
+ <button data-action="photo-details" data-id="${p.id}">Chi tiết ảnh</button><button data-action="cover-photo" data-id="${p.id}">${a.cover_id===p.id?'Ảnh bìa hiện tại':'Đặt làm ảnh bìa'}</button><button data-action="caption-photo" data-id="${p.id}">Sửa chú thích</button>${p.source==='google_drive'?`<button data-action="detach-drive-photo" data-id="${p.id}">Chuyển sang quản lý tay</button>`:`<button data-action="replace-manual-photo" data-id="${p.id}">Thay nội dung ảnh</button>`}<button class="danger-text" data-action="remove-photo" data-id="${p.id}">Xóa ảnh</button></div></details></div>
  <span class="customer-pick-badge" ${p.selected?'':'hidden'}>${icon('heart')} Khách đã chọn</span>
  <div class="photo-arrange" ${adminArrange?'':'hidden'}><label class="bulk-check"><input type="checkbox" data-section-photo="${p.id}" aria-label="Chọn ảnh ${esc(p.original||p.caption)} để thao tác" ${sectionSelected.has(p.id)?'checked':''}> Chọn ảnh</label>${a.sections?.length?`<label class="photo-section-label">Phần<select data-photo-section="${p.id}" aria-label="Phần của ảnh ${esc(p.original||p.caption)}">${sectionOptions(a,p.section_id)}</select></label>`:''}
- <div class="photo-order"><button data-action="move-photo" data-id="${p.id}" data-direction="up" aria-label="Đưa ảnh lên trước" ${i===0||visible[i-1].section_id!==p.section_id||adminPhotoQuery||adminPickedOnly?'disabled':''}>↑</button><span>${i+1} / ${visible.length}</span><button data-action="move-photo" data-id="${p.id}" data-direction="down" aria-label="Đưa ảnh xuống sau" ${i===visible.length-1||visible[i+1].section_id!==p.section_id||adminPhotoQuery||adminPickedOnly?'disabled':''}>↓</button></div></div></div></article>`).join('');
+ <div class="photo-order"><button data-action="move-photo" data-id="${p.id}" data-direction="up" aria-label="Đưa ảnh lên trước" ${i===0||ordered[i-1].section_id!==p.section_id||adminPhotoQuery||adminPickedOnly?'disabled':''}>↑</button><span>${i+1} / ${ordered.length}</span><button data-action="move-photo" data-id="${p.id}" data-direction="down" aria-label="Đưa ảnh xuống sau" ${i===ordered.length-1||ordered[i+1].section_id!==p.section_id||adminPhotoQuery||adminPickedOnly?'disabled':''}>↓</button></div></div></div></article>`;
+ }).join('');
 }
 function setAdminSyncStatus(error=''){
  adminSyncError=error;
@@ -397,7 +489,7 @@ async function syncAdminProofing(force=false,expectedAlbum=adminAlbumId,expected
   try{
    if(key){
     const data=await api('/api/admin/albums/'+key+'/selection');if(!same()||uploadBusy||sectionBusy||(!force&&$('#editor').open))return false;
-    if(force||data.photo_version!==current.photo_version||data.catalog_version!==current.catalog_version){
+    if(force||data.catalog_revision!==current.catalog_revision||data.photo_version!==current.photo_version||data.catalog_version!==current.catalog_version){
      const fresh=await api('/api/admin/albums/'+key);if(!same()||uploadBusy||sectionBusy||(!force&&$('#editor').open))return false;
      const catalog=a=>JSON.stringify({...a,selection_status:null,photos:a.photos.map(({selected,...photo})=>photo)});
      if(catalog(fresh)!==catalog(current)){
@@ -503,13 +595,15 @@ function updateAdminSelectionList(rows){
 function visibleAdminPhotos(a){return adminVisiblePhotos(a,adminSectionFilter,adminPhotoQuery,adminPickedOnly);}
 function applyAdminPhotoFilters(){
  const a=adminAlbums.find(a=>a.id===adminAlbumId);if(!a)return;
+ updateAdminPhotoWindow(a);
  let count=0;const photos=new Map(a.photos.map(p=>[p.id,p]));
  document.querySelectorAll('[data-admin-photo]').forEach(card=>{const p=photos.get(card.dataset.adminPhoto);card.hidden=!p||!matchesAdminPhoto(p,adminPhotoQuery,adminPickedOnly);if(!card.hidden)count++;});
  const status=$('[data-admin-photo-count]');if(status)status.textContent=`${count} / ${a.photos.length} ảnh đang hiển thị`;
  const empty=$('[data-admin-empty]');if(empty)empty.hidden=count>0;
  document.querySelectorAll('[data-action=admin-pick-filter]').forEach(button=>button.setAttribute('aria-pressed',String((button.dataset.filter==='selected')===adminPickedOnly)));
  const ordered=sectionPhotos(a,adminSectionFilter);
- document.querySelectorAll('[data-action=move-photo]').forEach(button=>{const i=ordered.findIndex(p=>p.id===button.dataset.id),neighbor=ordered[i+(button.dataset.direction==='up'?-1:1)];button.disabled=!!adminPhotoQuery||adminPickedOnly||!neighbor||neighbor.section_id!==ordered[i]?.section_id;});
+ const positions=new Map(ordered.map((photo,index)=>[photo.id,index]));
+ document.querySelectorAll('[data-action=move-photo]').forEach(button=>{const i=positions.get(button.dataset.id),neighbor=ordered[i+(button.dataset.direction==='up'?-1:1)];button.disabled=!!adminPhotoQuery||adminPickedOnly||!neighbor||neighbor.section_id!==ordered[i]?.section_id;});
  syncBulkSelection();
 }
 function updateAdminPickUI(a){
@@ -531,19 +625,24 @@ function updateAdminPickUI(a){
 function adminAlbumDetail(){
  const a=adminAlbums.find(a=>a.id===adminAlbumId);if(!a){adminAlbumId=null;return adminAlbumsPage();}
  const pendingUpload=$(`[data-form=upload][data-id="${a.id}"]`);adminView=a.status==='private'?'clients':'portfolio';
- if(sectionAlbumId!==a.id){sectionAlbumId=a.id;adminSectionFilter='all';sectionSelected.clear();adminPhotoQuery='';adminPickedOnly=false;adminArrange=false;adminToolsOpen={upload:!a.photos.length,sections:false};adminSyncError='';}
+ if(sectionAlbumId!==a.id){sectionAlbumId=a.id;adminSectionFilter='all';sectionSelected.clear();adminPhotoQuery='';adminPickedOnly=false;adminArrange=false;adminToolsOpen={upload:!a.photos.length&&newDriveAlbumId!==a.id,sections:false,drive:newDriveAlbumId===a.id};newDriveAlbumId=null;adminSyncError='';}
  if(adminSectionFilter!=='all'&&adminSectionFilter!=='unassigned'&&!a.sections?.some(s=>s.id===adminSectionFilter))adminSectionFilter='all';
  for(const key of sectionSelected)if(!a.photos.some(p=>p.id===key))sectionSelected.delete(key);
  const count=a.photos.filter(p=>p.selected).length;
  adminShell(`<button class="underlink back-btn" data-action="album-back">Danh sách bộ ảnh</button>`+adminHeading(esc(a.title),`${a.photos.length} ảnh · ${esc(categories[a.category])}`,`<button class="small-btn" data-action="album-settings">${icon('settings')} Thông tin bộ ảnh</button>`)+`
  <div class="album-detail-top">${badge(a.status)}${a.status==='published'?`<a class="underlink" href="/album/${esc(a.slug||a.id)}" target="_blank" rel="noopener">Xem trên website</a>`:''}${a.status==='private'?`<a class="underlink" href="/gallery/${a.id}" target="_blank" rel="noopener">Xem trang khách</a><button class="underlink" data-action="copy-link" data-id="${a.id}">Sao chép đường dẫn</button><span class="badge ${a.has_password?'has-password':'no-password'}">${a.has_password?'Có mật khẩu':'Không cần mật khẩu'}</span>`:''}</div>
  ${a.status==='private'?`<section class="admin-proofing-summary" aria-label="Lựa chọn của khách"><div><strong data-admin-selected-count role="status">${count} ảnh khách đã chọn</strong>${adminSyncMarkup()}</div><div class="proofing-exports"><button class="small-btn" data-action="copy-selected-names" ${count&&!adminExportBusy?'':'disabled'}>Sao chép tên file</button><button class="btn" data-action="export-admin-selection" ${count&&!adminExportBusy?'':'disabled'}>Xuất danh sách CSV</button></div><p>Xuất toàn bộ ảnh khách chọn trong bộ ảnh, không phụ thuộc bộ lọc bên dưới.</p></section>`:''}
- <div class="album-tools"><details data-album-tool="upload" ${adminToolsOpen.upload?'open':''}><summary>${icon('plus')} Thêm ảnh</summary><section class="upload-panel"><div><h3>Thêm ảnh vào bộ ảnh</h3><p>Chọn một hoặc nhiều ảnh JPEG, PNG, WebP hoặc gói .ccphoto. Tối đa ${uploadSizeLabel} và 40 megapixel mỗi ảnh.</p></div><form data-form="upload" data-id="${a.id}">${a.sections?.length?`<label class="upload-destination">Tải ảnh vào phần<select name="section_id">${sectionOptions(a,adminSectionFilter)}</select></label>`:''}<label class="upload-label">Chọn ảnh<input type="file" name="photos" accept=".ccphoto,image/jpeg,image/png,image/webp" multiple required></label><fieldset class="upload-duplicates"><legend>Khi trùng tên ảnh trong bộ ảnh</legend><label><input type="radio" name="duplicate_policy" value="skip" checked> Bỏ qua ảnh trùng</label><label><input type="radio" name="duplicate_policy" value="overwrite"> Ghi đè ảnh trùng</label><p class="form-note">Ghi đè giữ tim của khách, chú thích, vị trí và phần ảnh cũ. Áp dụng cho cả lượt tải; tên được so sánh không phân biệt chữ hoa/thường.</p></fieldset><button class="btn" type="submit">Tải ảnh lên</button><a role="button" href="#" class="upload-cancel" data-action="cancel-upload" hidden>Hủy tải lên</a><p class="upload-selection" role="status"></p><progress class="upload-meter" aria-label="Tiến độ tải ảnh" max="1" value="0" hidden></progress><p class="upload-progress" role="status" aria-live="polite"></p><p class="form-error" role="alert"></p></form><details class="upload-explanation"><summary>Cách tải nhanh bộ ảnh lớn</summary><p class="form-note">Nếu đã chuẩn bị ảnh trên Mac, chọn các tệp .ccphoto trong thư mục của phần ảnh tương ứng. Mỗi tệp chứa bản xem và JPG cho khách, giúp giảm thời gian xử lý khi upload. Với JPEG, PNG hoặc WebP, hệ thống tự tạo các bản ảnh sau khi nhận tệp.</p></details></section><div data-upload-report>${latestUploadReports.get(a.id)||''}</div></details><details data-album-tool="sections" ${adminToolsOpen.sections?'open':''}><summary>${icon('grid')} Quản lý phần <span>${a.sections?.length||0}</span></summary>${sectionManager(a)}</details></div>
+ <details class="album-drive-tool" data-album-tool="drive" ${adminToolsOpen.drive?'open':''}><summary>Nhập ảnh từ Google Drive</summary><div data-album-drive></div></details>
+ <div class="album-tools"><details data-album-tool="upload" ${adminToolsOpen.upload?'open':''}><summary>${icon('plus')} Thêm ảnh</summary><section class="upload-panel"><div><h3>Thêm ảnh vào bộ ảnh</h3><p>Chọn một hoặc nhiều ảnh JPEG, PNG, WebP hoặc gói .ccphoto. Tối đa ${uploadSizeLabel} và 40 megapixel mỗi ảnh.</p></div><form data-form="upload" data-id="${a.id}">${a.sections?.length?`<label class="upload-destination">Tải ảnh vào phần<select name="section_id">${sectionOptions(a,adminSectionFilter)}</select></label>`:''}<label class="upload-label">Chọn ảnh<input type="file" name="photos" accept=".ccphoto,image/jpeg,image/png,image/webp" multiple required></label><fieldset class="upload-duplicates"><legend>Khi trùng tên ảnh trong bộ ảnh</legend><label><input type="radio" name="duplicate_policy" value="skip" checked> Bỏ qua ảnh trùng</label><label><input type="radio" name="duplicate_policy" value="overwrite"> Ghi đè ảnh trùng</label><p class="form-note">Ghi đè chỉ áp dụng cho ảnh upload tay và giữ tim của khách, chú thích, vị trí và phần ảnh cũ. Áp dụng cho cả lượt tải; tên được so sánh không phân biệt chữ hoa/thường.</p></fieldset><button class="btn" type="submit">Tải ảnh lên</button><a role="button" href="#" class="upload-cancel" data-action="cancel-upload" hidden>Hủy tải lên</a><p class="upload-selection" role="status"></p><progress class="upload-meter" aria-label="Tiến độ tải ảnh" max="1" value="0" hidden></progress><p class="upload-progress" role="status" aria-live="polite"></p><p class="form-error" role="alert"></p></form><details class="upload-explanation"><summary>Cách tải nhanh bộ ảnh lớn</summary><p class="form-note">Nếu đã chuẩn bị ảnh trên Mac, chọn các tệp .ccphoto trong thư mục của phần ảnh tương ứng. Mỗi tệp chứa bản xem và JPG cho khách, giúp giảm thời gian xử lý khi upload. Với JPEG, PNG hoặc WebP, hệ thống tự tạo các bản ảnh sau khi nhận tệp.</p></details></section><div data-upload-report>${latestUploadReports.get(a.id)||''}</div></details><details data-album-tool="sections" ${adminToolsOpen.sections?'open':''}><summary>${icon('grid')} Quản lý phần <span>${a.sections?.length||0}</span></summary>${sectionManager(a)}</details></div>
  <section class="admin-photo-workspace" aria-label="Ảnh trong bộ ảnh"><div class="admin-photo-toolbar">${a.status==='private'?`<div class="admin-pick-filters" role="group" aria-label="Lọc theo lựa chọn của khách"><button data-action="admin-pick-filter" data-filter="all" aria-pressed="${!adminPickedOnly}">Tất cả <span>${a.photos.length}</span></button><button data-action="admin-pick-filter" data-filter="selected" aria-pressed="${adminPickedOnly}">${icon('heart')} Khách đã chọn <span data-admin-picked-filter-count>${count}</span></button></div>`:''}
  <label class="admin-photo-search"><span class="sr-only">Tìm ảnh theo tên file hoặc chú thích</span>${icon('search')}<input type="search" data-admin-photo-search value="${esc(adminPhotoQuery)}" placeholder="Tìm tên file hoặc chú thích…"></label><button class="small-btn" data-action="admin-arrange" aria-pressed="${adminArrange}">${adminArrange?'Xong':'Chọn & sắp xếp'}</button></div>
  <div data-admin-section-tabs>${sectionTabs(a,adminSectionFilter,true,adminPickedOnly)}</div><p class="admin-photo-count" data-admin-photo-count role="status"></p>
  <div class="admin-arrange-tools" ${adminArrange?'':'hidden'}><p>Chọn ảnh để chuyển phần hoặc xóa nhiều ảnh. Dấu tim là lựa chọn của khách.${adminPhotoQuery||adminPickedOnly?' Bỏ bộ lọc tên và lựa chọn để đổi thứ tự ảnh.':''}</p>${sectionBulkToolbar(a,sectionSelected)}</div>
- <div class="admin-photo-grid">${managedPhotos(a)}</div><div class="empty-state" data-admin-empty hidden><p>${a.photos.length?'Không có ảnh phù hợp với bộ lọc.':'Bộ ảnh chưa có ảnh.'}</p><button class="link-btn" data-action="admin-reset-photo-filters">${a.photos.length?'Xóa bộ lọc':'Thêm ảnh'}</button></div></section>`);
+ <div class="admin-photo-grid">${managedPhotos(a)}</div><div data-admin-photo-pager></div><div class="empty-state" data-admin-empty hidden><p>${a.photos.length?'Không có ảnh phù hợp với bộ lọc.':'Bộ ảnh chưa có ảnh.'}</p><button class="link-btn" data-action="admin-reset-photo-filters">${a.photos.length?'Xóa bộ lọc':'Tải ảnh từ máy'}</button>${a.photos.length?'':'<button class="small-btn" data-action="album-drive-open">Nhập từ Google Drive</button>'}</div></section>`);
+ const driveDetails=$('.album-drive-tool');
+ let driveMounted=false;
+ const mountDrive=()=>{if(driveMounted||!driveDetails.open||!driveDetails.isConnected)return;driveMounted=true;mountDrivePanel(driveDetails.querySelector('[data-album-drive]'),{album:a,onChanged:refreshAdmin});};
+ driveDetails.addEventListener('toggle',mountDrive);mountDrive();
  restorePendingUpload(pendingUpload,a);applyAdminPhotoFilters();alignSectionTabs();
 }
 
@@ -566,12 +665,13 @@ function googleCalendarSettings(){return `<section class="panel settings-panel">
 function settingsPage(){
  const fields=[['brand','Tên thương hiệu'],['name','Tên để khách gọi bạn'],['tagline','Dòng mô tả thương hiệu'],['headline','Tiêu đề trang chủ'],['intro','Mô tả khi chia sẻ đường dẫn'],['about','Giới thiệu bản thân'],['email','Email liên hệ'],['phone','Số điện thoại công khai'],['location','Khu vực hoạt động'],['facebook','Đường dẫn Facebook'],['instagram','Đường dẫn Instagram'],['zalo','Đường dẫn Zalo (nếu sử dụng)'],['bookingNote','Lời mở đầu trang liên hệ'],['responseNote','Thông tin phản hồi (để trống nếu chưa có cam kết)']];
  const heroes=parseSelection(site.heroSelection,defaultHeroSelection),stories=parseSelection(site.storySelection,defaultStorySelection);
- adminShell(adminHeading('Cài đặt','Quản lý kết nối lịch, nội dung website và thông tin liên hệ.')+`${googleCalendarSettings()}<section class="panel settings-panel"><form data-form="settings">${fields.map(([k,v])=>`<label>${v}${['headline','intro','about','bookingNote'].includes(k)?`<textarea name="${k}" rows="${k==='about'?5:2}" ${k==='headline'?'required':''}>${esc(site[k])}</textarea>`:`<input name="${k}" value="${esc(site[k])}" ${['brand','name'].includes(k)?'required':''} ${k==='email'?'type="email"':''}>`}</label>`).join('')}<p class="form-note">Các kênh liên hệ có thể để trống. Website chỉ hiện những kênh bạn đã điền.</p><p class="form-error" role="alert"></p><button class="btn" type="submit">Lưu nội dung</button></form></section>
+ adminShell(adminHeading('Cài đặt','Quản lý kết nối lịch, nội dung website và thông tin liên hệ.')+`${googleCalendarSettings()}<div data-drive-settings></div><section class="panel settings-panel"><form data-form="settings">${fields.map(([k,v])=>`<label>${v}${['headline','intro','about','bookingNote'].includes(k)?`<textarea name="${k}" rows="${k==='about'?5:2}" ${k==='headline'?'required':''}>${esc(site[k])}</textarea>`:`<input name="${k}" value="${esc(site[k])}" ${['brand','name'].includes(k)?'required':''} ${k==='email'?'type="email"':''}>`}</label>`).join('')}<p class="form-note">Các kênh liên hệ có thể để trống. Website chỉ hiện những kênh bạn đã điền.</p><p class="form-error" role="alert"></p><button class="btn" type="submit">Lưu nội dung</button></form></section>
  <section class="panel settings-panel"><h2>Ảnh chân dung của bạn</h2><p class="panel-note">Dùng ảnh chân dung hoặc ảnh bạn đang tác nghiệp. Ảnh này sẽ xuất hiện công khai ở trang Về mình.</p>${site.portrait?`<img class="portrait-preview" src="/portrait/${esc(site.portrait)}" alt="Ảnh chân dung hiện tại">`:''}<form data-form="portrait"><label>Chọn ảnh JPEG, PNG hoặc WebP · Tối đa ${uploadSizeLabel}<input type="file" name="portrait" accept="image/jpeg,image/png,image/webp" required></label><p class="form-error" role="alert"></p><button class="btn" type="submit">Tải ảnh chân dung lên</button></form>${site.portrait?'<button class="underlink" data-action="hide-portrait">Ẩn ảnh chân dung</button>':''}</section>
  <section class="panel settings-panel"><form data-form="curation"><h2>Ảnh mở đầu và bộ ảnh nổi bật</h2><p class="panel-note">Chọn tối đa 4 ảnh mở đầu và 6 bộ ảnh theo thứ tự hiển thị. Mỗi bộ ảnh chỉ chọn một lần trong mỗi nhóm. Chỉ bộ ảnh công khai xuất hiện ở đây; hãy dùng ảnh khác nhau giữa phần trình chiếu và danh sách bộ ảnh bên dưới.</p><h3>Trình chiếu ảnh mở đầu</h3><div class="curation-grid">${Array.from({length:4},(_,i)=>curationRow('hero',i,heroes[i])).join('')}</div><h3>Bộ ảnh trên trang chủ</h3><div class="curation-grid">${Array.from({length:6},(_,i)=>curationRow('story',i,stories[i])).join('')}</div><p class="form-note">Các vị trí chưa chọn được bỏ qua. Nếu chưa chọn ảnh mở đầu, website dùng một ảnh từ bộ ảnh công khai. Danh sách bộ ảnh tự bổ sung các bộ ảnh công khai còn lại để đủ tối đa 6 bộ.</p><p class="form-error" role="alert"></p><button class="btn" type="submit">Lưu lựa chọn ảnh</button></form></section>
  <section class="panel backup-panel"><h2>Sao lưu dữ liệu</h2><p>Tải thông tin bộ ảnh, lựa chọn và yêu cầu tư vấn dưới dạng JSON. Bản sao chứa thông tin khách hàng và ghi chú riêng; hãy lưu ở nơi an toàn. Ảnh và tài khoản quản trị cần được sao lưu riêng.</p><a class="small-btn" href="/api/admin/export">Tải bản sao JSON</a></section>`);
+ mountDrivePanel($('[data-drive-settings]'));
 }
-function editDialog(title,html){$('#editor').innerHTML=`<div class="dialog-heading"><h2 id="editor-title">${title}</h2><button class="close" data-action="close-editor" aria-label="Đóng">×</button></div>${html}`;$('#editor').setAttribute('aria-labelledby','editor-title');$('#editor').showModal();}
+function editDialog(title,html){$('#editor').innerHTML=`<div class="dialog-heading"><h2 id="editor-title">${title}</h2><button class="close" data-action="close-editor" aria-label="Đóng">×</button></div>${html}`;$('#editor').setAttribute('aria-labelledby','editor-title');$('#editor').showModal();mountDriveAlbumEntry($('#editor [data-form=album]'));}
 async function refreshAdmin(){
  const key=adminAlbumId,view=adminView,navigation=adminNavigation;
  const current=()=>navigation===adminNavigation&&key===adminAlbumId&&view===adminView;
@@ -846,7 +946,7 @@ function alignSectionTabs(){
 window.addEventListener('resize',alignSectionTabs);
 function syncBulkSelection(){
  const a=adminAlbums.find(a=>a.id===adminAlbumId);if(!a)return;
- const visible=visibleAdminPhotos(a),visibleIds=new Set(visible.map(p=>p.id));
+ const visible=adminPagePhotos(a),visibleIds=new Set(visibleAdminPhotos(a).map(p=>p.id));
  for(const id of sectionSelected)if(!visibleIds.has(id))sectionSelected.delete(id);
  const chosen=visible.filter(p=>sectionSelected.has(p.id)).length;
  const check=$('[data-select-visible]');if(check){check.checked=visible.length>0&&chosen===visible.length;check.indeterminate=chosen>0&&chosen<visible.length;check.disabled=!visible.length;}
@@ -919,7 +1019,7 @@ document.addEventListener('change',async event=>{
  const a=adminAlbums.find(a=>a.id===adminAlbumId);if(!a)return;
  if(sectionBusy||uploadBusy){if(input.matches('[data-photo-section]'))input.value=a.photos.find(p=>p.id===input.dataset.photoSection)?.section_id||'';else syncBulkSelection();return;}
  if(input.matches('[data-section-photo]')){if(input.checked)sectionSelected.add(input.dataset.sectionPhoto);else sectionSelected.delete(input.dataset.sectionPhoto);syncBulkSelection();}
- if(input.matches('[data-select-visible]')){for(const p of visibleAdminPhotos(a)){if(input.checked)sectionSelected.add(p.id);else sectionSelected.delete(p.id);}syncBulkSelection();}
+ if(input.matches('[data-select-visible]')){for(const p of adminPagePhotos(a)){if(input.checked)sectionSelected.add(p.id);else sectionSelected.delete(p.id);}syncBulkSelection();}
  if(input.matches('[data-photo-section]')){
   const p=a.photos.find(p=>p.id===input.dataset.photoSection);input.focus({preventScroll:true});
   try{await saveSection(()=>send('/api/admin/photos/'+p.id,{section_id:input.value||null},'PATCH'));}
@@ -980,6 +1080,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  if(action==='admin-reset-photo-filters'){
   const a=adminAlbums.find(a=>a.id===adminAlbumId);adminPhotoQuery='';adminPickedOnly=false;adminSectionFilter='all';sectionSelected.clear();if(!a.photos.length)adminToolsOpen.upload=true;adminAlbumDetail();$('[data-admin-photo-search]')?.focus({preventScroll:true});
  }
+ if(action==='album-drive-open'){const details=$('.album-drive-tool');details.open=true;details.scrollIntoView({block:'start',behavior:'smooth'});details.querySelector('summary').focus({preventScroll:true});}
  if(action==='admin-arrange'){
   adminArrange=!adminArrange;sectionSelected.clear();adminAlbumDetail();$('[data-action=admin-arrange]').focus({preventScroll:true});
  }
@@ -1012,6 +1113,13 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  if(action==='back-to-top'){window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});$('.public-nav .wordmark')?.focus({preventScroll:true});}
  if(action==='menu'){const open=el.getAttribute('aria-expanded')!=='true';el.setAttribute('aria-expanded',String(open));$('#nav-links').classList.toggle('open',open);}
  if(action==='filter'){filter=el.dataset.filter;portfolio();$(`[data-filter="${filter}"]`)?.focus({preventScroll:true});}
+ if(action==='gallery-page'){
+  galleryPhotoPage=Number(el.dataset.page);
+  albumPage(clientGallery);
+  scrollToGallery();
+  $('.photo-pagination button:not(:disabled)')?.focus({preventScroll:true});
+  return;
+ }
  if(action==='gallery-more'){e.preventDefault();appendGalleryBatch();return;}
  if(await handleSectionAction(action,el))return;
  if(action==='open-photo'){lightReturnPhoto=el.dataset.photo;el.focus({preventScroll:true});showLight(lightPhotos().findIndex(p=>p.id===el.dataset.photo));}
@@ -1033,9 +1141,10 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  }
  if(action==='close-lightbox')$('#lightbox').close();if(action==='prev-photo')showLight(lightIndex-1);if(action==='next-photo')showLight(lightIndex+1);
  if(action==='zoom-photo'&&hasGalleryMediaControls())toggleLightZoom();
+ if(action==='submit-selection'){await submitSelection();return;}
  if(action==='retry-selection'){await refreshSharedSelection(true);toast('Đã đồng bộ danh sách ảnh.');}
  if(action==='pick'){
-  if(pickBusy)return;
+  if(pickBusy||submissionBusy)return;
   if(selectionUncertain&&!await refreshSharedSelection(true))return;
   const p=album.photos.find(p=>p.id===el.dataset.photo);if(!p)return;
   pickBusy=true;++selectionEpoch;syncDownloadButton();el.disabled=true;
@@ -1069,7 +1178,38 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  if(action==='copy-link'){const a=adminAlbums.find(x=>x.id===el.dataset.id);await navigator.clipboard.writeText(location.origin+'/gallery/'+el.dataset.id);toast(a?.has_password?'Đã sao chép đường dẫn. Hãy gửi mật khẩu riêng cho khách.':'Đã sao chép đường dẫn bộ ảnh cho khách.');}
  if(action==='cover-photo'){const key=adminAlbumId,navigation=adminNavigation;el.disabled=true;await send('/api/admin/albums/'+key+'/cover',{cover_id:el.dataset.id},'PUT');if(key===adminAlbumId&&navigation===adminNavigation){await refreshAdmin();toast('Đã cập nhật ảnh bìa.');}}
  if(action==='caption-photo'){const p=adminAlbums.flatMap(a=>a.photos).find(p=>p.id===el.dataset.id);editDialog('Chú thích ảnh',`<form data-form="caption" data-id="${p.id}"><label>Chú thích<input name="caption" value="${esc(p.caption)}" maxlength="300" required></label><p class="form-error" role="alert"></p><button class="btn">Lưu chú thích</button></form>`);}
- if(action==='move-photo'){const a=adminAlbums.find(a=>a.id===adminAlbumId),visible=sectionPhotos(a,adminSectionFilter),index=visible.findIndex(p=>p.id===el.dataset.id),target=index+(el.dataset.direction==='up'?-1:1);if(target>=0&&target<visible.length){if(visible[index].section_id!==visible[target].section_id){toast('Chọn một phần để sắp xếp ảnh trong phần đó. Dùng mục Phần để chuyển ảnh.');return;}const ordered=[...a.photos],from=ordered.findIndex(p=>p.id===visible[index].id),to=ordered.findIndex(p=>p.id===visible[target].id);[ordered[from],ordered[to]]=[ordered[to],ordered[from]];el.disabled=true;await send('/api/admin/albums/'+a.id+'/order',{photos:ordered.map(p=>p.id)},'PUT');await refreshAdmin();}}
+ if(action==='move-photo'){
+  const a=adminAlbums.find(item=>item.id===adminAlbumId);
+  const visible=sectionPhotos(a,adminSectionFilter);
+  const index=visible.findIndex(photo=>photo.id===el.dataset.id);
+  const neighbor=visible[index+(el.dataset.direction==='up'?-1:1)];
+  if(neighbor&&neighbor.section_id===visible[index].section_id){
+   el.disabled=true;
+   try{
+    await send('/api/admin/albums/'+a.id+'/move',{
+     photo_id:visible[index].id,
+     neighbor_id:neighbor.id,
+     catalog_revision:a.catalog_revision
+    });
+   }finally{await refreshAdmin();}
+  }
+ }
+ if(action==='admin-photo-page'){
+  adminPhotoPage=Number(el.dataset.page);
+  applyAdminPhotoFilters();
+  $('.admin-photo-grid')?.scrollIntoView({block:'start',behavior:'instant'});
+  $('[data-admin-photo-pager] button:not(:disabled)')?.focus({preventScroll:true});
+ }
+
+ if(action==='detach-drive-photo'){
+  if(!confirm('Chuyển ảnh sang quản lý tay? Drive sẽ không cập nhật ảnh này nữa; ảnh và lựa chọn của khách vẫn giữ nguyên.'))return;
+  await send('/api/admin/photos/'+el.dataset.id+'/drive/detach',{});
+  await refreshAdmin();
+ }
+ if(action==='replace-manual-photo'){
+  const a=adminAlbums.find(item=>item.id===adminAlbumId);
+  editDialog('Thay nội dung ảnh',`<form data-form="replace-photo" data-id="${el.dataset.id}" data-revision="${a.catalog_revision}" data-key="${crypto.randomUUID()}"><p>Giữ nguyên vị trí, chú thích, ảnh bìa và lựa chọn của khách. Biên nhận lựa chọn cũ sẽ được đánh dấu cần xem lại.</p><label>Ảnh thay thế<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required></label><p class="form-error" role="alert"></p><button class="btn">Lưu ảnh thay thế</button></form>`);
+ }
  if(action==='remove-photo'){
   await syncAdminProofing(true);
   const a=adminAlbums.find(a=>a.id===adminAlbumId),p=a?.photos.find(p=>p.id===el.dataset.id);
@@ -1084,10 +1224,18 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  }
  if(action==='unblock-date'){await api('/api/admin/dates/'+el.dataset.date,{method:'DELETE'});await refreshAdmin();toast('Đã bỏ chặn ngày.');}
  }catch(err){if(err.status===401&&location.pathname==='/admin'){await openAdmin();toast('Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.');}else if(err.status===401&&location.pathname.startsWith('/gallery/')){await expireGallery();}else toast(err.message);el.disabled=false;}});
-document.addEventListener('submit',async e=>{const form=e.target.closest('[data-form]');if(!form)return;if(form.dataset.form==='inquiry')return;e.preventDefault();if(sectionBusy||uploadBusy){toast('Đang lưu thay đổi. Vui lòng đợi hoàn tất.');return;}if(!form.reportValidity())return;const kind=form.dataset.form,submit=form.querySelector('[type=submit]')||form.querySelector('button'),error=form.querySelector('.form-error');submit.disabled=true;if(error)error.textContent='';const data=Object.fromEntries(new FormData(form));try{
+document.addEventListener('submit',async e=>{const form=e.target.closest('[data-form]');if(!form)return;if(form.dataset.form==='inquiry')return;e.preventDefault();if(sectionBusy||uploadBusy){toast('Đang lưu thay đổi. Vui lòng đợi hoàn tất.');return;}if(form.dataset.submitting==='true'||!form.reportValidity())return;form.dataset.submitting='true';const kind=form.dataset.form,submit=form.querySelector('[type=submit]')||form.querySelector('button'),error=form.querySelector('[data-album-error]')||form.querySelector('.form-error');submit.disabled=true;if(error)error.textContent='';const data=Object.fromEntries(new FormData(form));try{
  if(kind==='setup'||kind==='login'){await send('/api/admin/'+kind,data);await openAdmin();}
  if(kind==='unlock'){await send('/api/gallery/'+location.pathname.split('/')[2]+'/unlock',data);await route();}
- if(kind==='album'){const reqPw=form.querySelector('[name=require_password]');if(data.status==='private'){data.require_password=reqPw?reqPw.checked:false;if(!data.require_password)data.password='';}if(form.dataset.id)await send('/api/admin/albums/'+form.dataset.id,data,'PATCH');else{const result=await send('/api/admin/albums',data);adminView=data.status==='private'?'clients':'portfolio';adminAlbumId=result.id;history.pushState({admin:true},'',adminHash());}$('#editor').close();await refreshAdmin();toast('Đã lưu bộ ảnh.');}
+ if(kind==='replace-photo'){
+  await api('/api/admin/photos/'+form.dataset.id+'/replace',{
+   method:'POST',body:new FormData(form),
+   headers:{'X-Catalog-Revision':form.dataset.revision,'X-Upload-Key':form.dataset.key}
+  },{timeout:180000});
+  $('#editor').close();
+  await refreshAdmin();
+ }
+ if(kind==='album'){const fromDrive=!form.dataset.id&&data.photo_source==='drive';delete data.photo_source;if(fromDrive)Object.assign(data,checkedDriveAlbumData(form));else delete data.drive_folder_id;const reqPw=form.querySelector('[name=require_password]');if(data.status==='private'){data.require_password=reqPw?reqPw.checked:false;if(!data.require_password)data.password='';}if(form.dataset.id)await send('/api/admin/albums/'+form.dataset.id,data,'PATCH');else{const result=await send('/api/admin/albums',data);adminView=data.status==='private'?'clients':'portfolio';adminAlbumId=result.id;if(fromDrive)newDriveAlbumId=result.id;history.pushState({admin:true},'',adminHash());}$('#editor').close();await refreshAdmin();if(fromDrive){$('.album-drive-tool > summary')?.focus({preventScroll:true});toast('Đã tạo bộ ảnh và gắn folder. Hãy xem trước và duyệt nhập ảnh.');}else toast('Đã lưu bộ ảnh.');}
  if(kind==='upload'){
  const input=form.querySelector('[type=file]'),destination=form.querySelector('[name=section_id]'),cancelBtn=form.querySelector('.upload-cancel'),files=[...input.files];
  let queue=uploadQueues.get(form);if(!queue||!queue.matches(files)){queue=new UploadQueue(files);queue.sectionId=destination?.value||'';queue.duplicatePolicy=data.duplicate_policy||'skip';uploadQueues.set(form,queue);}
@@ -1119,7 +1267,7 @@ document.addEventListener('submit',async e=>{const form=e.target.closest('[data-
   await send('/api/admin/settings',{heroSelection:JSON.stringify(choices('hero')),storySelection:JSON.stringify(choices('story'))},'PATCH');await refreshAdmin();toast('Đã lưu lựa chọn ảnh.');
  }
  if(kind==='settings'){await send('/api/admin/settings',data,'PATCH');await refreshAdmin();toast('Đã cập nhật website.');}
- }catch(err){if(err.status===401&&location.pathname==='/admin'&&!['login','setup'].includes(kind)){await openAdmin();toast('Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.');}else if(error)error.textContent=err.message;else toast(err.message);}finally{submit.disabled=false;if(kind==='upload'){const queue=uploadQueues.get(form);submit.textContent=queue?.retryable.length?'Tải lại các ảnh còn lại':'Tải ảnh lên';submit.disabled=!!queue?.pending.length&&!queue.retryable.length;const destination=form.querySelector('[name=section_id]');if(destination)destination.disabled=!!uploadQueues.get(form)?.pending.length;}}});
+ }catch(err){if(err.status===401&&location.pathname==='/admin'&&!['login','setup'].includes(kind)){await openAdmin();toast('Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.');}else if(error)error.textContent=kind==='album'?driveEntryError(err):err.message;else toast(err.message);}finally{delete form.dataset.submitting;submit.disabled=false;if(kind==='upload'){const queue=uploadQueues.get(form);submit.textContent=queue?.retryable.length?'Tải lại các ảnh còn lại':'Tải ảnh lên';submit.disabled=!!queue?.pending.length&&!queue.retryable.length;const destination=form.querySelector('[name=section_id]');if(destination)destination.disabled=!!uploadQueues.get(form)?.pending.length;}}});
 document.addEventListener('change',event=>{
  const upload=event.target.closest('[data-form=upload]');if(upload&&event.target.matches('[type=file]')){uploadQueues.delete(upload);upload.querySelector('.upload-duplicates').disabled=false;const destination=upload.querySelector('[name=section_id]');if(destination)destination.disabled=false;upload.querySelector('.form-error').textContent='';upload.querySelector('button').textContent='Tải ảnh lên';upload.querySelector('button').disabled=false;upload.querySelector('.upload-selection').textContent=uploadSelection([...event.target.files]);}
  const row=event.target.closest('[data-curation]');if(!row)return;

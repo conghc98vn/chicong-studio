@@ -51,7 +51,10 @@ test('Legacy album slugs backfill uniquely without changing IDs, photos or saved
   for(const key of ['a','b','c'])await db.run('INSERT INTO albums(id,title,category) VALUES(?,?,?)',[key,'Đám cưới Đà Lạt — Tuấn & Lan','wedding']);
   await db.run("INSERT INTO photos(id,album_id,filename,width,height) VALUES('photo','a','photo',80,120)");
   await db.close();db=null;
-  const legacy=new DatabaseSync(path.join(dir,'studio.sqlite'));legacy.exec('DROP TABLE album_slugs; DROP INDEX album_slug; ALTER TABLE albums DROP COLUMN slug;');legacy.close();
+  const legacy = new DatabaseSync(path.join(dir, 'studio.sqlite'));
+  // A pre-slug database also predates the Drive catalog trigger which reads it.
+  legacy.exec('DROP TRIGGER drive_album_catalog; DROP TABLE album_slugs; DROP INDEX album_slug; ALTER TABLE albums DROP COLUMN slug;');
+  legacy.close();
   db=await openDatabase(dir,{url:null});
   const rows=await db.all('SELECT id,slug FROM albums ORDER BY id');
   assert.deepEqual(rows.map(a=>a.slug),['dam-cuoi-da-lat-tuan-lan','dam-cuoi-da-lat-tuan-lan-2','dam-cuoi-da-lat-tuan-lan-3']);
@@ -75,7 +78,11 @@ test('Slug migration resumes after URL reservation and preserves private gallery
   const before=await db.get("SELECT * FROM albums WHERE id='private'");
   const tables=['photos','selections','sessions'];const snapshot=await Promise.all(tables.map(t=>db.all('SELECT * FROM '+t)));
   await db.close();db=await openDatabase(dir,{url:null});
-  assert.deepEqual({...await db.get("SELECT * FROM albums WHERE id='private'")},{...before,slug:'rieng-tu'});
+  assert.deepEqual({...await db.get("SELECT * FROM albums WHERE id='private'")}, {
+    ...before,
+    slug: 'rieng-tu',
+    catalog_revision: before.catalog_revision + 1,
+  });
   for(let i=0;i<tables.length;i++)assert.deepEqual(await db.all('SELECT * FROM '+tables[i]),snapshot[i]);
   assert.equal((await db.all('SELECT * FROM album_slugs')).length,1);
  }finally{await db?.close();await rm(dir,{recursive:true,force:true});}

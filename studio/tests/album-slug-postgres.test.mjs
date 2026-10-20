@@ -21,7 +21,9 @@ test('PostgreSQL: legacy migration, URL history, sections, RLS and concurrent al
   const url=new URL(connectionString);url.searchParams.set('options','-c search_path='+schema);
   db=await openDatabase(dir,{url:url.href});
   for(const id of ['legacy1','legacy2'])await db.run('INSERT INTO albums(id,title,category) VALUES(?,?,?)',[id,'Đám cưới Đà Lạt','wedding']);
-  await db.exec('DROP TABLE album_slugs; DROP INDEX album_slug; ALTER TABLE albums DROP COLUMN slug; ALTER TABLE photos DROP COLUMN section_id; DROP TABLE album_sections; ALTER TABLE photos DROP COLUMN source_bytes; ALTER TABLE photos DROP COLUMN image_bytes; ALTER TABLE photos DROP COLUMN thumb_bytes; ALTER TABLE photos DROP COLUMN download_bytes;');
+  // The emulated legacy schema predates Drive triggers which reference slug
+  // and section_id; production migrations remain additive.
+  await db.exec('DROP TRIGGER drive_album_revision ON albums; DROP TRIGGER drive_photos_update ON photos; DROP TABLE album_slugs; DROP INDEX album_slug; ALTER TABLE albums DROP COLUMN slug; ALTER TABLE photos DROP COLUMN section_id; DROP TABLE album_sections; ALTER TABLE photos DROP COLUMN source_bytes; ALTER TABLE photos DROP COLUMN image_bytes; ALTER TABLE photos DROP COLUMN thumb_bytes; ALTER TABLE photos DROP COLUMN download_bytes;');
   await db.close();db=await openDatabase(dir,{url:url.href});
   assert.deepEqual((await db.all('SELECT slug FROM albums ORDER BY id')).map(a=>a.slug),['dam-cuoi-da-lat','dam-cuoi-da-lat-2']);
   await db.exec("DROP INDEX album_slug; UPDATE albums SET slug='';");

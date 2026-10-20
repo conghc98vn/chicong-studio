@@ -1,0 +1,112 @@
+{
+  "auditDate": "2026-10-17",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "scope": "Documentation and selected source review only; no live verification, deployment or test suite rerun",
+  "priorEvidence": "evidence.json",
+  "reportedTests": {
+    "source": "docs/google-drive-sync-workflow-2026-10-17.md",
+    "total": 373,
+    "passed": 373,
+    "failed": 0,
+    "skipped": 0,
+    "rerunThisReview": false
+  },
+  "files": [
+    {
+      "path": "docs/customer-feedback-spec.md",
+      "sha256": "35bdda30414bd40a3dc23e5bfaae17f478e5f25d80e42e4df5d4f6cb86f3ba2b"
+    },
+    {
+      "path": "docs/google-drive-sync-implementation-plan.md",
+      "sha256": "47d58b78df4cec4340eeff0832fe845330a0e51f19c2f202ceff80308081fc2d"
+    },
+    {
+      "path": "docs/google-drive-sync-operations.md",
+      "sha256": "6da5efadb144716dc2b5d9ff1c467c4eb91ed086b8dbafc95376c23add376143"
+    },
+    {
+      "path": "docs/google-drive-sync-ui-perf-review-2026-10-17.md",
+      "sha256": "0d42306058ba34365c0c76444b89b571d2dbb77c25d9d1f8b2e78f46e7963ff0"
+    },
+    {
+      "path": "docs/google-drive-sync-workflow-2026-10-17.md",
+      "sha256": "21242c60cc99fc0e68fb246c1cb1038ea70a964bfa7c37917d7bfa234ea855c4"
+    },
+    {
+      "path": "docs/handbook/01-kien-truc-va-cong-nghe.md",
+      "sha256": "b3f4345f943cadade309f99c2040e41b24a186d53392963d24054d08c3d4b98a"
+    },
+    {
+      "path": "docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md",
+      "sha256": "c93b186e6deafa4b9de2848f6f6290a14a1f407dae9dd4e983a87dbd2b06e988"
+    },
+    {
+      "path": "docs/handbook/03-phong-lab-qa.md",
+      "sha256": "850c8640710ba97ccc088ceffe1f0060506b6b418473b26ba6196deb9b595d48"
+    },
+    {
+      "path": "docs/handbook/04-cap-nhat-du-an-2026-10-17.md",
+      "sha256": "7f670c21c690247bd4e09ec4ec81e9d85bd63796e25be1d583d233dad07e1606"
+    },
+    {
+      "path": "docs/handbook/README.md",
+      "sha256": "940b0dcc0adfb7cdd5b79618f80037fc3d621ec46626a2a08b99e612d5231abe"
+    },
+    {
+      "path": "docs/inet-vps-migration-2026-10-16.md",
+      "sha256": "a9a8ce271ccf26fb7716662e4bd9ec0307ae91ca2a52226a59042de44d0ef8bc"
+    },
+    {
+      "path": "ecosystem.config.cjs",
+      "sha256": "ac3e7a0bcba4274e6029269f5be96de24ecd3a2dca2945e89d0b2cc8c6705616"
+    },
+    {
+      "path": "output/drive-workflow-release-regression.log",
+      "sha256": "8698ddf7d0a1ef0e5ae596e12a5d3f82ea45dde07da23fe370ac323c23eb031c"
+    },
+    {
+      "path": "output/drive-workflow-release-verification.json",
+      "sha256": "3c82e35b000236ee6638e3bfb827569799bae26cf6d0d79c0f7f2f6626948403"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "2d021651081e7b176248e022289cd19cb07bae825bf529872eff7e7931b2d45b"
+    },
+    {
+      "path": "package.json",
+      "sha256": "5e4064bb32c97eefecfc7cad60b9f59a201bedd7fccba337b7e28ec1d373f97b"
+    },
+    {
+      "path": "scripts/backup-db.sh",
+      "sha256": "8083ee843dbdc88136c9b913733ab0752af26c238e3798500800a3125746f689"
+    },
+    {
+      "path": "scripts/deploy-vps.mjs",
+      "sha256": "442cab9579e765c3144d6473253325c97d977c9f48b656739b6b178ff75b4651"
+    },
+    {
+      "path": "studio/server/app.mjs",
+      "sha256": "25fda63127d51bd56d2174e46abb2b9de790c910f3f9231e53b903d48f123683"
+    },
+    {
+      "path": "studio/server/drive-comparisons.mjs",
+      "sha256": "2f8b445aa9649ddc47f47006355f2177f59aa8cf030d063d16d4c5a1f706df09"
+    },
+    {
+      "path": "studio/server/drive-schema.mjs",
+      "sha256": "b3a2a41fea9514197839f65e94946c27ff681e7b40e75b27e93a6ce64247b381"
+    },
+    {
+      "path": "studio/tools/media-backup.mjs",
+      "sha256": "3283619fe07fac3de9171dbc658fbb07477a96c53b5c2d68b7f113ee768a0c4a"
+    }
+  ],
+  "reportedSourceComparison": {
+    "entries": 176,
+    "matched": 175,
+    "changed": [
+      "scripts/deploy-vps.mjs"
+    ],
+    "missing": []
+  }
+}

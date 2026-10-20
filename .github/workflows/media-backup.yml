@@ -1,0 +1,53 @@
+name: Website media backup
+# Add the agreed daily schedule only after staging restore, quota and alert review.
+# Manual dispatch also provides catch-up after a missed scheduled run.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Backup or inspect age of the last complete snapshot
+        required: true
+        default: backup
+        type: choice
+        options: [backup, status]
+permissions:
+  contents: read
+concurrency:
+  group: website-media-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    environment: website-backup
+    timeout-minutes: 50
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      MEDIA_STORAGE_PROVIDER: ${{ vars.MEDIA_STORAGE_PROVIDER }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_BUCKET: ${{ vars.SUPABASE_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
+      BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
+      BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
+      BACKUP_DRIVE_ACCOUNT_EMAIL: ${{ secrets.BACKUP_DRIVE_ACCOUNT_EMAIL }}
+      BACKUP_DRIVE_FOLDER_ID: ${{ secrets.BACKUP_DRIVE_FOLDER_ID }}
+      NODE_EXTRA_CA_CERTS: ./certs/supabase-root-2021.crt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Back up database and all referenced media
+        if: inputs.mode != 'status'
+        run: node studio/tools/media-ops.mjs backup --repository "$RUNNER_TEMP/website-backup" --drive yes
+      - name: Inspect last complete backup
+        run: node studio/tools/media-ops.mjs drive-status
+      # Intentionally no artifacts containing customer data or database snapshots.
+      # The production max-age threshold and independent missing-run notifier
+      # must be configured after the owner chooses the alert channel and timing.

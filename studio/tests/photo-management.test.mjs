@@ -13,7 +13,7 @@ import {photoDeletion} from '../server/photo-deletion.mjs';
 import {openDatabase} from '../server/db.mjs';
 async function fixture(){
  const dir=await mkdtemp(path.join(tmpdir(),'photo-management-')),files=new Map();let failPut=false,failRemove=false;
- const storage={put:async(k,v)=>{if(failPut&&k.endsWith('-download.jpg'))throw Error('storage failed');files.set(k,v);},get:async k=>{if(!files.has(k))throw Error('missing');return files.get(k);},remove:async k=>{if(failRemove)throw Error('storage offline');files.delete(k);}};
+ const storage={put:async(k,v)=>{if(failPut&&k.endsWith('-download.jpg'))throw Object.assign(Error('storage failed'),{uncertain:false});files.set(k,v);},get:async k=>{if(!files.has(k))throw Error('missing');return files.get(k);},remove:async k=>{if(failRemove)throw Error('storage offline');files.delete(k);}};
  let pool,schema,url=null;
  if(process.env.STUDIO_TEST_POSTGRES_URL){pool=new pg.Pool({connectionString:process.env.STUDIO_TEST_POSTGRES_URL});schema='photo_management_'+randomBytes(8).toString('hex');await pool.query('CREATE SCHEMA '+schema);const target=new URL(process.env.STUDIO_TEST_POSTGRES_URL);target.searchParams.set('options','-c search_path='+schema);url=target.href;}
  const db=await openDatabase(dir,{url});
@@ -25,6 +25,15 @@ async function fixture(){
  const upload=async(name,bytes,{policy='skip',key=randomUUID(),target=album,section}={})=>{const fd=new FormData();fd.append('photos',new Blob([bytes],{type:'image/jpeg'}),name);const response=await request('/api/admin/albums/'+target+'/photos',fd,'POST',{'X-Duplicate-Policy':policy,'X-Upload-Keys':JSON.stringify([key]),...(section?{'X-Album-Section':section}:{})});return {status:response.status,...await response.json()};};
  return {...app,base,album,files,request,create,upload,set failPut(v){failPut=v;},set failRemove(v){failRemove=v;},close:async()=>{server.closeAllConnections();await new Promise(r=>server.close(r));await app.photoCleanup.close();await app.db.close();if(pool){await pool.query('DROP SCHEMA '+schema+' CASCADE');await pool.end();}await rm(dir,{recursive:true,force:true});}};
 }
+
+async function drainRetired(f) {
+ await f.photoCleanup.cleanup(true);
+ const rows = await f.db.all("SELECT * FROM photo_cleanup WHERE kind='retired'");
+ for (const row of rows) assert.equal(Number(row.not_before) - Number(row.retention_started_at), 300000);
+ // Simulate elapsed database time; the production cleaner has no force bypass.
+ await f.db.run("UPDATE photo_cleanup SET not_before=0 WHERE kind='retired'");
+ await f.photoCleanup.cleanup(true);
+}
 const jpeg=(color='#aa5533',width=100)=>sharp({create:{width,height:120,channels:3,background:color}}).jpeg().toBuffer();
 const first=r=>{assert.equal(r.status,201);assert.equal(r.results[0].success,true);return r.results[0];};
 test('Duplicate skip is album scoped, case insensitive and durable across retries',async()=>{
@@ -32,7 +41,7 @@ test('Duplicate skip is album scoped, case insensitive and durable across retrie
   const a=first(await f.upload('PHOTO.JPG',await jpeg()));
   const before=await f.db.get('SELECT * FROM photos WHERE id=?',[a.id]);
   f.failPut=true;const key=randomUUID(),b=first(await f.upload('photo.jpg',await jpeg('#abcdef'),{key}));assert.equal(b.skipped,true);assert.equal(b.id,a.id);f.failPut=false;
-  assert.deepEqual(await f.db.get('SELECT * FROM photos WHERE id=?',[a.id]),before);await f.photoCleanup.cleanup(true);assert.equal(f.files.size,3);
+  assert.deepEqual(await f.db.get('SELECT * FROM photos WHERE id=?',[a.id]),before);await drainRetired(f);assert.equal(f.files.size,3);
   assert.equal(first(await f.upload('photo.jpg',await jpeg('#abcdef'),{key})).reused,true);
   const other=await f.create();assert.notEqual(first(await f.upload('PHOTO.JPG',await jpeg(),{target:other})).id,a.id);
   assert.equal((await f.upload('new.jpg',await jpeg(),{policy:'bad'})).status,422);
@@ -59,7 +68,7 @@ test('Overwrite preserves picks, cover, custom caption, section and order; inval
   // A delayed replay from before the overwrite must not restore the old image.
   assert.equal(first(await f.upload('photo.jpg',bytes,{key:initialKey})).reused,true);
   assert.equal(first(await f.upload('PHOTO.JPG',newBytes,{policy:'overwrite',key})).reused,true);
-  assert.equal((await f.db.get('SELECT filename FROM photos WHERE id=?',[a.id])).filename,row.filename);await f.photoCleanup.cleanup(true);assert.equal(f.files.size,3);
+  assert.equal((await f.db.get('SELECT filename FROM photos WHERE id=?',[a.id])).filename,row.filename);await drainRetired(f);assert.equal(f.files.size,3);
   assert.equal((await f.upload('PHOTO.JPG',bytes,{policy:'overwrite',key})).results[0].code,'UPLOAD_CONFLICT');
  }finally{await f.close();}
 });
@@ -69,34 +78,34 @@ test('Failed replacement keeps old bytes and selections; retry and prepared repl
   await f.request(`/api/gallery/${f.album}/selection/${a.id}`,{selected:true},'PUT');
   const key=randomUUID(),bytes=await jpeg('#0000ff');f.failPut=true;
   assert.equal((await f.upload('photo.jpg',bytes,{policy:'overwrite',key})).results[0].retryable,true);
-  assert.deepEqual(await f.db.get('SELECT * FROM photos WHERE id=?',[a.id]),before);await f.photoCleanup.cleanup(true);assert.equal(f.files.size,3);f.failPut=false;
+  assert.deepEqual(await f.db.get('SELECT * FROM photos WHERE id=?',[a.id]),before);await drainRetired(f);assert.equal(f.files.size,3);f.failPut=false;
   assert.equal(first(await f.upload('photo.jpg',bytes,{policy:'overwrite',key})).id,a.id);
   const optimized=await optimizePhoto(await jpeg('#00ffff',200)),bundle=encodePreparedPhoto({originalName:'photo.jpg',sourceHash:'b'.repeat(64),...optimized});
   assert.equal(first(await f.upload('renamed.ccphoto',bundle,{policy:'overwrite'})).id,a.id);
-  assert.equal((await f.db.get('SELECT width FROM photos WHERE id=?',[a.id])).width,200);assert.ok(await f.db.get('SELECT photo_id FROM selections WHERE photo_id=?',[a.id]));await f.photoCleanup.cleanup(true);assert.equal(f.files.size,3);
+  assert.equal((await f.db.get('SELECT width FROM photos WHERE id=?',[a.id])).width,200);assert.ok(await f.db.get('SELECT photo_id FROM selections WHERE photo_id=?',[a.id]));await drainRetired(f);assert.equal(f.files.size,3);
  }finally{await f.close();}
 });
 test('A lost database COMMIT acknowledgement preserves published image files and retry identity',async()=>{
  const f=await fixture();const transaction=f.db.transaction;
  try{
   const original=first(await f.upload('commit.jpg',await jpeg()));await f.request(`/api/gallery/${f.album}/selection/${original.id}`,{selected:true},'PUT');
-  let failed=false;f.db.transaction=async fn=>{const result=await transaction(fn);if(!failed){failed=true;throw Error('COMMIT acknowledgement lost');}return result;};
+  let failed=false;f.db.transaction=async fn=>{let publishing=false;const result=await transaction(tx=>fn({...tx,run:async(sql,...args)=>{if(sql.startsWith('UPDATE photos SET filename='))publishing=true;return tx.run(sql,...args);}}));if(publishing&&!failed){failed=true;throw Error('COMMIT acknowledgement lost');}return result;};
   const bytes=await jpeg('#44aaee',190),key=randomUUID(),response=await f.upload('commit.jpg',bytes,{policy:'overwrite',key});assert.equal(response.results[0].retryable,true);
   const row=await f.db.get('SELECT * FROM photos WHERE id=?',[original.id]);
   for(const suffix of ['.webp','-thumb.webp','-download.jpg'])assert.ok(f.files.has(row.filename+suffix),'published rendition survives uncertain commit');
   assert.ok(await f.db.get('SELECT photo_id FROM selections WHERE photo_id=?',[original.id]));
   const replay=first(await f.upload('commit.jpg',bytes,{policy:'overwrite',key}));assert.equal(replay.id,original.id);assert.equal(replay.reused,true);
   assert.equal((await f.db.get('SELECT filename FROM photos WHERE id=?',[original.id])).filename,row.filename);
-  await f.photoCleanup.cleanup(true);assert.equal(f.files.size,3);
+  await drainRetired(f);assert.equal(f.files.size,3);
  }finally{f.db.transaction=transaction;await f.close();}
 });
 test('Concurrent uploads serialize name collisions and key replays without duplicate records or files',async()=>{
  const f=await fixture();try{
   const bytes=await jpeg(),key=randomUUID();
   const result=await Promise.all([f.upload('same.jpg',bytes,{key}),f.upload('same.jpg',bytes,{key}),f.upload('SAME.JPG',bytes)]);result.forEach(first);
-  assert.equal((await f.db.all('SELECT id FROM photos')).length,1);await f.photoCleanup.cleanup(true);assert.equal(f.files.size,3);
+  assert.equal((await f.db.all('SELECT id FROM photos')).length,1);await drainRetired(f);assert.equal(f.files.size,3);
   const replacements=await Promise.all([f.upload('same.jpg',await jpeg('#aaffff'),{policy:'overwrite'}),f.upload('same.jpg',await jpeg('#55ff00'),{policy:'overwrite'})]);replacements.forEach(first);
-  await f.request('/api/admin/albums');assert.equal((await f.db.all('SELECT id FROM photos')).length,1);await f.photoCleanup.cleanup(true);assert.equal(f.files.size,3);
+  await f.request('/api/admin/albums');assert.equal((await f.db.all('SELECT id FROM photos')).length,1);await drainRetired(f);assert.equal(f.files.size,3);
  }finally{await f.close();}
 });
 test('Bulk deletion validates whole request, preserves survivors and retries safely through storage failures',async()=>{
@@ -111,7 +120,7 @@ test('Bulk deletion validates whole request, preserves survivors and retries saf
   f.failRemove=true;const deleted=await f.request(url,{photos:photos.slice(0,2)},'POST');assert.equal(deleted.status,200);assert.equal((await deleted.json()).deleted,2);
   assert.equal((await f.db.get('SELECT cover_id FROM albums WHERE id=?',[f.album])).cover_id,photos[2]);assert.equal((await f.db.get('SELECT selection_status FROM albums WHERE id=?',[f.album])).selection_status,'draft');assert.equal((await f.db.all('SELECT * FROM selections')).length,0);
   assert.equal((await f.request('/media/'+photos[0])).status,404);assert.equal((await f.db.all('SELECT * FROM photo_cleanup')).length,2);
-  f.failRemove=false;assert.equal((await(await f.request(url,{photos:photos.slice(0,2)},'POST')).json()).deleted,0);await f.photoCleanup.cleanup(true);assert.equal((await f.db.all('SELECT * FROM photo_cleanup')).length,0);assert.equal(f.files.size,6);
+  f.failRemove=false;assert.equal((await(await f.request(url,{photos:photos.slice(0,2)},'POST')).json()).deleted,0);await drainRetired(f);assert.equal((await f.db.all('SELECT * FROM photo_cleanup')).length,0);assert.equal(f.files.size,6);
   await f.request(url,{photos:[photos[2]]},'POST');assert.equal((await f.db.get('SELECT cover_id FROM albums WHERE id=?',[f.album])).cover_id,null);
  }finally{await f.close();}
 });
@@ -142,13 +151,13 @@ test('Bulk delete drains more than 24 jobs without waiting for slow storage; tra
   f.storage.remove=async key=>{await gate;return remove(key);};
   const response=await f.request('/api/admin/albums/'+f.album+'/photos/delete',{photos:ids.slice(0,25)},'POST');assert.equal(response.status,200);assert.equal((await response.json()).deleted,25);
   assert.equal(f.files.size,52,'response arrives before storage is released');
-  assert.equal((await f.request('/api/admin/photos/'+ids[25],undefined,'DELETE')).status,200,'single deletion does not wait for the existing cleanup');release();await f.photoCleanup.cleanup(true);
+  assert.equal((await f.request('/api/admin/photos/'+ids[25],undefined,'DELETE')).status,200,'single deletion does not wait for the existing cleanup');release();await drainRetired(f);
   assert.equal((await f.db.all('SELECT * FROM photo_cleanup')).length,0);assert.equal(f.files.size,0);
  }finally{release();await f.photoCleanup.close();await f.close();}
 });
 test('Background cleanup retries transient database errors without another mutation',async t=>{
  const f=await fixture();const all=f.db.all;try{
-  await f.db.run('INSERT INTO photo_cleanup(photo_id,filename) VALUES(?,?)',['retry-job','stale']);f.files.set('stale.webp',Buffer.from('a'));f.files.set('stale-thumb.webp',Buffer.from('b'));
+  await f.db.run("INSERT INTO photo_cleanup(photo_id,filename,kind,not_before) VALUES(?,?,'candidate',0)",['retry-job','stale']);f.files.set('stale.webp',Buffer.from('a'));f.files.set('stale-thumb.webp',Buffer.from('b'));
   t.mock.timers.enable({apis:['setTimeout']});let failed=false;
   f.db.all=async(sql,args)=>{if(!failed&&sql.includes('photo_cleanup WHERE')){failed=true;throw Error('temporary database error');}return all(sql,args);};
   await assert.rejects(f.photoCleanup.cleanup(true),/temporary database/);
@@ -161,7 +170,7 @@ test('Shutdown finishes the current cleanup job and restart drains remaining dur
  const gate=new Promise(r=>release=r),entered=new Promise(r=>started=r),remove=f.storage.remove;
  let restarted;
  try{
-  for(const name of ['first','second']){await f.db.run('INSERT INTO photo_cleanup(photo_id,filename) VALUES(?,?)',[name,name]);f.files.set(name+'.webp',Buffer.from('a'));f.files.set(name+'-thumb.webp',Buffer.from('b'));}
+  for(const name of ['first','second']){await f.db.run("INSERT INTO photo_cleanup(photo_id,filename,kind,not_before) VALUES(?,?,'candidate',0)",[name,name]);f.files.set(name+'.webp',Buffer.from('a'));f.files.set(name+'-thumb.webp',Buffer.from('b'));}
   f.storage.remove=async key=>{started();await gate;return remove(key);};
   const drain=f.photoCleanup.cleanup(true);await entered;const closing=f.photoCleanup.close();release();await closing;await drain;
   assert.deepEqual((await f.db.all('SELECT photo_id FROM photo_cleanup')).map(row=>row.photo_id),['second']);assert.equal(f.files.size,2);
@@ -177,10 +186,10 @@ test('Failed upload staging is queued durably when storage rollback also fails',
   const bytes=await jpeg('#ddeeff',180),key=randomUUID(),response=await f.upload('keep.jpg',bytes,{policy:'overwrite',key});
   assert.equal(response.status,422);assert.equal(response.results[0].retryable,true);
   assert.equal(f.files.size,5);assert.equal((await f.db.all('SELECT * FROM photo_cleanup')).length,1);
-  f.failPut=false;f.failRemove=false;await f.photoCleanup.cleanup(true);
+  f.failPut=false;f.failRemove=false;await drainRetired(f);
   assert.equal(f.files.size,3);assert.equal((await f.db.all('SELECT * FROM photo_cleanup')).length,0);
   assert.ok(await f.db.get('SELECT photo_id FROM selections WHERE photo_id=?',[original.id]));
-  assert.equal(first(await f.upload('keep.jpg',bytes,{policy:'overwrite',key})).id,original.id);await f.photoCleanup.cleanup(true);assert.equal(f.files.size,3);
+  assert.equal(first(await f.upload('keep.jpg',bytes,{policy:'overwrite',key})).id,original.id);await drainRetired(f);assert.equal(f.files.size,3);
  }finally{await f.close();}
 });
 test('Photo ordering persists integer positions and rejects a list made stale by deletion',async()=>{
@@ -214,4 +223,18 @@ test('Album metadata saving serializes with deleting its final cover photo',asyn
   assert.equal((await f.request('/api/admin/albums/'+f.album,metadata,'PATCH')).status,200);
   assert.equal((await f.db.get('SELECT cover_id FROM albums WHERE id=?',[f.album])).cover_id,null);
  }finally{release();f.db.run=run;f.db.get=get;f.db.transaction=transaction;await f.close();}
+});
+
+test('Client disconnect does not release media writer until upload and rollback work have settled',async()=>{
+ const f=await fixture();const put=f.storage.put;let resume,started;
+ const waiting=new Promise(r=>{resume=r;}),entered=new Promise(r=>{started=r;});let held=false;
+ try{
+  const login=await f.request('/api/admin/login',{email:'manage@test.local',password:'management-test-pass'},'POST'),cookie=login.headers.get('set-cookie').split(';')[0];
+  f.storage.put=async(...args)=>{if(!held){held=true;started();await waiting;}return put(...args);};
+  const body=new FormData();body.append('photos',new Blob([await jpeg()],{type:'image/jpeg'}),'disconnect.jpg');const controller=new AbortController();
+  const response=fetch(f.base+'/api/admin/albums/'+f.album+'/photos',{method:'POST',headers:{Origin:f.base,Cookie:cookie},body,signal:controller.signal}).catch(error=>error);
+  await entered;controller.abort();await response;const lease=await f.mediaControl.acquire('backup');await assert.rejects(f.mediaControl.assertDrained(lease),/writers/);
+  resume();const deadline=Date.now()+5000;while((await f.mediaControl.status()).writers.length){assert.ok(Date.now()<deadline);await new Promise(r=>setTimeout(r,10));}
+  await f.mediaControl.assertDrained(lease);assert.equal((await f.db.all('SELECT * FROM photos')).length,1);await f.mediaControl.release(lease);
+ }finally{resume();f.storage.put=put;await f.close();}
 });

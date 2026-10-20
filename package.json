@@ -10,13 +10,21 @@
     "test": "node --test studio/tests/*.test.mjs",
     "check": "node studio/tests/check-syntax.mjs",
     "admin:reset": "node --env-file-if-exists=.env studio/server/reset-admin.mjs",
-    "photos:prepare": "node studio/tools/prepare-photos.mjs"
+    "photos:prepare": "node studio/tools/prepare-photos.mjs",
+    "media": "node studio/tools/media-ops.mjs",
+    "drive:once": "node studio/tools/drive-sync.mjs once",
+    "drive:worker": "node studio/tools/drive-sync.mjs worker",
+    "drive:preview": "node studio/tools/drive-local-preview.mjs",
+    "deploy:vps": "node scripts/deploy-vps.mjs",
+    "backup:db": "ssh chicong-vps /var/www/chicongphoto/scripts/backup-db.sh"
   },
   "engines": {
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
     "express": "^5.2.1",
+    "google-auth-library": "11.3.1",
     "multer": "^2.4.0",
     "node-ical": "^0.27.3",
     "nodemailer": "^10.0.16",

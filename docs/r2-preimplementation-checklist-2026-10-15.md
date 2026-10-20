@@ -1,6 +1,10 @@
+> **Tài liệu lịch sử — đã hợp nhất ngày 16/10/2026.** Đọc [kế hoạch triển khai R2 và backup chính](r2-implementation-plan.md) để có các quyết định và điều kiện hiện hành. Nội dung bên dưới được giữ làm lịch sử review; những câu hỏi/trạng thái cũ có thể đã được giải quyết trong bản hợp nhất.
+
 **Danh sách chuẩn bị và xác nhận trước khi tích hợp R2 — 15/10/2026**
 
-Tài liệu dành cho chủ website, đi cùng [kế hoạch](r2-migration-plan-2026-10-14.md) và [biên bản xác minh](r2-plan-verification-2026-10-15.md). Hiện vẫn là giai đoạn chuẩn bị; chưa bắt đầu viết tính năng R2 hoặc chuyển website thật. Các đề xuất dưới đây chưa trở thành lựa chọn của người dùng chỉ vì được ghi vào tài liệu.
+Tài liệu dành cho chủ website, đi cùng [kế hoạch](r2-migration-plan-2026-10-14.md) và [biên bản xác minh](r2-plan-verification-2026-10-15.md). Cập nhật theo sáu bình luận và các câu trả lời bổ sung ngày 15/10. Hiện vẫn là giai đoạn chuẩn bị; chưa bắt đầu viết tính năng R2 hoặc chuyển website thật. Bảng dưới phân biệt lựa chọn đã nhận với phương án còn đang đề xuất.
+
+Bổ sung giải thích vận hành ngày 16/10/2026 ở cuối tài liệu. HEAD vẫn là 1ea50e8; không chạy lại bộ kiểm thử hoặc coi đây là xác minh production mới. Các lựa chọn trước được giữ nguyên.
 
 Có hai mốc khác nhau: **bắt đầu code và kiểm thử riêng**, sau đó **đưa bản đã kiểm chứng lên website thật và chuyển kho**. Chưa cần có đủ tài khoản, dữ liệu thật hoặc lịch bảo trì để viết phần code local. Trước khi thử cloud và chuyển thật, các điều kiện vận hành tương ứng phải được giải quyết.
 
@@ -13,30 +17,38 @@ Có hai mốc khác nhau: **bắt đầu code và kiểm thử riêng**, sau đ�
 | Cách phục vụ ảnh | R2 private; website kiểm tra quyền rồi mới lấy ảnh |
 | Khối lượng dự kiến | Dưới 1.000 ảnh mới mỗi tháng |
 | Chi phí | Ưu tiên miễn phí, chấp nhận phí nhỏ khi vượt hạn mức; chưa có số tiền cụ thể |
+| Thời hạn gallery | Đã chốt giữ tới khi chủ website tự xóa, không tự xóa theo ngày |
+| Mật khẩu | Giữ cách vào album hiện tại, không thêm bước bảo mật phức tạp |
+| Lỗi phiên khi đổi mật khẩu | Đồng ý review/cải thiện, đưa thành phần việc riêng khi bắt đầu triển khai |
+| Cloudflare | Đã có tài khoản, chưa kích hoạt R2 |
+| Backup ảnh hiện tại | Ảnh gốc/ảnh xuất Lightroom trên Drive và ổ cứng; copy thành các bản riêng, xóa một nơi không tự xóa nơi kia |
+| Backup website dự kiến | Ưu tiên tự động hằng ngày lên Drive nếu tận dụng được hạ tầng hiện có; người dùng tự copy thêm xuống ổ cứng khi thuận tiện; chưa triển khai/lập lịch |
+| Drive dùng cho backup | Tài khoản Gmail cá nhân người dùng đã chỉ định trong cuộc trao đổi; còn khoảng 5TB theo người dùng, chưa truy vấn tài khoản |
+| Lịch sử backup website | Đã chọn ngày 16/10: 30 ngày gần nhất nếu dung lượng đủ; không đổi thời hạn gallery |
 
 Phương án kỹ thuật giữ database ở Supabase và website trên Render. Ảnh chân dung đang dùng cũng được kiểm kê để không mất chức năng hiện có. R2 thay kho file; không tự giải quyết mọi nguyên nhân upload chậm hay loại bỏ băng thông của Render.
 
-**Sáu câu hỏi để người dùng trả lời ở vòng xác nhận này**
+**Ý nghĩa của sáu câu trả lời đã nhận**
 
-1. **Thời hạn giữ gallery:** có đồng ý giữ ảnh cho đến khi bạn chủ động xóa, chưa tự xóa theo ngày không? Đây là đề xuất cho đợt đầu. Nếu đã hứa với khách thời hạn cụ thể, ghi thêm thời hạn đó để lập kế hoạch dung lượng. Ẩn/lưu trữ album không đồng nghĩa xóa file hoặc giải phóng dung lượng. Việc xóa theo yêu cầu vẫn giữ hành vi hiện tại; không tự thêm thùng rác/khôi phục bằng một nút.
+1. **Giữ gallery tới khi tự xóa — đã chốt.** Không thiết lập lịch tự xóa ảnh/album trên R2. Ẩn/lưu trữ vẫn chiếm dung lượng. Xóa trên website tiếp tục xóa dữ liệu hoạt động theo chức năng hiện tại; không tác động các bản ảnh gốc trên Drive/ổ cứng. Không tự thêm thùng rác hoặc nút phục hồi. Lịch sử backup website được chốt riêng là 30 ngày, nếu đủ dung lượng.
 
-2. **Yêu cầu riêng của gallery khách:** có gallery nào bạn cần bắt buộc mật khẩu nhưng hiện chỉ đang chia sẻ bằng link không? Nếu không có yêu cầu bổ sung, giữ nguyên hai kiểu đang có. Người có link có thể xem gallery không đặt mật khẩu; R2 private không tự biến gallery đó thành gallery có mật khẩu. Không tự đặt mật khẩu mới hoặc đổi link đã gửi khách. Đây là kiểm tra yêu cầu còn thiếu, không hỏi lại lựa chọn giữ cơ chế kiểm tra quyền đã chốt.
+2. **Mật khẩu đơn giản như hiện tại — đã chốt.** Khách nhập mật khẩu của album khi album được cấu hình yêu cầu. Không tự thêm tài khoản khách, OTP, mật khẩu cho mọi album hoặc đổi link đã gửi. Server vẫn phải kiểm tra quyền khi trả file; chỉ khóa trang album nhưng để file ở đường public sẽ không đáp ứng chức năng mật khẩu hiện tại. Đây là bảo toàn cách truy cập đã có, không thêm thao tác cho khách.
 
-3. **Lỗi mật khẩu đã phát hiện:** có đồng ý đưa việc sửa lỗi phiên truy cập cũ khi đổi mật khẩu vào bước đầu, với kiểm thử riêng, trước nghiệm thu R2 không? Đề xuất có. Review đã tái hiện một yêu cầu mở khóa bằng mật khẩu cũ đang xử lý có thể tạo phiên hợp lệ sau lúc đổi mật khẩu. Đây là lỗi có sẵn trong bản code đã kiểm tra, chưa được sửa và chưa phải bằng chứng xảy ra trên website thật. Khi bắt đầu code phải kiểm tra lại trên bản mới nhất để tránh sửa trùng công việc khác.
+3. **Review/cải thiện lỗi phiên — người dùng đồng ý về phạm vi, chưa yêu cầu code ngay.** Mục tiêu: khi đổi mật khẩu xong, một yêu cầu đang xử lý với mật khẩu cũ không được cấp phiên mới còn hợp lệ; phiên cũ phải không dùng được cho yêu cầu tiếp theo. Không hứa thu hồi ảnh đã tải về hoặc mọi byte của yêu cầu đã chạy. Giải pháp kỹ thuật do bên triển khai chọn, kèm test cho thao tác mở khóa và đổi mật khẩu xảy ra đồng thời.
 
-4. **Mức chi phí cần báo:** bạn muốn được cảnh báo khi chi phí R2 ước tính đạt bao nhiêu mỗi tháng? Có thể trả lời bằng VND hoặc USD; cũng có thể chọn “đề xuất sau khi đo dung lượng”. Đây là ngưỡng để xem xét, không phải cam kết hóa đơn không vượt mức hay cơ chế tự dừng upload. Chi phí R2, Render, đọc nguồn Supabase, môi trường thử và backup phải được trình bày riêng; ngân sách một lần để chuyển dữ liệu chốt sau kiểm kê. Chưa tự mua gói hoặc dịch vụ khác.
+4. **Ưu tiên free, phát sinh ít nếu cần — giữ đúng lựa chọn.** Chưa ép chọn số tiền hoặc tự đặt trần/dừng upload. Sau kiểm kê sẽ trình bày riêng chi phí R2, Render, chuyển dữ liệu và backup. Giữ ảnh đến khi tự xóa khiến dung lượng tích lũy; không thể bảo đảm miễn phí mãi. Các số minh họa phải tách tiền lưu file khỏi lượt đọc/ghi và dịch vụ khác. Chưa tự mua gói hoặc dịch vụ bổ sung.
 
-5. **Tài khoản Cloudflare:** bạn chưa có tài khoản, đã có nhưng chưa bật R2, hay đã bật R2? Bạn có tự quản lý được tài khoản và bước xác nhận thanh toán không? Chỉ cần trả lời trạng thái; không gửi mật khẩu, số thẻ, Access Key hoặc Secret Key trong chat.
+5. **Cloudflare mới có tài khoản — đã rõ.** Chưa cần tạo kho thật để tiếp tục kế hoạch. Trước thử cloud sẽ hướng dẫn kích hoạt R2, tạo bucket thử private, token đúng quyền và nhập secrets ở môi trường server. Người dùng tự xử lý phần tài khoản/thanh toán. Không gửi mật khẩu, số thẻ hoặc khóa bí mật trong chat.
 
-6. **Bản sao hiện tại:** bạn đang giữ ảnh gốc ở đâu, và đã có nơi riêng để lưu backup website chưa — máy tính, ổ cứng/NAS, dịch vụ lưu trữ riêng hay chưa có? Chỉ cần mô tả loại nơi lưu và dung lượng trống ước tính nếu biết. Ảnh gốc giúp bảo vệ tác phẩm nhưng không thay backup database: chúng không lưu danh sách ảnh khách chọn, album, booking hay các liên kết của website. Nếu chưa có, ghi “chưa có” để đề xuất phương án sau kiểm kê.
+6. **Drive + ổ cứng là hai bản ảnh riêng — đã rõ sau hỏi bổ sung.** Hiện chủ yếu có ảnh gốc và ảnh xuất Lightroom; chưa đủ để phục hồi album, lựa chọn khách và booking. Người dùng tiếp tục chọn ưu tiên backup website tự động hằng ngày nếu tận dụng được hạ tầng hiện có. Đề xuất giữ ảnh gốc nguyên cách đang làm, bổ sung bộ backup website có phiên bản riêng; chưa coi Google Drive đã kết nối với website hoặc máy chủ đã có tác vụ backup.
 
-Ba câu đầu xác nhận hành vi và phạm vi sửa code. Ba câu sau cung cấp đầu vào vận hành; có thể trả lời “chưa rõ” và xử lý trước mốc sử dụng cloud liên quan. Không bắt người dùng tự tính số request, dung lượng chính xác hay chọn thông số SDK.
+Không hỏi lại sáu lựa chọn này. Phần còn mở tập trung vào cách thực hiện backup tự động, dung lượng thật và điều kiện chuyển production. Không bắt người dùng tự tính số request hay chọn thông số SDK.
 
 **Những thứ cần chuẩn bị theo từng mốc**
 
 | Mốc | Người dùng chuẩn bị/xác nhận | Phần mình thực hiện |
 |---|---|---|
-| Trước bắt đầu code | Trả lời các câu hỏi trên, nêu điều bắt buộc phải giữ hoặc vấn đề đang gặp | Cập nhật phạm vi, kiểm tra code mới nhất và các thay đổi đang làm song song, chia phần triển khai |
+| Trước bắt đầu code | Làm rõ phần backup còn mở, nêu yêu cầu sử dụng bổ sung nếu có | Cập nhật phạm vi đã nhận, kiểm tra code mới nhất và các thay đổi đang làm song song, chia phần triển khai |
 | Trước thử R2 thật | Quyền truy cập tài khoản Cloudflare; tự làm bước thanh toán nếu nhà cung cấp yêu cầu; có thể cung cấp ảnh thử không nhạy cảm | Chuẩn bị cấu hình có chỗ điền, hướng dẫn tạo kho và nhập secrets đúng nơi; thử với bucket và database riêng |
 | Trước kiểm kê/copy dữ liệu thật | Xác định đúng website/dự án đang chạy; xác nhận dữ liệu nào được dùng thử; thống nhất ngân sách đọc nguồn và nơi backup | Kiểm tra gói/quota/region/commit thực tế qua quyền truy cập phù hợp; lập danh mục và dự toán lượt đọc trước khi tải toàn kho |
 | Trước chuyển production | Chọn khung giờ, người thao tác deploy, thời gian tạm khóa quản trị ảnh có thể chấp nhận | Đưa thời lượng ước tính sau diễn tập; hướng dẫn rõ bước tiếp tục, dừng hoặc quay lại |
@@ -63,7 +75,7 @@ Bạn không cần đọc source code hoặc tự kiểm tra checksum. Việc v�
 
 | Câu hỏi sẽ cần chốt | Gợi ý cách quyết định |
 |---|---|
-| Backup định kỳ do ai thực hiện và lưu ở đâu? | Chọn sau khi biết kích thước thật, chi phí và khả năng vận hành; bản sao phải được bảo vệ và thử khôi phục |
+| Backup tự động hằng ngày chạy ở đâu và ai theo dõi lỗi? | Ưu tiên hạ tầng hiện có theo lựa chọn mới; cần kiểm chứng nơi chạy, quyền, quota và cách lưu độc lập. Đây chưa phải lịch đã được bật |
 | Nếu sự cố xảy ra giữa hai lần backup, cần khôi phục đến gần thời điểm nào? | Xác định có chấp nhận nhập lại thay đổi của tối đa một ngày không, hay cần khoảng ngắn hơn; bao gồm cả lựa chọn khách và booking, không chỉ ảnh |
 | Muốn khôi phục hoạt động trong bao lâu khi gặp sự cố? | Dựa trên nhu cầu giao ảnh cho khách và thời gian khôi phục đã đo; chưa hứa SLA trước diễn tập |
 | Khung giờ ít ảnh hưởng nhất và mức tạm ngừng chấp nhận được? | Phân biệt tạm khóa upload/ghi đè/xóa ảnh với gián đoạn ngắn khi deploy; chưa cam kết khách truy cập liên tục tuyệt đối |
@@ -83,15 +95,61 @@ Kho Supabase cũ không tự cập nhật ảnh phát sinh trên R2 và không t
 - Backup có cặp database/file phù hợp và đã thử restore riêng. Phương án quay lại không làm mất booking/lựa chọn mới hoặc làm sống lại ảnh đã xóa.
 - Có kết quả diễn tập, dự toán chi phí và kịch bản chuyển cụ thể để người dùng review trước tác động production.
 
-**Mẫu trả lời ngắn cho vòng hiện tại**
+**Backup website tự động: phần cần làm rõ tiếp**
 
-```text
-1. Thời hạn giữ gallery: giữ tới khi tôi tự xóa / mong muốn khác: ...
-2. Có yêu cầu bắt buộc mật khẩu nào chưa đáp ứng: không / có: ...
-3. Sửa lỗi phiên truy cập khi đổi mật khẩu trong bước đầu: đồng ý / cần giải thích thêm.
-4. Ngưỡng chi phí R2 cần báo mỗi tháng: ... / đề xuất sau kiểm kê.
-5. Cloudflare: chưa có / có tài khoản chưa bật R2 / đã bật R2.
-6. Ảnh gốc đang ở: ...; nơi backup website riêng: ... / chưa có.
-```
+- Một bộ backup gồm database tại một thời điểm, danh mục ảnh đúng phiên bản và bytes của các file đó. Chỉ có ảnh gốc hoặc chỉ JSON từ nút “Sao lưu dữ liệu” chưa đủ. Không lấy snapshot mới rồi ghép với media thiếu hoặc khác phiên bản.
+- Đã chốt tự động lưu backup website lên Drive, người dùng tự copy thêm xuống ổ cứng khi thuận tiện. Đề xuất chạy ngoài tiến trình phục vụ khách, ưu tiên GitHub Actions đã có cấu trúc CI trong repo. Chưa có workflow backup, chưa xác minh quota/tình trạng remote, chưa chọn chính thức scheduler hoặc kết nối Drive. Bản local có thể cũ hơn bản Drive.
+- Hằng ngày là lịch mong muốn, không tự bảo đảm mọi lần chạy thành công hoặc bảo vệ dữ liệu ngay trước sự cố. Cần biết lần thành công cuối và báo lỗi; phải đo mức trễ/lỡ lịch của nơi chạy được chọn.
+- Phải bảo vệ các file đang được backup trước thao tác xóa/ghi đè đồng thời. Bộ thiếu file/checksum không được gắn nhãn thành công. Tải ảnh mới/đổi và giữ những file còn được các phiên bản backup tham chiếu giúp tránh tải lại toàn kho mỗi ngày; cách triển khai chỉ chọn sau khi đo.
+- Lịch sử backup đã chọn 30 ngày nếu đủ dung lượng. Còn cần xác minh nơi chạy, quyền kết nối và cách theo dõi lỗi trước vận hành. Dọn lịch sử chỉ là phần sẽ triển khai theo chính sách này, chưa bật hoặc xóa gì trong lượt lập kế hoạch. Không áp chính sách đó lên ảnh gốc Drive/ổ cứng.
 
-Trả lời bảng này dùng để hoàn thiện kế hoạch. Chỉ bắt đầu code khi người dùng yêu cầu thực hiện; trả lời về tài khoản hay ngân sách không tự đồng nghĩa cho phép mua gói, triển khai production hoặc xóa dữ liệu.
+Các câu trả lời được dùng để hoàn thiện kế hoạch. Chỉ bắt đầu code khi người dùng yêu cầu thực hiện; lựa chọn backup tự động hằng ngày trong cuộc thảo luận này chưa phải lệnh bật lịch, mua gói, triển khai production hoặc xóa dữ liệu.
+
+**Làm rõ cách vận hành — 16/10/2026**
+
+**1. Giữ gallery và giữ lịch sử backup là hai thời hạn khác nhau**
+
+Gallery giữ tới khi chủ website xóa, đã chốt. Người dùng đã chọn lịch sử backup 30 ngày gần nhất nếu đủ dung lượng. Đây là các mốc backup thành công trong 30 ngày lịch, không phải luôn đủ 30 bản nếu có ngày lỗi. Một ảnh còn được bất kỳ bản backup được giữ nào tham chiếu không được xóa khỏi kho backup chỉ vì bản thân file đã hơn 30 ngày tuổi. Chính sách này không xóa file hoạt động trong R2.
+
+Ví dụ: một bản backup hôm qua có album A. Hôm nay chủ website xóa A. Album ngừng phục vụ trên website, còn bản backup hôm qua có thể dùng để cứu khi xóa nhầm, trong thời gian bản đó được giữ. Đây không phải tự xuất hiện lại album hoặc một nút thùng rác đã có sẵn.
+
+Đề xuất khi triển khai dọn lịch sử: chỉ dọn bản hết hạn theo chính sách đã chọn và bytes không còn bản nào cần; giữ ít nhất bản hoàn chỉnh tốt gần nhất khi các lượt mới thất bại, kể cả bản đó đã quá thời hạn dự kiến. Phải báo bản sao quá cũ/dung lượng thiếu, không âm thầm xóa bản tốt cuối để giải phóng chỗ. Đây là đề xuất bảo vệ backup, chưa được bật.
+
+**2. Giữ 30 ngày không cần nhân cả kho ảnh lên 30 lần**
+
+Hướng thiết kế là lưu media mới hoặc thay đổi, tái dùng file không đổi giữa các mốc; mỗi mốc giữ dữ liệu website và danh mục file tương ứng. Dung lượng cần tính gồm ảnh hiện hành, phiên bản ảnh cũ còn cần cho lịch sử, database của các mốc và phần dự phòng trong lúc sao lưu.
+
+Ví dụ thuần minh họa: 5GB ảnh hiện hành + 1GB các bản ảnh đã thay/xóa nhưng còn được lịch sử giữ + 30 bản database mỗi bản 10MB tương đương khoảng 6,3GB, trước phần dự phòng/metadata. Không phải 150GB. Đây chưa phải đo website hoặc cam kết phương án cuối; giá trị thực phụ thuộc số lần ghi đè/xóa và dung lượng database.
+
+Nếu Drive thiếu chỗ: báo lượt backup không hoàn tất, giữ bản tốt trước và để website tiếp tục theo trạng thái hiện hành. Không tự mua thêm dung lượng, xóa gallery, xóa ảnh gốc hay xóa bản backup cuối. Tác vụ phải kết thúc và giải phóng khóa theo cơ chế lỗi đã kiểm chứng, không treo quản trị ảnh vô thời hạn.
+
+**3. Copy xuống ổ cứng phải tạo được một bộ khôi phục độc lập**
+
+Vì các mốc trên Drive có thể dùng chung bytes ảnh, chỉ tải folder theo ngày hoặc một file JSON chưa chắc đủ. Đầu ra cho chủ website cần là một bộ hoàn chỉnh của mốc đã chọn: database, toàn bộ media mà mốc đó cần, danh mục kiểm chứng, hướng dẫn và thông tin phiên bản ứng dụng phù hợp. Khóa giải mã nếu dùng phải được giữ riêng để người dùng vẫn khôi phục được khi server hiện tại không còn.
+
+Tiêu chí kiểm tra: dùng bộ local để khôi phục vào môi trường riêng mà không đọc file từ Drive hoặc R2 đang hoạt động. Chọn mặc định lấy bản thành công mới nhất khi copy; nếu muốn cứu trạng thái cũ thì chọn mốc cụ thể. Chưa có công cụ xuất bộ độc lập hoặc nút restore trong giao diện; cần chuẩn bị hướng dẫn/công cụ hỗ trợ phù hợp, không hứa tính năng đã tồn tại.
+
+**4. Hằng ngày vẫn có khoảng dữ liệu chưa kịp sao lưu**
+
+Ví dụ minh họa: backup thành công lúc 03:00; khách chọn ảnh lúc 10:00; sự cố lúc 14:00. Bản 03:00 không chứa lựa chọn lúc 10:00. Lịch hằng ngày đã chọn không tự bảo vệ mọi thay đổi tới ngay trước sự cố. Nếu một lượt bị lỗi/bỏ qua thì khoảng dữ liệu chưa được sao lưu dài hơn một ngày.
+
+Cần hiển thị/báo thời điểm bản thành công cuối, trạng thái từng lượt và có cách chạy lại thủ công sau một đợt thay đổi quan trọng. Đề xuất chọn giờ ít upload theo giờ Việt Nam sau khi rõ thói quen sử dụng; 03:00 ở ví dụ không phải giờ chạy đã chốt. Nơi chạy và kênh theo dõi lỗi sẽ chốt khi cấu hình, chưa tạo thông báo hay lịch.
+
+**5. Khôi phục cần chọn đúng phạm vi sự cố**
+
+| Tình huống | Hướng xử lý dự kiến |
+|---|---|
+| Thiếu một file ảnh nhưng database vẫn đúng | Lấy đúng file/key/phiên bản từ backup sau đối chiếu; không thay toàn bộ database |
+| Xóa nhầm một album hoặc lựa chọn | Khôi phục bản cũ vào môi trường riêng, xem dữ liệu cần lấy và xung đột với hiện tại; không đè cả website về hôm qua |
+| Mất database và kho file hoặc sự cố diện rộng | Khôi phục trọn một bộ đã kiểm chứng, báo rõ mốc dữ liệu và phần thay đổi sau mốc có thể mất |
+
+Khôi phục một album cần đối chiếu ID, tên đường dẫn, bìa, sections, lựa chọn, receipts và cleanup; phương án thao tác cụ thể thuộc phần kỹ thuật. Đợt đầu không tự thêm UI restore hoặc cam kết khôi phục chọn lọc một chạm. Không phục hồi phiên đăng nhập cũ thành quyền còn hiệu lực; rà lại quyền/mật khẩu trước khi mở cho khách. Việc quay lại kho Supabase khi triển khai lỗi vẫn là quy trình khác với phục hồi toàn bộ website về một mốc quá khứ.
+
+**Đã làm rõ thêm ngày 16/10**
+
+- Drive là tài khoản Gmail cá nhân người dùng đã chỉ định, còn khoảng 5TB theo thông tin cung cấp. Chưa kiểm tra trực tiếp quota/gói tài khoản; ở quy mô dự kiến đây là nhiều dư địa, chưa có lý do đề nghị mua thêm dung lượng.
+- Lịch sử backup website giữ 30 ngày gần nhất nếu đủ chỗ. Không rút ngắn thời hạn gallery, không xóa ảnh gốc và không bật tác vụ dọn dữ liệu ngay từ câu trả lời này.
+
+Hướng kết nối dự kiến là chủ Drive đăng nhập cấp quyền cho công cụ backup, tạo một thư mục website riêng bằng phạm vi quyền hạn chế. Cần kiểm chứng khả năng tự làm mới quyền trên nơi chạy; không coi đăng nhập thành công một lần là bằng chứng job sẽ hoạt động lâu dài. [Quyền Drive](https://developers.google.com/workspace/drive/api/guides/api-specific-auth), [vòng đời quyền OAuth](https://developers.google.com/identity/protocols/oauth2#expiration)
+
+Những gì còn lại chủ yếu là xác minh kỹ thuật và vận hành: quota GitHub thực tế, thời gian backup, khả năng restore, giờ chạy ít ảnh hưởng và kênh báo lỗi. Giờ chuyển thật/người thao tác sẽ chốt khi có diễn tập. Người dùng không cần tự chọn OAuth, thư viện hoặc cách dọn file dùng chung. Chưa có lệnh bắt đầu code trong vòng trao đổi này.
