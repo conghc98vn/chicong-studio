@@ -854,7 +854,7 @@
     },
     {
       "path": "docs/customer-feedback-spec.md",
-      "sha256": "35bdda30414bd40a3dc23e5bfaae17f478e5f25d80e42e4df5d4f6cb86f3ba2b"
+      "sha256": "3a42c40ab2974f4a0f350fb297b6722036a4cae05447601175528744ec4880d1"
     },
     {
       "path": "docs/google-drive-folder-browser-2026-10-20.md",
@@ -962,7 +962,8 @@
     "markdownFileLinksValid": true,
     "codeFencesBalanced": true,
     "headingAnchorsValidated": false,
-    "prePushDocumentationEdit": "Clarified runtime commit versus documentation commit and removed transient uncommitted wording; documentation hashes refreshed. Runtime source and the dated deployment acceptance snapshot are unchanged."
+    "prePushDocumentationEdit": "Clarified runtime commit versus documentation commit and removed transient uncommitted wording; documentation hashes refreshed. Runtime source and the dated deployment acceptance snapshot are unchanged.",
+    "postPushFormattingEdit": "Replaced eight Markdown two-space line breaks in the feedback email template with explicit HTML breaks; refreshed that document hash. No content or runtime change."
   },
   "capturedAt": "2026-10-20T16:15:03+07:00",
   "currentDeploymentManifestComparison": {

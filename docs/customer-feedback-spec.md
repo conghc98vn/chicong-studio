@@ -517,18 +517,18 @@ Lịch sử ghi số phiên bản kỹ thuật khi cần đối chiếu, nhưng 
 
 > **[Cảm nhận mới / Cảm nhận vừa được cập nhật]**
 >
-> Hồ sơ: #[Mã]  
-> Buổi chụp/dịch vụ: [Tên/ngữ cảnh đã lưu]  
-> Ngày chụp: [Ngày, nếu có]  
-> Người gửi: [Tên của phiên bản được thông báo]  
-> Thời điểm lưu: [HH:mm, DD/MM/YYYY] (giờ Việt Nam)  
+> Hồ sơ: #[Mã] <br>
+> Buổi chụp/dịch vụ: [Tên/ngữ cảnh đã lưu] <br>
+> Ngày chụp: [Ngày, nếu có] <br>
+> Người gửi: [Tên của phiên bản được thông báo] <br>
+> Thời điểm lưu: [HH:mm, DD/MM/YYYY] (giờ Việt Nam) <br>
 > Phiên bản: [N]
 >
 > **Đánh giá của khách**
 >
-> Trải nghiệm chung: [N/5 — tên mức, hoặc Chưa đánh giá]  
-> Trải nghiệm buổi chụp: [N/5 — tên mức, hoặc Chưa đánh giá]  
-> Sản phẩm nhận được: [N/5 — tên mức, hoặc Chưa đánh giá]  
+> Trải nghiệm chung: [N/5 — tên mức, hoặc Chưa đánh giá] <br>
+> Trải nghiệm buổi chụp: [N/5 — tên mức, hoặc Chưa đánh giá] <br>
+> Sản phẩm nhận được: [N/5 — tên mức, hoặc Chưa đánh giá] <br>
 > Quá trình bàn giao: [N/5 — tên mức, hoặc Chưa đánh giá]
 >
 > **Cảm nhận của khách**
