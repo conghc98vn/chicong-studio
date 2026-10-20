@@ -27,6 +27,8 @@ test('local preview refuses evidence overwrite and ignores inherited cloud confi
 });
 
 test('local preview copies evidence, remaps album links and serves the real authenticated application', async () => {
+  // The ignored output directory does not exist in a clean checkout.
+  await mkdir(path.join(repository, 'output'), {recursive: true});
   const source = await mkdtemp(path.join(repository, 'output', 'drive-preview-test-source-'));
   const output = path.join(repository, 'output', 'drive-preview-test-copy-' + randomBytes(6).toString('hex'));
   const options = {...parsePreviewArguments(['--source', source, '--output', output]), port: 0};
