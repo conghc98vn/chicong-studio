@@ -1,7 +1,7 @@
 # Brief website freelancer.chicongphoto.vn
 
-- **Phiên bản:** v0.1
-- **Ngày cập nhật:** 14/10/2026
+- **Phiên bản:** v0.2
+- **Ngày cập nhật:** 16/10/2026
 - **Trạng thái:** Bản nháp để Công xem lại và bổ sung; chưa triển khai.
 - **Mục tiêu:** Hồ sơ năng lực cá nhân dành cho đối tác book Công đi chụp, ưu tiên studio/đơn vị ảnh cưới.
 
@@ -15,16 +15,23 @@ Những yêu cầu ở mục 1 đã được Công xác nhận. Các phần còn
 |---|---|
 | Địa chỉ dự kiến | freelancer.chicongphoto.vn |
 | Đối tượng chính | Studio/đơn vị ảnh cưới book chính Công |
+| Trọng tâm ảnh cưới | Chụp truyền thống và phóng sự; vai trò máy chính/phụ và phạm vi chụp độc lập chưa chốt |
 | Mục đích | Giới thiệu năng lực cá nhân để đối tác book lẻ máy; không tập trung vào khách hàng phổ thông |
 | Nội dung portfolio | Ảnh cưới, event, thôi nôi, sinh nhật, teambuilding và có thể bổ sung thể loại khác; mỗi thể loại giới thiệu vài bộ |
-| Thiết bị | Mô tả bằng chữ và ảnh thực tế các thiết bị hiện có |
+| Thiết bị | Mô tả bằng chữ và ảnh thực tế; bộ thiết bị tùy loại job truyền thống hoặc phóng sự; danh sách bổ sung sau |
 | Báo giá | Nhập mã truy cập mới xem được; gồm giá theo vị trí chụp và phí phát sinh |
 | Cách cấp mã | Một mã chung cho tất cả đối tác |
-| Phạm vi công việc | Có cả chụp giao file và chụp kèm hậu kỳ, tùy thỏa thuận từng job |
+| Phạm vi công việc | Chụp giao file RAW/JPEG và chụp có edit có giá khác nhau; chưa chốt RAW và JPEG có cùng mức giá hay không |
+| Xác nhận booking | Không cần cọc; chốt qua tin nhắn Messenger/Facebook hoặc Zalo |
 | Quy trình và cam kết | Giới thiệu cách làm việc, quy trình chụp truyền thống/phóng sự, những điều Công đảm bảo và các ghi chú liên quan |
 | Lịch | Theo ngày, một ngày chỉ nhận một job |
+| Người thực hiện job | Booking qua website chủ yếu để chính Công chụp; không mặc định mọi job của studio đều thuộc lịch cá nhân Công |
 | Liên hệ booking | Messenger/Facebook và Zalo |
-| SEO | Không phải trọng tâm |
+| Giao diện | Đồng bộ font và UI với web chính |
+| Quyền xem | Ai có link đều xem được hồ sơ; riêng báo giá vẫn cần mã chung |
+| Cách chia sẻ | Không đặt link từ web chính sang web freelancer; bên trong web freelancer vẫn có menu và link từng bộ ảnh |
+| Tìm kiếm | Không muốn xuất hiện trên Google; không đầu tư SEO để thu hút khách phổ thông |
+| Nội dung bổ sung sau | Mức giá, phụ phí, danh sách thiết bị và tư liệu portfolio do Công chuẩn bị sau |
 | Giai đoạn hiện tại | Hoàn thiện brief và kế hoạch, chưa thực thi website |
 
 ## 2. Cấu trúc website đề xuất
@@ -59,6 +66,8 @@ Nút **Báo giá đối tác** và **Xem lịch** nên dễ tìm ngay từ đầ
 
 Cách này giúp đối tác hiểu một bộ ảnh đẹp được thực hiện trong phạm vi nào. “Ảnh cưới”, “phóng sự” và “máy phụ” không nên nằm chung một nhóm bộ lọc vì chúng mô tả các khía cạnh khác nhau.
 
+Công đã xác nhận **truyền thống và phóng sự** là hai hướng chính. Đề xuất đưa hai hướng này lên trước trong nhóm ảnh cưới. Vai trò máy chính/phụ, việc nhận một mình toàn bộ job và pre-wedding vẫn chưa có câu trả lời cụ thể; không tự coi là dịch vụ đã nhận hoặc đã loại trừ.
+
 ### 3.2. Thông tin cho mỗi bộ ảnh
 
 - Tên bộ, ảnh bìa và thể loại.
@@ -72,6 +81,8 @@ Cách này giúp đối tác hiểu một bộ ảnh đẹp được thực hi�
 Nên có ít nhất một vài bộ thể hiện diễn biến tương đối đầy đủ của job. Đối tác cần đánh giá khả năng giữ chất lượng xuyên suốt buổi chụp, ngoài những ảnh nổi bật.
 
 ### 3.3. Nội dung ban đầu
+
+Công sẽ soạn tư liệu sau. Giai đoạn này chốt cấu trúc nội dung và trường thông tin; chưa yêu cầu đủ bộ ảnh hoặc viết nội dung minh họa như dữ liệu thật.
 
 Có thể nhắm **2–3 bộ cho mỗi thể loại đã có tư liệu tốt**, ưu tiên ảnh cưới trước. Đây là mục tiêu biên tập, không phải yêu cầu phải đủ số lượng mới được ra mắt. Danh mục chưa có ảnh có thể ẩn và bổ sung sau.
 
@@ -91,7 +102,7 @@ Mỗi thiết bị có tên/model, số lượng nếu cần, ảnh thực tế 
 
 ### 4.2. Bộ thiết bị thường sử dụng
 
-Đề xuất thêm phần **Bộ thiết bị thường sử dụng** theo kiểu job, chẳng hạn chụp cưới truyền thống, phóng sự hoặc event. Phần này giúp studio biết Công thường mang gì và cần trao đổi thêm gì trước buổi chụp.
+Công xác nhận thiết bị phụ thuộc loại job truyền thống hoặc phóng sự và sẽ bổ sung danh sách sau. Đề xuất trình bày **Bộ thiết bị thường sử dụng** theo từng kiểu job; có thể mở rộng cho event khi có nội dung. Phần này giúp studio biết Công thường mang gì và cần trao đổi thêm gì trước buổi chụp.
 
 Cần phân biệt rõ:
 
@@ -104,6 +115,17 @@ Danh sách thiết bị hiện có không mặc nhiên có nghĩa toàn bộ s�
 ## 5. Báo giá theo vai trò, thời lượng và đầu ra
 
 Bảng giá nên trả lời đủ ba câu: **Thuê Công làm phần việc gì → Trong thời lượng nào → Nhận được sản phẩm gì.**
+
+Công sẽ bổ sung giá và phụ phí sau. Đã chốt hai phạm vi có giá khác nhau: **chụp giao file RAW/JPEG** và **chụp có edit**. Chưa có đủ thông tin để tách RAW, JPEG thành hai gói giá khác nhau, hoặc mặc định edit bao gồm retouch.
+
+Đề xuất khung bảng giá ảnh cưới để Công điền sau:
+
+| Cách chụp | Chụp giao file RAW/JPEG | Chụp có edit |
+|---|---|---|
+| Truyền thống | Chờ bổ sung giá và phạm vi file | Chờ bổ sung giá và phạm vi edit |
+| Phóng sự | Chờ bổ sung giá và phạm vi file | Chờ bổ sung giá và phạm vi edit |
+
+Khung này là đề xuất trình bày; không có nghĩa tất cả tổ hợp dịch vụ đã được xác nhận nhận chụp. Tổ hợp chưa nhận hoặc chưa có nội dung có thể ẩn khi biên tập. Thời lượng, vai trò và phụ phí sẽ được bổ sung vào từng dòng sau khi chốt cách tính.
 
 ### 5.1. Cấu trúc một dòng giá
 
@@ -123,6 +145,7 @@ Bảng giá nên trả lời đủ ba câu: **Thuê Công làm phần việc gì
 ### 5.2. Các khoản phát sinh cần rà soát
 
 Chỉ giữ những khoản Công thực sự áp dụng:
+
 - Vượt giờ, cách làm tròn thời gian và thời điểm bắt đầu tính.
 - Lịch trình tách buổi hoặc có khoảng chờ dài.
 - Di chuyển ngoài khu vực cơ bản, nhiều địa điểm.
@@ -150,6 +173,8 @@ Khi triển khai, giá phải được bảo vệ ở máy chủ, không chỉ c
 Đề xuất trang **Cách làm việc** có phần chung và phần riêng theo cách chụp. Nội dung cần là những điều có thể đối chiếu với cách Công thực tế làm việc.
 
 ### 6.1. Quy trình chung
+
+**Đã chốt:** Không yêu cầu cọc; xác nhận booking qua tin nhắn. Đề xuất chỉ đánh dấu đã nhận job sau khi Công xác nhận rõ ngày chụp và phạm vi công việc với đối tác. Hỏi lịch, xem giá hoặc mở Messenger/Zalo chưa phải xác nhận booking. Quy tắc giữ ngày tạm và đổi/hủy vẫn cần trao đổi.
 
 | Giai đoạn | Nội dung cần thống nhất |
 |---|---|
@@ -185,9 +210,11 @@ Tránh những câu chung như “đảm bảo tuyệt đối” hoặc “khôn
 
 ### 7.1. Luồng chính
 
-**Chọn ngày → Xem trạng thái → Xem thông tin cần gửi → Mở Messenger/Zalo → Hai bên trao đổi và chốt → Công cập nhật lịch.**
+**Chọn ngày → Xem trạng thái → Xem thông tin cần gửi → Mở Messenger/Zalo → Hai bên xác nhận nhận job qua tin nhắn, không cần cọc → Công cập nhật lịch.**
 
 Quy tắc đã chốt là **một ngày nhận một job**, nên có thể tận dụng cách hiển thị lịch hiện tại.
+
+Website không tự biết nội dung trao đổi Messenger/Zalo. Ở phạm vi hiện tại, Công chủ động cập nhật nơi quản lý lịch sau khi chốt; chưa có yêu cầu đọc tin nhắn hay tự động tạo booking từ cuộc trò chuyện.
 
 ### 7.2. Trạng thái công khai tối thiểu
 
@@ -208,6 +235,8 @@ Nếu Công có giữ ngày tạm, cần bổ sung quy tắc cho trạng thái n
 - Job nhiều ngày cần thể hiện đủ những ngày Công không thể nhận việc khác.
 - Hai website cần phản ánh thống nhất lịch cá nhân của Công.
 
+Công cho biết hầu hết người xem muốn book chính Công, nên lịch cần xoay quanh khả năng nhận việc của Công. Câu trả lời này chưa xác định nơi nhập/sửa lịch chính là Google Calendar hay quản trị web; không mặc định đã chốt nguồn lịch.
+
 Qua khảo sát mã nguồn và [tài liệu lịch hiện tại](google-calendar.md), web đang kết hợp ngày chặn thủ công, booking đã xác nhận và lịch đọc từ Google Calendar. Phần Google hiện là **đọc một chiều**, nên cần chốt nơi Công cập nhật lịch chính trước khi thiết kế cách dùng chung.
 
 Nhận định trên dựa vào mã nguồn và tài liệu trong dự án tại thời điểm lập brief; không phải xác nhận trạng thái đồng bộ trực tiếp trên production.
@@ -215,6 +244,7 @@ Nhận định trên dựa vào mã nguồn và tài liệu trong dự án tại
 ### 7.4. Mẫu thông tin để nhắn booking
 
 Trang có thể cung cấp mẫu sao chép:
+
 ```text
 Studio/đơn vị: …
 Ngày chụp: …
@@ -231,16 +261,25 @@ Nút Messenger/Zalo mở kênh liên hệ. Mẫu sao chép giúp đối tác g�
 
 ### 8.1. Hướng giao diện
 
-Đề xuất giữ liên hệ nhận diện với chicongphoto.vn, đồng thời ưu tiên tra cứu:
+**Đã chốt:** Đồng bộ font và UI với chicongphoto.vn. Đề xuất tái sử dụng hệ thống chữ, nút, màu và cách trình bày hiện có, đồng thời sắp xếp nội dung theo nhu cầu đối tác:
+
 - Chữ rõ, ảnh đủ lớn.
 - Bảng giá dễ đọc trên điện thoại.
 - Ít chuyển động.
 - Nút liên hệ dễ tiếp cận.
 - Đối tác cũ vào nhanh được lịch và báo giá.
 
-SEO không cần đầu tư thành một hạng mục lớn. Tuy vậy, tiêu đề trang, ảnh đại diện khi chia sẻ link, tốc độ tải và đường dẫn từng bộ ảnh vẫn hữu ích cho việc gửi hồ sơ qua Messenger/Zalo.
+**Đã chốt về cách tiếp cận:** Ai có link đều xem được, không đặt link từ web chính sang web freelancer và không muốn xuất hiện trên Google. Bên trong website vẫn có menu, các trang nội dung và link từng bộ ảnh để gửi trực tiếp. Riêng giá tiếp tục cần mã chung; không thêm bước nhập mã cho toàn bộ website.
 
-Việc có cho Google lập chỉ mục cần chốt riêng; ít chú trọng SEO chưa đồng nghĩa muốn ẩn khỏi tìm kiếm. Quyền xem hồ sơ, thiết bị, quy trình và lịch cũng cần xác nhận; hiện chỉ phần báo giá đã được chốt là cần mã truy cập.
+Yêu cầu triển khai đề xuất:
+
+- Không đưa đường dẫn freelancer vào menu, footer hoặc khu vực giới thiệu công khai trên web chính.
+- Cấu hình yêu cầu không lập chỉ mục cho các trang của web freelancer; không áp dụng nhầm sang web chính.
+- Không đưa các trang freelancer vào sitemap của web chính.
+- Giữ tiêu đề và ảnh đại diện khi gửi link qua Messenger/Zalo, không đưa giá vào phần xem trước công khai.
+- Người được gửi link có thể chuyển tiếp link; đây là website chia sẻ bằng link, không phải quyền truy cập riêng cho từng đối tác.
+
+Về kỹ thuật, Google hỗ trợ quy tắc noindex trong thẻ meta hoặc HTTP header. Crawler cần đọc được quy tắc đó; chặn toàn bộ bằng robots.txt có thể khiến crawler không thấy noindex. Tham khảo [Google Search Central: Block Search indexing with noindex](https://developers.google.com/search/docs/crawling-indexing/block-indexing). Cấu hình này phục vụ yêu cầu tìm kiếm, không thay thế việc bảo vệ báo giá bằng mã.
 
 ### 8.2. Nội dung Công cần tự quản trị
 
@@ -294,48 +333,64 @@ Các nội dung có thể xem xét sau khi phát sinh nhu cầu thực tế:
 - Không công khai thông tin riêng của job hoặc gallery riêng.
 - Công tự sửa được các nội dung thường thay đổi.
 - Các chức năng đang dùng ở web chính vẫn hoạt động.
+- Không có link sang freelancer từ web chính; cấu hình không lập chỉ mục chỉ áp dụng đúng phạm vi freelancer.
+- Hồ sơ truy cập được khi có link, còn dữ liệu giá vẫn yêu cầu xác thực mã.
 
 Chưa gắn thời gian triển khai cụ thể vì số lượng nội dung, nguồn lịch và cách dùng chung quản trị vẫn chưa chốt.
 
-## 10. Các câu hỏi còn mở
+## 10. Câu trả lời của Công và phần cần bổ sung
 
-Công có thể trả lời câu 1–5 trước, các câu sau hoàn thiện dần. Có thể ghi câu trả lời ngay dưới từng mục khi xem lại.
+Cập nhật ngày 16/10/2026. Giữ lại các câu hỏi ban đầu để đối chiếu; những nội dung Công chủ động hẹn bổ sung sau không phải điều kiện để tiếp tục hoàn thiện cấu trúc brief.
 
 ### 1. Vai trò ảnh cưới
 
 Công nhận máy truyền thống chính/phụ, máy phóng sự chính/phụ, pre-wedding hay những vị trí nào khác? Vị trí nào muốn đẩy mạnh nhất? Có nhận một mình toàn bộ job không?
 
-**Trả lời:** Chưa bổ sung.
+**Trả lời:** Chủ yếu chụp truyền thống và phóng sự.
+
+**Còn mở:** Phân vai máy chính/phụ, khả năng nhận một mình toàn bộ job và phạm vi pre-wedding.
 
 ### 2. Cách tính giá
 
 Hiện Công tính theo giờ, buổi, phần lễ/tiệc hay cả ngày? Nếu đã có bảng giá và phụ phí, có thể bổ sung nguyên nội dung đang dùng.
 
-**Trả lời:** Chưa bổ sung.
+**Trả lời:** Bảng giá sẽ bổ sung sau.
+
+**Cách xử lý trong brief:** Chuẩn bị cấu trúc bảng giá, không tự đặt mức giá hoặc đơn vị tính.
 
 ### 3. Bàn giao
 
 Với job giao file, Công giao RAW, JPEG hay cả hai; toàn bộ file hay đã lọc? Với job có hậu kỳ, phạm vi là chỉnh màu hay cả retouch, thời hạn thường bao lâu?
 
-**Trả lời:** Chưa bổ sung.
+**Trả lời:** Sẽ làm báo giá dựa trên giao RAW, JPEG (giao file) và cả edit là khác giá.
+
+**Đã rõ:** Giá cho chụp giao file và chụp có edit khác nhau.
+
+**Còn mở:** RAW/JPEG là hai lựa chọn cùng giá hay hai mức giá; file giao đã lọc hay toàn bộ; edit gồm chỉnh màu, retouch hay cả hai; gói edit có kèm file gốc hay không; thời hạn và cách bàn giao.
 
 ### 4. Chốt và giữ ngày
 
 Hai bên xác nhận qua tin nhắn là chốt hay cần cọc? Có giữ ngày tạm không, giữ bao lâu và xử lý thế nào khi người khác hỏi cùng ngày?
 
-**Trả lời:** Chưa bổ sung.
+**Trả lời:** Không cần cọc, chỉ cần confirm qua tin nhắn.
+
+**Còn mở:** Có giữ ngày tạm trong lúc chưa confirm hay không; quy tắc đổi/hủy job. Không tự đặt thời hạn giữ chỗ hoặc phí hủy.
 
 ### 5. Nguồn lịch
 
 Công muốn cập nhật chủ yếu trong Google Calendar hay quản trị web? Mọi booking trên chicongphoto.vn hiện đều do chính Công chụp, hay có job được giao cho người khác?
 
-**Trả lời:** Chưa bổ sung.
+**Trả lời:** Hầu hết người xem website muốn book Công, nên các job đó dành cho Công chụp.
+
+**Còn mở:** Nơi nhập/sửa lịch chính là Google Calendar hay quản trị web. Không suy diễn câu trả lời về người chụp thành quyết định về nguồn lịch.
 
 ### 6. Khu vực làm việc
 
 Công xuất phát từ đâu, khu vực nào nằm trong phí cơ bản và có nhận đi tỉnh không? Ngày di chuyển thường tính thế nào?
 
-**Trả lời:** Chưa bổ sung.
+**Trả lời:** Chi phí phát sinh sẽ bổ sung sau.
+
+**Cách xử lý trong brief:** Để phần khu vực và phụ phí chờ nội dung; không tự đặt khu vực xuất phát, phạm vi miễn phí hoặc cách tính ngày di chuyển.
 
 ### 7. Phối hợp với studio
 
@@ -347,16 +402,47 @@ Công có nguyên tắc nào muốn ghi rõ về trang phục/thương hiệu, l
 
 Danh sách thiết bị đang có và bộ thường mang theo từng kiểu job là gì? Có thiết bị dự phòng hoặc thiết bị chỉ mang khi được yêu cầu không?
 
-**Trả lời:** Chưa bổ sung.
+**Trả lời:** Sẽ bổ sung lại; thiết bị phụ thuộc từng loại job truyền thống hoặc phóng sự.
+
+**Cách xử lý trong brief:** Chuẩn bị danh sách thiết bị và bộ thiết bị theo kiểu job, chờ tên/model và ảnh thực tế.
 
 ### 9. Nội dung sẵn có
 
 Mỗi thể loại hiện có khoảng bao nhiêu bộ có thể đăng? Có bộ nào chỉ được cho đối tác xem riêng, hoặc phần hậu kỳ do studio khác thực hiện không?
 
-**Trả lời:** Chưa bổ sung.
+**Trả lời:** Công sẽ soạn nội dung sau.
+
+**Cách xử lý trong brief:** Chưa chốt số lượng bộ ảnh ra mắt hoặc quyền đăng từng bộ; giữ các trường về vai trò và người hậu kỳ để bổ sung khi có tư liệu.
 
 ### 10. Mức độ công khai và thiết kế
 
 Ngoài giá đã khóa bằng mã, Công muốn hồ sơ, thiết bị, quy trình và lịch đều xem được khi có link chứ? Về hình thức, Công muốn gần với web chính hay có diện mạo riêng rõ hơn?
 
-**Trả lời:** Chưa bổ sung.
+**Trả lời:** Đồng bộ font và UI với web chính; chủ yếu gửi link cho người cần xem, không nên có đường dẫn công khai dẫn sang.
+
+**Đã làm rõ trong trao đổi tiếp:** Ai có link đều xem được; không dẫn từ web chính và không muốn hiện trên Google. Riêng giá vẫn cần mã.
+
+## 11. Các quyết định cần trao đổi tiếp
+
+### Ưu tiên chốt trong vòng trao đổi này
+
+1. **Nguồn lịch:** Chọn Google Calendar hoặc quản trị web làm nơi cập nhật chính sau khi confirm qua tin nhắn; hai website phản ánh cùng lịch cá nhân.
+2. **Giữ ngày:** Chưa confirm vẫn trống, hay Công có giữ ngày tạm? Nếu có, cần quy tắc bắt đầu/kết thúc giữ ngày.
+3. **Phân loại bàn giao:** RAW và JPEG có cùng mức giá hay tách giá; phạm vi edit là gì; có kèm file gốc không? Chỉ cần chốt cách chia dịch vụ, chưa cần số tiền.
+4. **Phối hợp với studio:** Công muốn nêu những nguyên tắc nào về thương hiệu khi đi chụp, trao đổi với khách của studio, quyền đăng ảnh và ghi credit? Nội dung câu 7 chưa được trả lời; chưa tự viết thành cam kết.
+
+### Có thể làm rõ ở vòng sau
+
+- Vai trò chính/phụ, chụp độc lập và việc nhận thêm pre-wedding.
+- Quy tắc đổi/hủy sau khi đã confirm.
+- Thời hạn giao file, lưu bản sao, chỉnh sửa bổ sung.
+- Thời hạn ghi nhớ mã báo giá và hiệu lực của việc đổi mã.
+
+### Công đã chủ động hẹn bổ sung
+
+- Bảng giá và đơn vị tính.
+- Khu vực, phụ phí và điều kiện phát sinh.
+- Danh sách thiết bị và ảnh thực tế.
+- Bộ ảnh, nội dung giới thiệu và thông tin cho từng bộ.
+
+Chưa bắt đầu xây dựng website trong giai đoạn cập nhật brief này.

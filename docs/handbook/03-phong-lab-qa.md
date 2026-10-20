@@ -17,9 +17,11 @@ Ba tài sản quan trọng nhất là **ảnh và quyền riêng tư**, **dữ l
 
 Chọn test oracle độc lập với cách code đang viết. Ví dụ, kiểm DB có đúng một inquiry sau retry đáng tin hơn chỉ kiểm toast “thành công”. Test dùng mock chứng minh ứng dụng phản ứng với giả lập, không chứng minh dịch vụ ngoài hôm nay còn hoạt động.
 
-## 2. Kết quả lịch sử ngày 16/10 và cập nhật ngày 17/10
+## 2. Kết quả hiện hành và lịch sử kiểm chứng
 
-**Báo cáo mới nhất:** [workflow 17/10](../google-drive-sync-workflow-2026-10-17.md) ghi 373/373, 0 fail/skip trên Node 24.19.0, SQLite/PostgreSQL 16; local/VPS cách ly đạt fixture 5.000 ảnh. Đây là REPORT được đối chiếu, chưa chạy lại trong lượt cập nhật tài liệu. [Phạm vi và bài QA mới](04-cap-nhat-du-an-2026-10-17.md) giải thích giới hạn fixture. Bảng dưới giữ nguyên kết quả cũ để truy vết.
+**REPORT mới nhất ngày 20/10:** [perf pass](../google-drive-perf-pass-2026-10-20.md) ghi **420/420, 0 fail/skip**, Node 24, SQLite/PostgreSQL 17 cách ly; tail [log](../../output/drive-perf-pass-2026-10-20/regression-tests.log) khớp số này, khoảng 51,51 giây. Có browser smoke và Chrome thật desktop/mobile 320px cho folder picker. Không chạy lại suite trong lượt chỉnh handbook, không coi đây là suite vừa chạy lại trong rollout VPS 20/10. [Cập nhật 20/10](05-cap-nhat-du-an-2026-10-20.md) giải thích giảm truy vấn, deadline và giới hạn workload.
+
+Workflow 17/10 với 373/373, Node 24.19.0/PG16 và fixture 5.000 ảnh là mốc trước, được giữ ở [bản lịch sử](04-cap-nhat-du-an-2026-10-17.md). Bảng dưới giữ kết quả audit 16/10 để truy vết.
 
 | Kiểm tra | Kết quả | Giới hạn |
 |---|---|---|
@@ -31,7 +33,7 @@ Chọn test oracle độc lập với cách code đang viết. Ví dụ, kiểm 
 
 Log đầy đủ: [node-tests.log](../../output/system-handbook-2026-10-16/node-tests.log). Đây là test của working tree vốn đang có thay đổi, không phải bản chứng nhận deployment. Các biến kết nối DB/cloud/mail/Calendar được loại khỏi process chạy test của lượt này; npm test không nạp .env.
 
-Tại audit 16/10, mã test có **34 file *.test.mjs** và **21 file *.smoke.mjs**; source mới đã thêm nhiều bài Drive. Đây là số file ở thời điểm audit, không phải số scenario hay phần trăm coverage. CI [check.yml](../../.github/workflows/check.yml) dùng Node 24 và PostgreSQL 16 dùng một lần, chạy npm ci, npm run check, npm test. CI không gọi các smoke script; một số smoke script có axe tùy chọn qua STUDIO_AXE_MODULE. Không cấp biến này thì scan có thể không chạy mà browser script vẫn hoàn thành.
+Source đối chiếu 20/10 có **51 file *.test.mjs** và **36 file *.smoke.mjs** trực tiếp dưới studio/tests. Đây là số file, không phải số scenario hay phần trăm coverage. CI [check.yml](../../.github/workflows/check.yml) vẫn dùng Node 24 và PostgreSQL 16 dùng một lần, khác PG17 trong report local mới; chạy npm ci, npm run check, npm test. CI không gọi các smoke script; một số smoke script có axe tùy chọn qua STUDIO_AXE_MODULE. Không cấp biến này thì scan có thể không chạy mà browser script vẫn hoàn thành.
 
 ## 3. Chuẩn bị lab tách khỏi dữ liệu studio
 
@@ -77,10 +79,12 @@ Các lệnh browser này là hướng dẫn có điều kiện, không phải k�
 | MIG-01 / P0 | Không switch khi còn writer/ghi chưa rõ | Lease expiry, late PUT, stale process, cleanup queue | media-control.test.mjs; r2-storage.test.mjs; PostgreSQL parity |
 | SEO-01 / P2 | URL/metadata đúng, không index riêng tư | Rename slug, sitemap, canonical, staging noindex | album-slug*.test.mjs; schema-analytics.test.mjs |
 | A11Y-01 / P1 | Thao tác cốt lõi dùng được bằng keyboard | Focus dialog, Escape, reduced motion, lỗi tải | browser smoke + axe thực sự bật + kiểm manual |
+| DRIVE-01 / P0 | Scope/quyền/approval còn hợp lệ tại lúc publish | root/shared, đổi generation, missing/detach/reimport, submit đồng thời apply | drive-folder-scope.test.mjs; drive-workflow.test.mjs; drive-sync.test.mjs |
+| BROWSE-01 / P1 | Browse chỉ xem; kết quả cũ/cancel không được chọn hoặc lộ ảnh | ACK muộn, count partial, thumbnail hết hạn, đóng/đổi folder, mất quyền | drive-folder-preview.test.mjs; drive-folder-browser.smoke.mjs; drive-folder-overview.test.mjs |
 
 P0/P1/P2 ở đây là thứ tự kiểm thử đề xuất theo tác động sản phẩm, không phải severity mặc định của mọi bug trong dòng đó. Khi lập release report, ghi từng ID: pass/fail/skipped/not-run, môi trường, commit, dữ liệu và link evidence; “có test file” chưa phải “đã pass”.
 
-## 5. Tám bài thực hành có đầu ra cụ thể
+## 5. Chín bài thực hành có đầu ra cụ thể
 
 ### Lab 1 — Theo dấu một request và kiểm quyền ở nhiều tầng
 
@@ -193,6 +197,18 @@ Viết giả thuyết trước: “preload đúng ảnh hero giảm thời gian 
 
 **Oracle:** số liệu có thể tái lập, lỗi không tăng ngoài ngưỡng đã định và thay đổi được đo đúng đường thực thi. Cold start/warm, local→R2/Render→R2 và synthetic/ảnh khách là những thí nghiệm khác nhau. **Evidence:** conditions.json, raw samples, bảng baseline/after, biểu đồ nếu cần, giới hạn suy luận. **Cleanup:** stop load generator và fixture, kiểm không còn process sinh tải.
 
+### Lab 9 — Folder Drive, hủy tác vụ và cache riêng tư
+
+**Dữ liệu:** fixture scope/picker, Drive client giả; không sửa nguồn thật để tạo lỗi. Với API Google thật, dùng folder thử được phép và credential worker riêng. Đọc [runbook](../google-drive-sync-operations.md) trước khi mở local UAT.
+
+1. Seed hai folder không cùng root: root mode phải từ chối folder ngoài phạm vi; shared chỉ nhận folder identity đọc được. Đổi mode phải vô hiệu preview cũ, giữ ảnh/mapping và yêu cầu check mới.
+2. Gate response browse A, chuyển B rồi thả ACK/kết quả A. Chỉ B được chọn; browse A bị hủy theo khả năng API; job import độc lập không bị hủy. Kiểm đóng modal, mất mạng, failed/canceled và generation đổi.
+3. Seed count đầy đủ/một phần/lỗi; không hiển thị lỗi thành 0. Folder không có con vẫn chọn được. Phân trang giữ focus và ảnh đã tải; refresh có job mới, cache 30 giây không tạo job mới trong phạm vi còn hợp lệ.
+4. Thumbnail thiếu phiên phải bị chặn; hết hạn phải bị từ chối ngay khi đọc dù cleanup chưa chạy. Kiểm URL Google không được phép/redirect và kết quả trả muộn sau deadline không lọt cache. Snapshot không chứa pixels của hai cache tạm.
+5. Đếm SQL cho đúng đường browse/inspect không filter, cache đã khởi tạo; dùng clock điều khiển để đo heartbeat/cleanup. Tách latency mạng Google khỏi số truy vấn và khoảng nghỉ code. Queue FIFO vẫn có thể phải đợi import batch.
+
+**Oracle/evidence:** job ID/generation/status, số album/photo/source trước-sau không đổi khi chỉ browse, request thumbnail, response auth/no-store, số query thực tế, UI keyboard/mobile 320px. Giữ bí mật khỏi report; TTL 15 giây enrichment không phải thời hạn toàn request. **Cleanup:** đóng fixture, dọn riêng cache/report thử và không xóa job/ảnh production. **Câu hỏi:** vì sao giảm 3 SQL xuống 1 không chứng minh mọi lần mở folder nhanh hơn?
+
 ## 6. SQL cho QA: kiểm invariant thay vì nhìn UI
 
 Các truy vấn dưới đây chỉ đọc. Dùng trên **DB fixture**, giữ field khách khỏi report chia sẻ. Chúng minh họa cách xác định oracle độc lập; kết quả expected được suy ra từ seed của từng test.
@@ -257,7 +273,7 @@ Open risks: <tác động + workaround + người xử lý>
 Decision: <có thể release trong phạm vi nào / điều kiện còn thiếu>
 ~~~
 
-Với phiên tài liệu này, một câu đúng là “syntax đạt; local Node 23.6 chạy 270 test, 263 pass và 7 skip; chưa chạy browser/PostgreSQL/cloud trong lượt này”. Câu “toàn bộ hệ thống production pass” vượt quá bằng chứng.
+Ví dụ báo cáo của lượt audit 16/10: “syntax đạt; local Node 23.6 chạy 270 test, 263 pass và 7 skip; chưa chạy browser/PostgreSQL/cloud trong lượt đó”. Lượt cập nhật handbook 20/10 chỉ đọc source/report; kết quả 420/420 là của lượt tối ưu đã lưu, không phải suite vừa chạy lại. Câu “toàn bộ hệ thống production pass” vượt quá bằng chứng.
 
 ## 8. Lộ trình bốn tuần và portfolio
 
@@ -278,8 +294,8 @@ Với phiên tài liệu này, một câu đúng là “syntax đạt; local Nod
 |---|---|---|
 | Cao | Browser/axe chưa là CI gate | Dependency pin, browser install, job bắt buộc, scan không được bỏ qua im lặng, evidence có retention |
 | Cao | Email thiếu durable retry | Thiết kế outbox/idempotency, test crash sau commit và lỗi provider; quyết định delivery semantics |
-| Cao | Backup chưa schedule/monitor | Job chạy thật trên dữ liệu được phép, tuổi snapshot được cảnh báo độc lập, restore drill đạt |
-| Cao | Credential từng xuất hiện trong hội thoại | Consumer dùng key mới, key cũ vô hiệu, vault được cập nhật |
+| Cao | Backup DB + media lên Drive chưa có lịch/monitor được xác nhận | Job chạy thật trên dữ liệu được phép, tuổi snapshot được cảnh báo độc lập, restore drill đạt; phân biệt cron SQL 03:00 trên cùng VPS đã được báo cáo |
+| Cao | Duy trì kiểm kê credential sau mỗi lần thay khóa | Khóa Drive thử cũ đã thu hồi 19/10; giữ bằng chứng consumer dùng key mới, key cũ vô hiệu và nơi lưu được cập nhật cho các lần rotate tiếp theo |
 | Vừa | Upload chưa có semaphore toàn cục | Đo capacity trước; limit/cancel/timeout có oracle, kiểm nhiều request/process |
 | Vừa | Private không password dễ gây hiểu nhầm | Quyết định sản phẩm rõ, copy/UI và test quyền thể hiện đúng ý chủ studio |
 | Vừa | Chưa có baseline visual regression chuẩn hóa | Browser/font/viewport/data cố định, cơ chế review ảnh khác, không tự accept mọi diff |

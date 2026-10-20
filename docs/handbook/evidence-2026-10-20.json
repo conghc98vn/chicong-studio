@@ -1,0 +1,986 @@
+{
+  "auditDate": "2026-10-20",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "head": "5a9e83c0efd2bce1e18789cf1d227a7ea3414e2d",
+  "branch": "codex/google-drive-sync",
+  "scope": "Local documentation/source/evidence review only. No cloud inspection, deployment, production mutation or regression rerun. Release documents were being updated concurrently; acceptance state is a dated snapshot of those reports.",
+  "reportedRegression": {
+    "source": "output/drive-perf-pass-2026-10-20/regression-tests.log",
+    "tests": 420,
+    "pass": 420,
+    "fail": 0,
+    "skipped": 0,
+    "rerunThisReview": false,
+    "environmentAsReported": "Node 24, SQLite and isolated PostgreSQL 17",
+    "sourceAssociation": "Report for the 20 October performance pass; file hashes here identify reviewed source, not a newly executed test run."
+  },
+  "historicalDeploymentComparison": {
+    "manifest": "output/drive-production-followup-2026-10-19/deployed-source-manifest.json",
+    "manifestVerifiedAt": "2026-10-19T05:15:26.865734+00:00",
+    "entries": 96,
+    "matchedCurrentFiles": 83,
+    "differences": [
+      {
+        "path": "scripts/backup-db.sh",
+        "status": "changed"
+      },
+      {
+        "path": "studio/server/drive-album-create.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/server/drive-client.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/server/drive-comparisons.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/server/drive-inventory.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/server/drive-routes.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/server/drive-schema.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/server/drive-sync.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/server/drive-worker.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/tools/media-backup.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/web/drive-album-entry.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/web/drive-panel.mjs",
+        "status": "changed"
+      },
+      {
+        "path": "studio/web/drive-sync.css",
+        "status": "changed"
+      }
+    ],
+    "liveInspectedThisReview": false,
+    "limitation": "Comparison covers only files in the historical manifest; new local modules are not listed in it."
+  },
+  "sourceFingerprintSha256": "12073322fea73cd3c60dde3d320b6cedf28fcd1232b35a00acfd07c3fda71aab",
+  "sourceFiles": [
+    {
+      "path": ".env.example",
+      "sha256": "0fe0ea123e8f85d24b1f51a0225438f1b2e0130edec3feaafc6f51d21f6f00a6"
+    },
+    {
+      "path": ".github/workflows/check.yml",
+      "sha256": "5e16391454289445fb9d296e28945ddf2bfbd4bbd8a7f70344071ea168a3fdf6"
+    },
+    {
+      "path": ".github/workflows/media-backup.yml",
+      "sha256": "3b9d61e0c5a0a169be4aaa27c5833c0b695a5b420c8d2484d34d979d64147529"
+    },
+    {
+      "path": "ecosystem.config.cjs",
+      "sha256": "ac3e7a0bcba4274e6029269f5be96de24ecd3a2dca2945e89d0b2cc8c6705616"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "2d021651081e7b176248e022289cd19cb07bae825bf529872eff7e7931b2d45b"
+    },
+    {
+      "path": "package.json",
+      "sha256": "5e4064bb32c97eefecfc7cad60b9f59a201bedd7fccba337b7e28ec1d373f97b"
+    },
+    {
+      "path": "render.yaml",
+      "sha256": "8207708671daa42520736b1fb436e38b2248be5f497f0732410a9e1ba2de6fd2"
+    },
+    {
+      "path": "scripts/backup-db.sh",
+      "sha256": "cb360b3c6e1353db5ed980d23616be036e935ab294f095e8cfadee9b5683f1f7"
+    },
+    {
+      "path": "scripts/deploy-vps.mjs",
+      "sha256": "a4e918d2ba724aafd5f0dd2c7911e2b6d643f2bbba963e0ac835104a5c49c368"
+    },
+    {
+      "path": "scripts/systemd/chicong-drive.service",
+      "sha256": "bf0dd49b1bb3e0d580f24a55c41667159898b3aee703ef7276aee85dff7a0f0c"
+    },
+    {
+      "path": "studio/server/album-sections.mjs",
+      "sha256": "0dd9d1bf227faa1dcff3129b5ebfa5de15d8fdfaa2aaec185bcfd3be88d870ed"
+    },
+    {
+      "path": "studio/server/album-slugs.mjs",
+      "sha256": "bca66dce5b970b845afae89ec94e9e702f2173b45f510fe4db2ab3a2e2a1b34b"
+    },
+    {
+      "path": "studio/server/app.mjs",
+      "sha256": "25fda63127d51bd56d2174e46abb2b9de790c910f3f9231e53b903d48f123683"
+    },
+    {
+      "path": "studio/server/catalog-response.mjs",
+      "sha256": "bbc519d986065009b616aea9bab15e8df2fb61f98678d3a1a3afa3374999c847"
+    },
+    {
+      "path": "studio/server/db.mjs",
+      "sha256": "73adba0d5ca5a2f9c71d402af54b38e0113f684ba1b4d4f72eda4b284be1e570"
+    },
+    {
+      "path": "studio/server/drive-album-create.mjs",
+      "sha256": "5faad81a0a5013a1f5ac7648f36eb0ffde8080be82a8ebc4b061b7a9ef7a49d0"
+    },
+    {
+      "path": "studio/server/drive-client.mjs",
+      "sha256": "ee0cac69646539c0935b88f9a35b808bfc5aa8a66781215eca262008998ee08d"
+    },
+    {
+      "path": "studio/server/drive-comparisons.mjs",
+      "sha256": "fd477ff1f802999a76c7039f044eeb10fbe2400ebf97007e6fd04634fb63920b"
+    },
+    {
+      "path": "studio/server/drive-folder-overview.mjs",
+      "sha256": "8ff5db75d1e24eb653af47d0e23d174d38f6c526b45a72abfa46fb22c49df38b"
+    },
+    {
+      "path": "studio/server/drive-folder-preview.mjs",
+      "sha256": "e663db92d2da97217734befac4bbbec3e094ae0a934af6e3a8641654c9c5d3de"
+    },
+    {
+      "path": "studio/server/drive-folder-scope.mjs",
+      "sha256": "3e65fbdbece4a510d1e1b871fe6b131089d4dfbe6fd7e51a26de4f738c6de6b9"
+    },
+    {
+      "path": "studio/server/drive-image-child.mjs",
+      "sha256": "cf6131e7d6a4ee3cd9e84e39b2cb08fe29bc31ebee79866e659331975d6682bd"
+    },
+    {
+      "path": "studio/server/drive-image-encoder.mjs",
+      "sha256": "db0a2359e3c9a4e517fa1938a843ad94bc46a65d16e5583e5a0a59080a05dbd2"
+    },
+    {
+      "path": "studio/server/drive-inventory.mjs",
+      "sha256": "405e9e2302831359364f529f7e31ea0d6443505f89d323d161e276891001e597"
+    },
+    {
+      "path": "studio/server/drive-jobs.mjs",
+      "sha256": "811807d8c5beb973464b3f0a529803f1213a07e3edeecf5d22d7f312cbdc1798"
+    },
+    {
+      "path": "studio/server/drive-revisions.mjs",
+      "sha256": "6af85f874a50858a3d1da566b120659e97c243de6d147532cc4e07bc51365eac"
+    },
+    {
+      "path": "studio/server/drive-routes.mjs",
+      "sha256": "1a104b7ed7ceaf7ddd026a7c36dfc7314160c9dd11eaac0d55fb9f765977a4f4"
+    },
+    {
+      "path": "studio/server/drive-schema.mjs",
+      "sha256": "d3f1dd46fb1eee5db946f28475725e0ccb83fa012d70c4d19d095b9ceb95314e"
+    },
+    {
+      "path": "studio/server/drive-sync.mjs",
+      "sha256": "7015863e937a24d3ff03cfca15008c05428cc4cf74ddbf4378702872fed394f4"
+    },
+    {
+      "path": "studio/server/drive-temporary.mjs",
+      "sha256": "2ea0ea51d9e0ba527f2b09865384799fdf4a85c61cbc4ab6d799d5f6c4bcbdb4"
+    },
+    {
+      "path": "studio/server/drive-worker.mjs",
+      "sha256": "26fc1ef447dfb9a4fbfcead5e970c5b2c39be1228e676d9ac04c9e2adff3db41"
+    },
+    {
+      "path": "studio/server/drive-workflow.mjs",
+      "sha256": "ca951e349aeb900835e06c53140f1485fd67b913e83042fbca46a14fbfd73e3b"
+    },
+    {
+      "path": "studio/server/gallery-download.mjs",
+      "sha256": "f550ed6741ce29c75f04664b5c05e8757cbceab8f0112208815fc9f633b86f6e"
+    },
+    {
+      "path": "studio/server/gallery-selection.mjs",
+      "sha256": "a54d52b5f5cc28d51741df4d0767e22e6911e655df0fb00e5bb2ca319799dbbc"
+    },
+    {
+      "path": "studio/server/google-calendar.mjs",
+      "sha256": "6ac8af83e5d467a1502c3c59ab7ca13528b3abe41bf49d70cdd355b59eb1f571"
+    },
+    {
+      "path": "studio/server/image-optimizer.mjs",
+      "sha256": "d7d755724ebc90e2202405e3543b223c9fee3cf191e38aa1e71e27ad934d08d6"
+    },
+    {
+      "path": "studio/server/mailer.mjs",
+      "sha256": "067877eedf4a68ec607ff37e59ca40b82ffd487fd30d1206da625d06f10de4ad"
+    },
+    {
+      "path": "studio/server/media-control.mjs",
+      "sha256": "2f204b0c9539b8943f1662a9c4a5164c7ae5f193c118ed61e869baa88e8ca0e6"
+    },
+    {
+      "path": "studio/server/media-recovery.mjs",
+      "sha256": "a67826aca5435c9bd67c6e87a8eb8117a325865d3d1f13a11b985d1edc19c82d"
+    },
+    {
+      "path": "studio/server/photo-catalog-routes.mjs",
+      "sha256": "0fc6708ca214f01765429aaa471a694ac1546ecbbd1a65ba05985bb2ac3cdbfb"
+    },
+    {
+      "path": "studio/server/photo-deletion.mjs",
+      "sha256": "ee03a76aa0a931eb375b51ca68a9af50e3dcf27c83deb19c0c1ff9b55c24216b"
+    },
+    {
+      "path": "studio/server/photo-ingest.mjs",
+      "sha256": "15f117389d0a1cf9d283fa335823aa7c0c489bd632d0a7e3889f59f5467d00c8"
+    },
+    {
+      "path": "studio/server/photo-upload.mjs",
+      "sha256": "d6b4d8fbb3275bbb4bc27d342fc4749168f1c275b6c80460c3274ec9b7dbd618"
+    },
+    {
+      "path": "studio/server/prepared-photo.mjs",
+      "sha256": "a854ca286375aab25a35375185b8d52b2b9812faac0b1b0673c0ea45b17672d9"
+    },
+    {
+      "path": "studio/server/r2-storage.mjs",
+      "sha256": "2414ca2fd20e5cd3e7ae69b3a3113799aa71b935e6e0fc21fa0eb5f4db282af9"
+    },
+    {
+      "path": "studio/server/request-security.mjs",
+      "sha256": "5d52e65b59716f72bab5ecf7fbad431847560b27ea8e8ef055bb79ec226c43cb"
+    },
+    {
+      "path": "studio/server/reset-admin.mjs",
+      "sha256": "cccef23c6197a64b0117a98f52ecfc83e4525aabe9e39043e7ac2da19432012b"
+    },
+    {
+      "path": "studio/server/schema-org.mjs",
+      "sha256": "701bc42502570250846ce1d9eec3bcb9add385133f1972003b7913587df6a5da"
+    },
+    {
+      "path": "studio/server/selection-submission.mjs",
+      "sha256": "89013579d5d40f9027a9ffb8ffe10813a7d35d979bc1a209c83ce23192b56b81"
+    },
+    {
+      "path": "studio/server/start.mjs",
+      "sha256": "13cbf4154944290888c5fccb5b76cbfec1b2b9418f71e5b3dc315be26f9e2ab1"
+    },
+    {
+      "path": "studio/server/storage.mjs",
+      "sha256": "893453afc77bb9541c163d13bf48886086819e74973dbfa6fb67c67fb308173e"
+    },
+    {
+      "path": "studio/server/upload-trace.mjs",
+      "sha256": "0c789c6c466414b333780909185d3a9e1cdaced06687093d4c02079f6745699c"
+    },
+    {
+      "path": "studio/tests/admin-proofing-browser.smoke.mjs",
+      "sha256": "12e59766e9a73e6f74f2bf75108c6de68715279e17c965b0418a8a9f50d91067"
+    },
+    {
+      "path": "studio/tests/admin-proofing-regression.smoke.mjs",
+      "sha256": "e89dbf4b9f19e6072f5cedb45679c13dafbce971d49902ac97e27bdd31e9ba8f"
+    },
+    {
+      "path": "studio/tests/admin-proofing.test.mjs",
+      "sha256": "fc4a57c84348456de40ce63135afb2ea3e44544a012465a52c38155241b31bbc"
+    },
+    {
+      "path": "studio/tests/album-drive-entry-browser.smoke.mjs",
+      "sha256": "9e694503d18fa72df6a5f693af589eafd846118f62d3d560ac5e96c09a7b8508"
+    },
+    {
+      "path": "studio/tests/album-layout.test.mjs",
+      "sha256": "8e97d16018b1ef4904e14f14a097fe08c885c5eed1866aacbf08f6256c105694"
+    },
+    {
+      "path": "studio/tests/album-sections-browser.smoke.mjs",
+      "sha256": "0cc8411ab70193ee6b359ea9dcdf5f8435a8040717f5e0f4843fe4f8df50a8b5"
+    },
+    {
+      "path": "studio/tests/album-sections-ux.smoke.mjs",
+      "sha256": "e2217f18988da215badff0eea9bbbd3190df7e1a674e42e6636a8ea2fe67a30c"
+    },
+    {
+      "path": "studio/tests/album-sections.test.mjs",
+      "sha256": "ab84ec175f8600f20655c3171b639943e4eb2e95665776dd7c7ff0550b648809"
+    },
+    {
+      "path": "studio/tests/album-slug-browser.smoke.mjs",
+      "sha256": "294106aca0ff68239d7274b6a948b2da81be1e9164a63b3c68e1a35f510c8f5c"
+    },
+    {
+      "path": "studio/tests/album-slug-postgres.test.mjs",
+      "sha256": "16e120f5cef7e1a77219c20cc7221464bab3dc668193ec796a0ca3dc6410864d"
+    },
+    {
+      "path": "studio/tests/album-slug.test.mjs",
+      "sha256": "bc80eb53576fc44a8c9920868d5c7b850d7ba3107b97173bb00cc0de697a8440"
+    },
+    {
+      "path": "studio/tests/api-request.test.mjs",
+      "sha256": "61411a1a1bdf97066113007ee0a36808f87e86da5e42de95213c2159cd3187ed"
+    },
+    {
+      "path": "studio/tests/bootstrap.test.mjs",
+      "sha256": "640098beed96f1591ad99394f61a25b74df677168cbbf1a5138e2d1d2320cb59"
+    },
+    {
+      "path": "studio/tests/catalog-response.test.mjs",
+      "sha256": "ca59be4711d2f27446042a3137ab006259505d70d78b8e84c9004850ba407892"
+    },
+    {
+      "path": "studio/tests/check-syntax.mjs",
+      "sha256": "ae153986abd619d6c1635dfb76c3844a18cb88c8a203ee75e41646753514d4d5"
+    },
+    {
+      "path": "studio/tests/consultation-fixture.mjs",
+      "sha256": "b919931ca28e4428383c26a9750eec07518a4a7fdac88edf5d239c520bbab643"
+    },
+    {
+      "path": "studio/tests/drive-album-create.test.mjs",
+      "sha256": "1371e887de13a641f0b8253cfb8ef5516eb6cb6ae59cdc7a449793950ad29601"
+    },
+    {
+      "path": "studio/tests/drive-backup.test.mjs",
+      "sha256": "5400237ac49fa287658d7ebb49b4ef6a5cc83a43c717ae1dfb6ff57a46484e61"
+    },
+    {
+      "path": "studio/tests/drive-client.test.mjs",
+      "sha256": "ba5df09d8ffdbcd5bc29ecaf1d33b13e7bb2dcdcd50722c528a5ddfab81e4f07"
+    },
+    {
+      "path": "studio/tests/drive-comparisons.test.mjs",
+      "sha256": "65ff8f0dd5dcc7342d933d01489bf79c392c37e3305819735953b8170c3b052e"
+    },
+    {
+      "path": "studio/tests/drive-encoder-resource.smoke.mjs",
+      "sha256": "88c89cd881abd6cfe78693b08a7d36118080e367e0973a37e1afa2828a922723"
+    },
+    {
+      "path": "studio/tests/drive-folder-browser.smoke.mjs",
+      "sha256": "2604ce76c8aa015cab72e5393729d6565e766f539e3315a00bae99e705c8566e"
+    },
+    {
+      "path": "studio/tests/drive-folder-overview.test.mjs",
+      "sha256": "83c67726196221ff8cb06355c6420a5a19a1999ac8b85eed27e75552f63ccc29"
+    },
+    {
+      "path": "studio/tests/drive-folder-preview.test.mjs",
+      "sha256": "72224e00431ea6906d70cc5dae22d936a41a2f902837a8663ac6100b08a6b063"
+    },
+    {
+      "path": "studio/tests/drive-folder-scope.test.mjs",
+      "sha256": "b5065913501693b83caa47d9e5c0870cff42f3676e9167ec3951ad621dbee7d0"
+    },
+    {
+      "path": "studio/tests/drive-gallery-contract.test.mjs",
+      "sha256": "d45b7868a7b49c6e59a24b50a5934de21b1bc182e73608702a695558b303068d"
+    },
+    {
+      "path": "studio/tests/drive-ingest-safety.test.mjs",
+      "sha256": "7d3a405681bc285c3fbc07276d9cad61af5154578ff1f0b3ea0d871f597fb800"
+    },
+    {
+      "path": "studio/tests/drive-jobs.test.mjs",
+      "sha256": "ac9a7e74261f609c7e7e55af4d2bb822932c4ef298387e2c6496f30bdab2db77"
+    },
+    {
+      "path": "studio/tests/drive-live.smoke.mjs",
+      "sha256": "8d70eab77d6707bf65a912ccc4d1842322d4855d491e25e08dedffd10fbed6f9"
+    },
+    {
+      "path": "studio/tests/drive-local-preview.test.mjs",
+      "sha256": "d254a6e0f4ec789ae48a28ca9aa21961e9d063efe721098f49af3af1ee07ca57"
+    },
+    {
+      "path": "studio/tests/drive-panel-polling.smoke.mjs",
+      "sha256": "bb4e51430fdc01b8486ba686390bd534fbecd14e16ac6f1829277465e2364e07"
+    },
+    {
+      "path": "studio/tests/drive-panel-ux.smoke.mjs",
+      "sha256": "0874b261f10bdd1e85303f6a806dd1f4c566c079153fcf091f56289bd7de26b0"
+    },
+    {
+      "path": "studio/tests/drive-performance.bench.mjs",
+      "sha256": "c1731e522ea3de1f7191355efe2bc79aef6de70af6b6377fa1c7a149fd4a641d"
+    },
+    {
+      "path": "studio/tests/drive-performance.test.mjs",
+      "sha256": "c98c50d522a3e34203ed398ad0570202e30c618b4c87b0acc448a39dc7422647"
+    },
+    {
+      "path": "studio/tests/drive-scale-workflow.smoke.mjs",
+      "sha256": "85b40eac5e3719822875da084bc02ac060e84b23321bbd210f47c9c9befb24c1"
+    },
+    {
+      "path": "studio/tests/drive-schema.test.mjs",
+      "sha256": "b40fc1360c5792de74149fe242743e02276e1a98a3a3831a2c3e8e74ae2ff059"
+    },
+    {
+      "path": "studio/tests/drive-security.test.mjs",
+      "sha256": "f3238a6dee5a5ca1d6e6efcb984235d810861f035b7985b8d14e8840f106b202"
+    },
+    {
+      "path": "studio/tests/drive-sync-browser.smoke.mjs",
+      "sha256": "1b03ceda55f7dfda8e568475273b45e5725613b3fdc09dd6a43cc5fdfdd1db54"
+    },
+    {
+      "path": "studio/tests/drive-sync-live.smoke.mjs",
+      "sha256": "3a2c0db99d1e5b91b9a08dc31b3c1a5e95e6f1d5f5e004673ce125c7172c3641"
+    },
+    {
+      "path": "studio/tests/drive-sync.test.mjs",
+      "sha256": "cfebe9c4f841cbdc9bb209cac22504bf01b68021a078af7281b9e1a15f18a559"
+    },
+    {
+      "path": "studio/tests/drive-test-fixture.mjs",
+      "sha256": "4994ec9408f8095b13b5ea17432c755524d46ae4830020171f48f7ca4f613b4d"
+    },
+    {
+      "path": "studio/tests/drive-workflow-browser.smoke.mjs",
+      "sha256": "26106b51d56830daa6901bd43c35adc12a9ba43a35aca6474e995a031b9d1e05"
+    },
+    {
+      "path": "studio/tests/drive-workflow.test.mjs",
+      "sha256": "5993fd8bc8d7bbb23ed729acd756e41d43c0b68d4c60261b91f42f09391bd521"
+    },
+    {
+      "path": "studio/tests/fixtures/ingest-crash-child.mjs",
+      "sha256": "454652ae863ec4a8c2479578551cb06b34efdb34570671191d2421c6d06b1ac1"
+    },
+    {
+      "path": "studio/tests/fixtures/large-photo.mjs",
+      "sha256": "077796f6e36a500997ed7404c6cecdd2dc0cf6ba24e41faa9fc8bfc105a7125f"
+    },
+    {
+      "path": "studio/tests/gallery-download-browser.smoke.mjs",
+      "sha256": "68c346dcb4e52c9e168a2cbc793da2653061c090b1b0b5d55fea354dd2711507"
+    },
+    {
+      "path": "studio/tests/gallery-download-client.test.mjs",
+      "sha256": "c31bade881aa7414b234947dd70178ce4edafc0c78beaa040a051f66b73dc5d9"
+    },
+    {
+      "path": "studio/tests/gallery-download.test.mjs",
+      "sha256": "8572eabe018aea08a3def8813ddf7136cf081424e497aeaf60162a6f7142ec07"
+    },
+    {
+      "path": "studio/tests/gallery-motion-browser.smoke.mjs",
+      "sha256": "1eb8832e0537f836ee5ced54d0ccdc3666bfff93dc10233eddc15b8ad9917b21"
+    },
+    {
+      "path": "studio/tests/gallery-password-flow.smoke.mjs",
+      "sha256": "685b5184c8cd6269036b52a90b63e49d111245b0b6dd6bfe1b4c438ba018b376"
+    },
+    {
+      "path": "studio/tests/gallery-scale-performance.smoke.mjs",
+      "sha256": "7f3a73f9861a910447d0d4c9472a0fa454b62f7b429026d13e593160c8b6402e"
+    },
+    {
+      "path": "studio/tests/gallery-selection-cache.test.mjs",
+      "sha256": "b421cfb75e8ef71e070c9ae7fbc1387a1afe4b57365dd9ca57ef48159609f20f"
+    },
+    {
+      "path": "studio/tests/gallery-selection.test.mjs",
+      "sha256": "66f44dfc53c65b9b82229f7842d9b98a1987756bd836ff5d5530589098cf8f9b"
+    },
+    {
+      "path": "studio/tests/gallery-sync-browser.smoke.mjs",
+      "sha256": "15305f246856964e1e368584b784f74a1038cc1fb7b57f25db766565c3a56eba"
+    },
+    {
+      "path": "studio/tests/gallery-upload-ux.smoke.mjs",
+      "sha256": "3ec38a90ec2c311775fa2ceeda3c4dc170cb800216c03ae9ae9a194d5de218f5"
+    },
+    {
+      "path": "studio/tests/gallery-view-browser.smoke.mjs",
+      "sha256": "a3fd22c252f46a920fe52653835af69a2d5bc05b6f1872bd5a9ff0ad1ffe929b"
+    },
+    {
+      "path": "studio/tests/google-calendar.test.mjs",
+      "sha256": "033e43c4b0bfe9ad49a81966a15445ba632c9bef2318ab18e817a8b02b16e836"
+    },
+    {
+      "path": "studio/tests/hero-browser.smoke.mjs",
+      "sha256": "52ad65e68f9e1ecda59556478564165317ddc65054acaeaaafd160990afc0d58"
+    },
+    {
+      "path": "studio/tests/hero-slideshow.test.mjs",
+      "sha256": "76a08b91f4ce40baf9bc4a07f95d52cacba86fb86723eda9535e87f2c558d5ce"
+    },
+    {
+      "path": "studio/tests/image-optimizer.test.mjs",
+      "sha256": "61522b5ccaa318b0e4650763b8377d57373aef075db58d2e6e4eb08204b9c863"
+    },
+    {
+      "path": "studio/tests/inquiry-form.test.mjs",
+      "sha256": "a847e10fd9b78ea293646e39476dcaf8e272dadf66e7cb155d800b92878f8eaf"
+    },
+    {
+      "path": "studio/tests/mailer.test.mjs",
+      "sha256": "8fcf4aeea03d46cc24f240f66ff24fad43eade4d3b3572321cb37a112d2ba217"
+    },
+    {
+      "path": "studio/tests/manual-fixture.mjs",
+      "sha256": "366ee9a7c21707b8f432d51cde2390d2ece33a357e524b7502bec774d7437848"
+    },
+    {
+      "path": "studio/tests/media-backup.test.mjs",
+      "sha256": "156920b25d3348e2b17ad72ef7635a365a060f1ba222fa7f3e399152b96045c2"
+    },
+    {
+      "path": "studio/tests/media-control.test.mjs",
+      "sha256": "8181afce0438d585475442c539f89ad6931f7f44f39bd1b85c7808298ddee641"
+    },
+    {
+      "path": "studio/tests/migration.test.mjs",
+      "sha256": "9f955a9fefb6681402aada8257c5096834a523c92f5c0c4ac3256a60a979b9e1"
+    },
+    {
+      "path": "studio/tests/performance-benchmark.mjs",
+      "sha256": "a69beee4e294db6b231c61ca8ccf406431144b6088f425689e8e9c2aed32fd72"
+    },
+    {
+      "path": "studio/tests/performance.test.mjs",
+      "sha256": "c7df21041ec068ff6447b2e0a13055ba2dfe8e1f0f38ff039a79d79366737877"
+    },
+    {
+      "path": "studio/tests/photo-download.test.mjs",
+      "sha256": "864c918d72c8f881133c0b0c15c8726158956ccfbbeda23324670c0f2ba156a3"
+    },
+    {
+      "path": "studio/tests/photo-management-browser.smoke.mjs",
+      "sha256": "f7d223f3f13335d9c11bcc50aa36e0a40b83021632e6afe3e1c7a2d39f85839b"
+    },
+    {
+      "path": "studio/tests/photo-management-recovery.smoke.mjs",
+      "sha256": "5e162ef293dadf9e82b240d5d3c1fd8f30a61be4f6c58a36d8bdc12db0314b39"
+    },
+    {
+      "path": "studio/tests/photo-management.test.mjs",
+      "sha256": "0d7f3b282478f15e0a61541d8c714fe17ff0ebc25595dc307ba2423c3a58c5ef"
+    },
+    {
+      "path": "studio/tests/portfolio-portability.test.mjs",
+      "sha256": "b343fafb619d85ca9687e76e2f9451416b9532bee1d725d406544ac2180c62ca"
+    },
+    {
+      "path": "studio/tests/prepare-photos.test.mjs",
+      "sha256": "036c36cbb58ca791215f2d090d35d301197a05a3b0058b05618377ebddce18e1"
+    },
+    {
+      "path": "studio/tests/prepared-bulk-browser.smoke.mjs",
+      "sha256": "7fe586e4faa134bc09f1ac365a775c9efc51f1806384515da46a851ef07a887d"
+    },
+    {
+      "path": "studio/tests/prepared-photo.test.mjs",
+      "sha256": "5c056ef854dd3d20455b0c909f7909e14e7eab400cb649a83d123c21b632f51b"
+    },
+    {
+      "path": "studio/tests/prepared-upload-browser.smoke.mjs",
+      "sha256": "99bf5319694c2816e969011a7c5d04dd8391f34ccc3af410c1f9f9e1e7d2254e"
+    },
+    {
+      "path": "studio/tests/proofing-concurrency.smoke.mjs",
+      "sha256": "8727c6c570d194712c3873bdf77695252efe32f3973c048e113caab3f8bfdc6f"
+    },
+    {
+      "path": "studio/tests/public-polish-browser.smoke.mjs",
+      "sha256": "65f962b7b7fa0c1f84f1a6239f817f80f5c380f947a3359a924de309dab55a72"
+    },
+    {
+      "path": "studio/tests/r2-live.smoke.mjs",
+      "sha256": "2a70c1ff5815896fd822f6359cfca325874e36cd73784ec7146d94e483048e4e"
+    },
+    {
+      "path": "studio/tests/r2-storage.test.mjs",
+      "sha256": "cf312df1baf1a8207e329121e6dc082191a43eacf533e4baa5cbc7305cf047b8"
+    },
+    {
+      "path": "studio/tests/render-abort.smoke.mjs",
+      "sha256": "ecb342af6e4a9fb39b19f546bd5de1fbc75f6fdb0cab40d97fcf8850872498ce"
+    },
+    {
+      "path": "studio/tests/render-large.smoke.mjs",
+      "sha256": "c85360f1c092ad44202dd59f9c43c80196c230c605a2bec54cf457f81d45eff9"
+    },
+    {
+      "path": "studio/tests/render-live.smoke.mjs",
+      "sha256": "b512b337ced02d656f8d290f8088ac8a3ea5ea4d76d78755cf4a29c9aa950079"
+    },
+    {
+      "path": "studio/tests/render-ops.smoke.mjs",
+      "sha256": "68893e2bf848373aa1d7c297c5db3d4662db45ef0897f9762a78c5357a6562f0"
+    },
+    {
+      "path": "studio/tests/render-switch.smoke.mjs",
+      "sha256": "4ad2e3f98de08c18fb3b014d39af66abd91d7effba160ccf7e19a4a2db4bb26c"
+    },
+    {
+      "path": "studio/tests/schema-analytics.test.mjs",
+      "sha256": "22b36457f5476ac73da7adcbeb17d98d0d9a68689484931cb300c132bbbd663c"
+    },
+    {
+      "path": "studio/tests/security.test.mjs",
+      "sha256": "23102f3221d21319e343f74f6db62ab94c1c8744254687b8b841ea51d60d6cf9"
+    },
+    {
+      "path": "studio/tests/storage.test.mjs",
+      "sha256": "55e4a9c02522a76db043c50937c80e7e808e69d6ce616c56dca29e5af030a395"
+    },
+    {
+      "path": "studio/tests/studio.test.mjs",
+      "sha256": "98893c0a7911e4bc3f824b539df2dcf64006202b19080079ccc9c79299cae72a"
+    },
+    {
+      "path": "studio/tests/upload-browser.smoke.mjs",
+      "sha256": "bbfee876fb4878370c3364ea2f8233d7bed805a1fe6c28a5300f1b1658c52600"
+    },
+    {
+      "path": "studio/tests/upload-optimization-api.test.mjs",
+      "sha256": "1ad0d137bb612c161711283e562509ac9be9ae89a8da3683e957b9a5c131a2ba"
+    },
+    {
+      "path": "studio/tests/upload-queue.test.mjs",
+      "sha256": "aca91477a8440c8df022370b2f61daa278c2f804bc9bf352d0e2bd79ad3c4cf5"
+    },
+    {
+      "path": "studio/tests/upload-request.test.mjs",
+      "sha256": "d938884a91293448ecd522c27eb5627d71f1c627460b504c830f469e7b6cac44"
+    },
+    {
+      "path": "studio/tests/upload-trace.test.mjs",
+      "sha256": "b2a8d1e7b61534146b59aae769e94369788c3402c972f712e88df45cc47755cf"
+    },
+    {
+      "path": "studio/tools/drive-authorize.mjs",
+      "sha256": "e477ca7711943457ca97c40bac0313feacebeb2d8494b7518206516c9d78b6a3"
+    },
+    {
+      "path": "studio/tools/drive-backup.mjs",
+      "sha256": "fef9cdddc413eb64b7953a1405f2e75be2413263ae8e237c94fdb184ac6f77f2"
+    },
+    {
+      "path": "studio/tools/drive-local-preview.mjs",
+      "sha256": "3e12c11e850db28276849ba6ee7a72c96bb137e0e0281a600440aa53c8835a64"
+    },
+    {
+      "path": "studio/tools/drive-sync.mjs",
+      "sha256": "580a2613e0c85d85ffc5d4027762f9a1a7fdaa24607a94224d7c12096f50eb59"
+    },
+    {
+      "path": "studio/tools/media-backup.mjs",
+      "sha256": "73e5a351a5dbe84e374367139c6ff5e4f6b50540d76dff2661e7f1a1a0f92579"
+    },
+    {
+      "path": "studio/tools/media-ops.mjs",
+      "sha256": "a6e0bf0a7a5166eac5c56fb0fa7f16fd8bd994e848636da1291ccc869ca877e9"
+    },
+    {
+      "path": "studio/tools/prepare-photos.mjs",
+      "sha256": "5c1a6b228942d96a78762f1763071426a0490324e4d8174e4f4740daec84d6f2"
+    },
+    {
+      "path": "studio/web/admin-proofing.mjs",
+      "sha256": "13bb450db3fd0c258f29cfe6f25220044ba08370645bb9347c5b9eb84e39c125"
+    },
+    {
+      "path": "studio/web/album-editorial.mjs",
+      "sha256": "02e249acc51f4163ebb7e0cf91826c240f04e426f26425c769872a71502fe09c"
+    },
+    {
+      "path": "studio/web/album-layout.mjs",
+      "sha256": "be8d394d925639e2a5c934c3b65ca315071eb1316e26513c33a09d8f3dbd6ca4"
+    },
+    {
+      "path": "studio/web/album-sections.mjs",
+      "sha256": "b68c93c807e585492bda48a4709aa69ae73a8781f86eed00b541aede2da9b237"
+    },
+    {
+      "path": "studio/web/album-slug.mjs",
+      "sha256": "04fe5add2bf589c02e05f03b26561a4c738ca0b6ca29fba73e7291c5f8117ace"
+    },
+    {
+      "path": "studio/web/api-request.mjs",
+      "sha256": "a4fcee05b2bee0d8a165844d6bf3ea09b2ddda3832fcfb6570813d9c07b622c8"
+    },
+    {
+      "path": "studio/web/back-to-top.mjs",
+      "sha256": "92b9565897197e8c3c38f682a008229ac9203715394192a83c1be28649bdcbcb"
+    },
+    {
+      "path": "studio/web/bootstrap.js",
+      "sha256": "3a70fc69a67663527836a386519f48df7badb63bd780f08c4aa76f310182ba8c"
+    },
+    {
+      "path": "studio/web/drive-album-entry.mjs",
+      "sha256": "099cc92939e2e8adaf556ccd7e870ccaef36d99fafbad4bb1d4f5ddb579f851a"
+    },
+    {
+      "path": "studio/web/drive-album-status.mjs",
+      "sha256": "502522ec4b6997771282ae43a36759f144239b04f0034661e72e1faf4b7e4c2a"
+    },
+    {
+      "path": "studio/web/drive-folder-browser.mjs",
+      "sha256": "9c7e42f5c652842ecd5a495b9808a206d3ad0bd76e14147e5dc5ea186a8beed8"
+    },
+    {
+      "path": "studio/web/drive-panel.mjs",
+      "sha256": "7f72e58b73097bf0211f26fd233c9cc7f9f1b22272219bb4c4017907b2e7ad92"
+    },
+    {
+      "path": "studio/web/drive-sync.css",
+      "sha256": "8f989e9cb6776bd03aeeeabce48c6fbfc175aea34aa2cfcb1fc8202c64d928ac"
+    },
+    {
+      "path": "studio/web/fonts/fonts.css",
+      "sha256": "58427676bf28fc31e467df04d7d329c80f453cffdbf1aa14d9960227ebbcdd08"
+    },
+    {
+      "path": "studio/web/gallery-download.mjs",
+      "sha256": "cae5c841f6e3dee4353d0808c72304c0228929cb25da7c8b96d3a27e31bdfecd"
+    },
+    {
+      "path": "studio/web/hero-slides.mjs",
+      "sha256": "4461612a95713cef86dd05ea6d86762288f620b77eda93bd80d26ed1d860bf43"
+    },
+    {
+      "path": "studio/web/hero-slideshow.mjs",
+      "sha256": "f5183c3f737793e325945346233ef4117eb92546186fc16b42b10ac3748df34d"
+    },
+    {
+      "path": "studio/web/home-curation.mjs",
+      "sha256": "8fb1c6fddb077c5b107adce5b7b917d819b1ec0d1dfce28ce1437ffde35afcea"
+    },
+    {
+      "path": "studio/web/icons.mjs",
+      "sha256": "0b476e0890dd72fa547c0333c0ddd07eacfdb7bfdbe9422052ebe22c33387edf"
+    },
+    {
+      "path": "studio/web/index.html",
+      "sha256": "27b60919927dd5b97ba91fe177f238ca201489e0de47aa45ad124cb065cfb3d2"
+    },
+    {
+      "path": "studio/web/inquiry-form.mjs",
+      "sha256": "92885961bee79891a53fe8845aa90a80a424aa6fb0c6f80d51a835f29e43a38e"
+    },
+    {
+      "path": "studio/web/inquiry-validation.mjs",
+      "sha256": "83228047d84de8aa7a360c1e125c943ed8a1658a3737ebe621305442ceaa8ada"
+    },
+    {
+      "path": "studio/web/main.js",
+      "sha256": "22fb6b160c9cec38ce8412db50affe6d94707cdd7120a003f63133cf3d129556"
+    },
+    {
+      "path": "studio/web/page-data.mjs",
+      "sha256": "aef24a3977b771d9060a2f109eb0e70e87f411bd73aca76834e97c25ccc2207f"
+    },
+    {
+      "path": "studio/web/photo-download.mjs",
+      "sha256": "cc2b7e12d6eaa6f153d32d321fb9764ba746bfae17b9cb4fb39e698beeeb27e5"
+    },
+    {
+      "path": "studio/web/photo-pagination.mjs",
+      "sha256": "67342d50977bbc59805fa848b41e05a5e44d055b302327d1c841177d61ba5d4e"
+    },
+    {
+      "path": "studio/web/portfolio-motion.mjs",
+      "sha256": "496b04b2478a3b50a1071bd81c647b54d498349defea5ec36ec59600becbfe3c"
+    },
+    {
+      "path": "studio/web/public.css",
+      "sha256": "5c73460541c5370d0974c4205bbfa438fe7439be1f124a960f960cf890c1f7f3"
+    },
+    {
+      "path": "studio/web/responsive-image.mjs",
+      "sha256": "0cce41e030b0ea38acc2e83148c89b1eba544c5b6785d9ab9baa4b9512faf56e"
+    },
+    {
+      "path": "studio/web/services.mjs",
+      "sha256": "404e351400b817832a1b192249392dd2be4cc2c90a2929548cdbbfcff9d878b5"
+    },
+    {
+      "path": "studio/web/site-copy.mjs",
+      "sha256": "18e280a24d550765c74f5e606d802148b3167a01ebbaa3884a60ea7455545b8e"
+    },
+    {
+      "path": "studio/web/style.css",
+      "sha256": "008ec8bb0f04dfb61f063f74cb90eba64be1733606bc07948784cc9dc23d465b"
+    },
+    {
+      "path": "studio/web/ui-copy.mjs",
+      "sha256": "007631f8ef2f3a008a513177931ce40db3a22995ee95bc3fd44f9d7d33929919"
+    },
+    {
+      "path": "studio/web/upload-policy.mjs",
+      "sha256": "9b018e3cf250673c57e50c108a296925d63f1c29a4670a1104fe62348155867d"
+    },
+    {
+      "path": "studio/web/upload-queue.mjs",
+      "sha256": "d0c340871c7bbd475e6f22fe1fd14261de23b08093bef335d3d582acd35db5f2"
+    },
+    {
+      "path": "studio/web/upload-report.mjs",
+      "sha256": "5e5fda523859aad34010af56d0b812fa626d83af95fc545498b03228ab4fa50e"
+    },
+    {
+      "path": "studio/web/upload-request.mjs",
+      "sha256": "72e278ca7a504f0a44793acbccc41861daec487a4e6ff5c6ac099770bc7d5249"
+    }
+  ],
+  "documentationFiles": [
+    {
+      "path": "OPERATIONS.md",
+      "sha256": "56fcbf15718b480d37539bbcb0d81aebab1de23a9c35e5bbf4d4feaca99eee64"
+    },
+    {
+      "path": "README.md",
+      "sha256": "434051163104cad44f0ce495140dced22643010497c6cf871bc66cc002ef036b"
+    },
+    {
+      "path": "docs/customer-feedback-spec.md",
+      "sha256": "35bdda30414bd40a3dc23e5bfaae17f478e5f25d80e42e4df5d4f6cb86f3ba2b"
+    },
+    {
+      "path": "docs/google-drive-folder-browser-2026-10-20.md",
+      "sha256": "71ce29deecffe207c22196b48c4544584abeff258352b6e831494a08f4db6139"
+    },
+    {
+      "path": "docs/google-drive-folder-browser-review-2026-10-20.md",
+      "sha256": "ae05997d1919cac91d47c96c698bb263e3a7867a04f9c2f546917f38a67988e4"
+    },
+    {
+      "path": "docs/google-drive-perf-pass-2026-10-20.md",
+      "sha256": "fff0b4e2eeb20879d43a342da16c79203333919ce24a801ecae8e2a2ec55d010"
+    },
+    {
+      "path": "docs/google-drive-sync-followup-2026-10-19.md",
+      "sha256": "1655bab3e30b5e3ffc61d003e37fc756d3180a417471d6deb297f8a46f97e7a6"
+    },
+    {
+      "path": "docs/google-drive-sync-implementation-plan.md",
+      "sha256": "0a99d28a5ba781045056972a0f77b4230cbc498e699638eb918217d2a2e56179"
+    },
+    {
+      "path": "docs/google-drive-sync-operations.md",
+      "sha256": "c18a7e3a329ca2389520ca46512f25f107420689ec1fdec4b377efed445eaa23"
+    },
+    {
+      "path": "docs/google-drive-sync-production-release-2026-10-17.md",
+      "sha256": "c827f57cd9d24881036f8b7bc1c461c2c60a214bc6fd76b575346ca7d4381cb6"
+    },
+    {
+      "path": "docs/google-drive-sync-production-release-2026-10-20.md",
+      "sha256": "880058c88e7c7face352c6f9d215af370046a0fc64fa6b61bc7d3660da30190b"
+    },
+    {
+      "path": "docs/handbook/01-kien-truc-va-cong-nghe.md",
+      "sha256": "7159c529297f7b4aada496a00f61f7718866128e5df27c2e85fd9124d5a694b0"
+    },
+    {
+      "path": "docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md",
+      "sha256": "87d9f368da89241ca0149c4dd6a6109e63cbb379aaefa32b32de2cdc2bdf558f"
+    },
+    {
+      "path": "docs/handbook/03-phong-lab-qa.md",
+      "sha256": "9372d7d3bcd5d18ed6998d472424f5790d424a75f134b683a9d349d2e4365a42"
+    },
+    {
+      "path": "docs/handbook/04-cap-nhat-du-an-2026-10-17.md",
+      "sha256": "04a0d2fa9015e2c4739d7491f709698ffd279b771af9d8b4afa74488c9e563cb"
+    },
+    {
+      "path": "docs/handbook/05-cap-nhat-du-an-2026-10-20.md",
+      "sha256": "11c19ee0f332aa6490971d22504443535c8c547269e617bcd587516be79a0871"
+    },
+    {
+      "path": "docs/handbook/README.md",
+      "sha256": "437f26b68e16fe1ee44f8b7822cb9621d0ac7b833c8d9130d7181e9b0db6b933"
+    }
+  ],
+  "evidenceFiles": [
+    {
+      "path": "output/drive-perf-pass-2026-10-20/album-entry-smoke.log",
+      "sha256": "5b14f8f3dfe00390d2fb7152e9005e08e9a5c0415a9c5970f2d9781c424a5633"
+    },
+    {
+      "path": "output/drive-perf-pass-2026-10-20/browser-smoke.log",
+      "sha256": "e32fdf742a52b8793447d4289f4223e945d50450e1cb74a06f719deeef15644c"
+    },
+    {
+      "path": "output/drive-perf-pass-2026-10-20/final-state.json",
+      "sha256": "43f930807b8ffe9c5419730d99501cb0954d86a091610dbee4dc98544162e8b5"
+    },
+    {
+      "path": "output/drive-perf-pass-2026-10-20/live-review-report.json",
+      "sha256": "2a163c940ceeec91ca6365b39de9df919bf14694c46f02b021cf455c27a02b44"
+    },
+    {
+      "path": "output/drive-perf-pass-2026-10-20/regression-tests.log",
+      "sha256": "fd36a3a88c06fd1f7edf8f6e629428d3e21f1f9713d97ff57584daacaf698139"
+    },
+    {
+      "path": "output/drive-production-followup-2026-10-19/baseline-pg17-restore-report.json",
+      "sha256": "429bea07b4d8ea1ffadf981ed78eb7a7e0a90a8647fd1563393d2e13aeeb592d"
+    },
+    {
+      "path": "output/drive-production-followup-2026-10-19/baseline-restore-report.json",
+      "sha256": "6427c0ebe583fe5292be146b1f71c08df956c349982e11d965fad2ce53977c0d"
+    },
+    {
+      "path": "output/drive-production-followup-2026-10-19/deployed-source-manifest.json",
+      "sha256": "5720f24749d61db1e27b8e7dc369abd0231d9bc547a0ecbbee65fef23864387e"
+    },
+    {
+      "path": "output/drive-production-release-2026-10-20/deployed-source-manifest.json",
+      "sha256": "3d15c223f60ad6f81fb0ac813cd821714cc7f3ea4da578bd389908d2b9f9dd2e"
+    }
+  ],
+  "validation": {
+    "regressionLogCountsChecked": true,
+    "liveUiReportPassedAsRecorded": true,
+    "applicationCodeChangedByThisReview": false,
+    "handbookMarkdownFilesChecked": 6,
+    "relativeFileLinksChecked": 111,
+    "codeFencePairsChecked": 11,
+    "testFileReferencesExist": true,
+    "markdownFileLinksValid": true,
+    "codeFencesBalanced": true,
+    "headingAnchorsValidated": false,
+    "prePushDocumentationEdit": "Clarified runtime commit versus documentation commit and removed transient uncommitted wording; documentation hashes refreshed. Runtime source and the dated deployment acceptance snapshot are unchanged."
+  },
+  "capturedAt": "2026-10-20T16:15:03+07:00",
+  "currentDeploymentManifestComparison": {
+    "manifest": "output/drive-production-release-2026-10-20/deployed-source-manifest.json",
+    "releaseId": "20261020T085406982Z-3225e599",
+    "gitCommit": "5a9e83c0efd2bce1e18789cf1d227a7ea3414e2d",
+    "entries": 102,
+    "matchedCurrentFiles": 102,
+    "differences": [],
+    "verifiedAgainstGitAsRecorded": true,
+    "liveInspectedThisReview": false,
+    "limitation": "Matches local source to a stored deployment manifest; runtime verification comes from the release report, not a live check by this review."
+  },
+  "releaseAcceptanceAsReported": {
+    "releaseReport": "docs/google-drive-sync-production-release-2026-10-20.md",
+    "status": "in_progress",
+    "manualImportEnabled": true,
+    "schedulerEnabled": false,
+    "sourceDiscrepancy": "Release acceptance table remains PENDING for heartbeat, media unlock, shared/check and browse; the current runbook and implementation plan report these passed. Pilot 33-photo import is in progress; no final import/no-op, boot or final-state acceptance is claimed."
+  }
+}

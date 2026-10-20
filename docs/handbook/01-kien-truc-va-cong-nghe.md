@@ -1,6 +1,6 @@
 # 01 — Kiến trúc và công nghệ ChiCong Studio
 
-**Đối chiếu working tree và biên bản đến 17/10/2026.** Đọc [phạm vi bằng chứng](README.md) trước khi dùng các thông tin này để ra quyết định production.
+**Đối chiếu source và biên bản đến 20/10/2026.** Đọc [phạm vi bằng chứng](README.md) và [trạng thái từng môi trường](05-cap-nhat-du-an-2026-10-20.md) trước khi dùng các thông tin này để ra quyết định production.
 
 ## 1. Mô hình hệ thống
 
@@ -23,6 +23,10 @@ flowchart LR
   B -.-> O
   B -->|OAuth và HTTPS| V[Google Drive: bộ backup]
   V --> L[Bộ offline: manifest và blobs]
+  R -.->|Queue Drive; nhập thủ công bật theo REPORT 20/10| W[Worker Drive systemd]
+  GDS[Drive nguồn ảnh] -->|Service account chỉ đọc| W
+  W --> D
+  W -.->|Rendition khi import được bật| S
 ~~~
 
 **Ranh giới tin cậy:** browser gửi yêu cầu nhưng không được cầm database password, service-role key, R2 secret hoặc OAuth refresh token. Express xác thực phiên và quyền truy cập rồi mới lấy ảnh/ghi dữ liệu. Runner backup có quyền khác với web runtime. Cloudflare proxy không thay thế kiểm tra quyền ở ứng dụng.
@@ -35,8 +39,8 @@ Database lưu bản ghi: album, tên object, lựa chọn, yêu cầu tư vấn.
 |---|---|---|---|
 | VPS iNET, Caddy, PM2, systemd | Caddy proxy vào Node/Express; PM2 quản lý web process | SSH/vault, Caddyfile, ecosystem.config.cjs, env VPS | REPORT iNET 16/10 và workflow 17/10; chưa kiểm live trong lần cập nhật này |
 | Render Web Service | Hạ tầng cũ và rehearsal R2 lịch sử; render.yaml vẫn có trong repo | Env và Blueprint nếu tái sử dụng Render | Biên bản ghi đã xóa web production cũ; không suy mọi resource staging đã bị xóa |
-| Cloudflare DNS/proxy | Nhận HTTPS cho chicongphoto.vn, proxy đến origin | DNS record, custom domain, TLS mode | LIVE thấy header Cloudflare; chưa kiểm dashboard DNS/TLS |
-| Cloudflare Web Analytics | Browser tải beacon và gửi telemetry | CF_BEACON_TOKEN, ANALYTICS_ENABLED | CODE + LIVE có beacon; token là mã nhận diện công khai, không phải quyền quản trị |
+| Cloudflare DNS/proxy | Nhận HTTPS cho chicongphoto.vn, proxy đến origin | DNS record, custom domain, TLS mode | REPORT kiểm live 16/10 thấy header Cloudflare; chưa kiểm dashboard DNS/TLS |
+| Cloudflare Web Analytics | Browser tải beacon và gửi telemetry | CF_BEACON_TOKEN, ANALYTICS_ENABLED | CODE + REPORT kiểm live 16/10 có beacon; token là mã nhận diện công khai, không phải quyền quản trị |
 | Supabase PostgreSQL | Backend dùng pg.Pool qua SQL/TLS | DATABASE_URL và CA | CODE; health live truy vấn DB, không công bố version/project từ endpoint |
 | Supabase Storage | REST /storage/v1, bucket private; backend proxy ảnh | SUPABASE_URL, SUPABASE_BUCKET, SUPABASE_SERVICE_ROLE_KEY | CONFIG baseline; không dùng Supabase SDK cho adapter này |
 | Cloudflare R2 | Adapter object storage tương thích S3, region auto | R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY | CODE + REPORT: bucket staging private và Render staging đã diễn tập; production chưa cutover |
@@ -44,7 +48,7 @@ Database lưu bản ghi: album, tên object, lựa chọn, yêu cầu tư vấn.
 | SMTP | Provider email thay thế theo cấu hình | SMTP_HOST/PORT/USER/PASS/SECURE | CODE; không phải failover tự động từ Resend |
 | Google Calendar | Backend đọc private ICS qua HTTPS, một chiều | GOOGLE_CALENDAR_ICS_URL, GOOGLE_CALENDAR_INCLUDE_FREE | CODE; không phải OAuth Calendar, không ghi event ngược về Google |
 | Google Cloud OAuth + Drive API | Runner đổi refresh token lấy access token, đọc/ghi backup | BACKUP_DRIVE_* | CODE + REPORT với dữ liệu giả; không đưa credential runner vào web |
-| Google Drive Sync + service account | Worker riêng đọc folder ảnh bằng drive.readonly, tạo rendition vào kho website | DRIVE_SYNC_*, file key ngoài DB; khác identity OAuth backup | CODE + REPORT local/Linux cách ly; worker production chưa bật |
+| Google Drive Sync + service account | Worker riêng đọc folder ảnh bằng drive.readonly, tạo rendition vào kho website | DRIVE_SYNC_*, file key ngoài DB; khác identity OAuth backup | REPORT 20/10: source có folder browser/shared scope đã lên VPS, nhập thủ công bật, scheduler tắt; còn nghiệm thu pilot/trạng thái cuối |
 | GitHub | Source, pull request và CI qua GitHub Actions | Quyền repository; environment secrets nếu dùng workflow backup | CODE workflow; chưa kiểm quyền/settings repository |
 | npm registry | Tải dependency khi cài/build | package-lock.json và quyền registry nếu có | CODE; không phải mỗi lượt xem web đều gọi npm |
 | Máy Mac, Lightroom/ảnh xuất | Chuẩn bị nội dung và chạy công cụ .ccphoto | File nguồn, quyền ổ đĩa | Công cụ chuẩn bị ảnh có trong repo; Lightroom nằm ngoài runtime website |
@@ -94,7 +98,7 @@ Nguồn: [studio/web](../../studio/web), [SSR/SEO trong app.mjs](../../studio/se
 
 ## 5. Từ điển dữ liệu
 
-Working tree hiện có **17 bảng nền + 11 bảng Drive lâu dài**; `drive_comparison_cache` được khởi tạo khi cần và không thuộc snapshot media. Bảng dưới đây mô tả 17 bảng nền; 11 bảng mới và revisions được giải thích trong [bản cập nhật 17/10](04-cap-nhat-du-an-2026-10-17.md). Schema ở [db.mjs](../../studio/server/db.mjs), [drive-schema.mjs](../../studio/server/drive-schema.mjs) và [album-slugs.mjs](../../studio/server/album-slugs.mjs); chưa xác nhận toàn bộ đã có trên production.
+Source có **17 bảng nền + 11 bảng Drive lâu dài**, thêm hai cache tạm `drive_comparison_cache` và `drive_folder_preview_cache` khởi tạo khi cần; snapshot media v2 vẫn gồm 28 bảng. Bảng dưới mô tả 17 bảng nền; 11 bảng Drive/revisions có trong [bản 17/10](04-cap-nhat-du-an-2026-10-17.md), scope và cache mới ở [bản 20/10](05-cap-nhat-du-an-2026-10-20.md). Schema ở [db.mjs](../../studio/server/db.mjs), [drive-schema.mjs](../../studio/server/drive-schema.mjs) và [album-slugs.mjs](../../studio/server/album-slugs.mjs). Biên bản restore 19/10 đã kiểm 28 bảng production trong baseline; source scope/cache folder 20/10 đã deploy theo biên bản; nghiệm thu cuối còn mở.
 
 | Bảng | Nội dung/khóa quan trọng | Điều cần giữ khi test và restore |
 |---|---|---|
@@ -148,6 +152,8 @@ Thay đổi DB được kết hợp ghi photo_cleanup trong transaction → ản
 
 Đây là hàng đợi dọn file bền vững trong DB theo cách làm gần với transactional outbox. Không có Redis/BullMQ/Render background worker riêng trong luồng này. Worker ngừng khi process ngừng/ngủ; “eventual” không có nghĩa trong một khoảng thời gian đảm bảo nếu không có worker hoạt động.
 
+Source mới giữ rendition đã từng publish ít nhất 5 phút từ lần quan sát retirement đã commit để bảo vệ lượt đọc đang chạy; media có deadline 180 giây. Drain dưới maintenance vẫn tôn trọng retention, không có force bỏ qua. Drive worker riêng không thay hàng đợi cleanup này. Xem [runbook Drive, phục hồi](../google-drive-sync-operations.md#6-lỗi-dừng-và-phục-hồi).
+
 **Oracle QA:** DB không còn ảnh nhưng job còn khi storage lỗi; chạy lại cleanup sau khi phục hồi phải xóa file và kết thúc job; thực hiện lại không làm hỏng dữ liệu khác. Không gọi email fire-and-forget là cùng một mẫu outbox này. Xem [photo-deletion.mjs](../../studio/server/photo-deletion.mjs).
 
 ### 6.4. Gallery riêng và chọn ảnh từ nhiều thiết bị
@@ -176,6 +182,14 @@ Mailer ưu tiên Resend nếu có key, nếu không mới xét SMTP. App không 
 
 **Oracle QA:** một requestKey không tạo hai đơn; same key/different payload bị từ chối; ngày bận không được nhận như ngày trống; email lỗi không làm mất đơn đã commit; hai thao tác confirm cùng ngày không cùng thành công. Xem [app.mjs](../../studio/server/app.mjs), [mailer.mjs](../../studio/server/mailer.mjs), [google-calendar.mjs](../../studio/server/google-calendar.mjs).
 
+### 6.7. Duyệt folder và nhập ảnh Drive
+
+Admin dán link → worker kiểm quyền, duyệt folder con/phân trang → chọn folder → kiểm tra folder → tạo/gắn album → xem trước thay đổi → duyệt đúng revision/generation → worker tải/encode/publish. Duyệt folder và xem tối đa 6 thumbnail không tạo album hoặc nhập ảnh. Web chỉ enqueue, key chỉ nằm ở worker; browser dùng API có phiên admin.
+
+Source 20/10 hỗ trợ `root` và `shared`. `root` giới hạn nguồn trong thư viện đã chọn; `shared` nhận folder tài khoản dịch vụ đọc được, folder bắt đầu chỉ là điểm mở đầu. Migration giữ `root` cho dữ liệu cũ. Đổi chế độ tăng generation, vô hiệu job/preview cũ nhưng giữ ảnh/mapping. Chỉ nhập file trực tiếp; duyệt được folder con không có nghĩa import đệ quy.
+
+Số đếm có thể đầy đủ, một phần hoặc chưa khả dụng; không coi lỗi thành 0. Deadline enrichment 15 giây không bao gồm toàn bộ thời gian xếp hàng/kiểm quyền đầu/DB. Worker vẫn xử lý FIFO một batch, nên browse có thể đợi import nặng. **Oracle QA:** mất quyền, cancel hoặc đổi generation không được xuất bản kết quả muộn; thumbnail hết hạn không truy cập được; preview danh sách thay đổi vẫn phải được duyệt trước import. Chi tiết cache, nguồn test và phạm vi production ở [cập nhật 20/10](05-cap-nhat-du-an-2026-10-20.md).
+
 ## 7. Bảo mật và giới hạn vận hành trong code
 
 | Cơ chế | Hiện trạng và giới hạn |
@@ -187,6 +201,7 @@ Mailer ưu tiên Resend nếu có key, nếu không mới xét SMTP. App không 
 | SQL | Giá trị qua parameter binding; migration và dynamic identifier phải được kiểm riêng |
 | CSV | Quote/escape cell và prefix một số ký tự công thức; UTF-8 BOM hỗ trợ tiếng Việt; test cả whitespace/control character và ứng dụng mở file |
 | Upload input | Tối đa 20 MiB/file, 40 megapixel, 8 file/request; JPEG/PNG/WebP tĩnh và prepared theo validator |
+| Drive JPEG | Default code 128 MiB/120 MP, encode 120 giây; cấu hình pilot VPS theo REPORT là 60 MP; 20/10 đã bật nhập thủ công, pilot chưa nghiệm thu; không dùng default local để suy giới hạn VPS |
 | Memory upload | Multer memoryStorage; 8 × 20 MiB chỉ là buffer đầu vào có thể có, chưa gồm encode/runtime; giới hạn một request không giới hạn tổng request đồng thời |
 | Rendition storage | derivedFileSizeLimit 24 MiB là giới hạn trong adapter/cấu hình bucket, không phải quota tài khoản Supabase |
 | ZIP | Tối đa 50 ảnh, 100 MiB; timeout xử lý 180 giây; 2 slot/process, 1 lượt/album/process |

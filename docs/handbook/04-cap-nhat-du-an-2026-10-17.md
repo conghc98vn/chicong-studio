@@ -1,5 +1,7 @@
 # 04 — Cập nhật dự án đến 17/10/2026
 
+> **Bản ghi lịch sử:** nội dung giữ mốc rà soát đầu ngày 17/10. Rollout VPS, thu hồi khóa và thay đổi folder scope sau đó nằm trong [cập nhật hiện hành 20/10](05-cap-nhat-du-an-2026-10-20.md). Các câu “chưa deploy”, “còn thay khóa” và số hash bên dưới chỉ áp dụng tại mốc cũ.
+
 Đối chiếu tài liệu mới và working tree; không SSH, deploy, chạy backup hay gọi Drive trong lượt chuẩn hóa này. **REPORT** là kết quả được nguồn ghi nhận, không phải phép thử vừa chạy lại. HEAD vẫn chưa bao gồm nhiều file mới.
 
 ## 1. Trạng thái và nguồn ưu tiên

@@ -1,6 +1,6 @@
 # 02 — Vận hành, bí mật và khôi phục
 
-**Cập nhật 17/10/2026 · Phạm vi: source/config/report; kiểm tra công khai lịch sử ngày 16/10.** Production hiện được biên bản ghi là VPS iNET. Danh mục Render bên dưới dành cho hạ tầng cũ/staging; runtime hiện hành cần đối chiếu env VPS, PM2 và Caddy. Chưa có bản sao toàn bộ production mới được tạo bởi đợt viết tài liệu này.
+**Cập nhật 20/10/2026 · Phạm vi: source/config/report, không kiểm live mới.** Production là VPS iNET theo rollout 20/10. Source web/worker/backup mới đã triển khai, nhập thủ công bật và scheduler tắt; nghiệm thu cuối/boot còn chờ. Baseline production đã verify media tại VPS; full Supabase restore và bản media ngoài VPS chưa hoàn tất. Danh mục Render dành cho hạ tầng cũ/staging.
 
 ## 1. Bộ hồ sơ cần có để tự quản lý website
 
@@ -58,6 +58,8 @@ Nguồn đầy đủ: [.env.example](../../.env.example), [render.yaml](../../re
 |---|---|---|
 | Drive OAuth | BACKUP_DRIVE_CLIENT_ID, BACKUP_DRIVE_CLIENT_SECRET, BACKUP_DRIVE_REFRESH_TOKEN | Refresh token cấp khả năng lấy access token; chỉ đặt ở runner/vault |
 | Drive ownership | BACKUP_DRIVE_ACCOUNT_EMAIL, BACKUP_DRIVE_FOLDER_ID | Không phải mật khẩu nhưng là dữ liệu tài khoản; code kiểm đúng owner và folder riêng |
+| Drive Sync riêng | DRIVE_SYNC_ENABLED, DRIVE_SYNC_SCHEDULER_ENABLED, DRIVE_SYNC_SERVICE_ACCOUNT_FILE | Không dùng OAuth backup cho import; key file chỉ ở worker. Default local và cấu hình pilot VPS khác nhau; xem runbook Drive |
+| Giới hạn worker | DRIVE_SYNC_INTERVAL_MS, DRIVE_SYNC_POLL_MS, DRIVE_SYNC_BATCH_SIZE, DRIVE_SYNC_MAX_INVENTORY_FILES, DRIVE_SYNC_MAX_SOURCE_BYTES, DRIVE_SYNC_MAX_SOURCE_PIXELS, DRIVE_SYNC_ENCODE_TIMEOUT_MS, DRIVE_SYNC_REQUEST_TIMEOUT_MS, DRIVE_SYNC_TEMP_DIR | Defaults trong .env.example/runbook; không suy giá trị env đang chạy từ sample. folder_scope nằm trong connection DB, không phải biến env |
 | Nguồn backup | DATABASE_URL + MEDIA_STORAGE_PROVIDER + credential provider tương ứng | Chỉ cấp quyền cần thiết; không cần mail/Calendar production |
 | Đích migration | TARGET_MEDIA_STORAGE_PROVIDER, TARGET_R2_* hoặc TARGET_SUPABASE_* | CLI tách nguồn/đích; không lẫn source credential với target |
 | DB test | STUDIO_TEST_POSTGRES_URL | Chỉ DB dùng một lần; test có CREATE/DROP SCHEMA |
@@ -93,8 +95,8 @@ Quy trình rotate: kiểm kê consumer → tạo credential mới nếu dịch v
 |---|---|---|
 | Export JSON từ admin, GET /api/admin/export | 8 bảng: settings, albums, photos, selections, inquiries, blocked_dates, album_slugs, album_sections | Không có bytes media, admins, sessions, env, DNS; không phải snapshot transaction xuyên tất cả bảng |
 | PostgreSQL logical dump | Cấu trúc/dữ liệu các schema đã chọn; phạm vi phụ thuộc options/quyền | Không có file Storage/R2, env, tài khoản nhà cung cấp; globals/role cần kế hoạch riêng |
-| Công cụ media backup mới | Snapshot schema v2 gồm 28 bảng lâu dài, manifest, media được tham chiếu, checksum, appRevision; reader nhận v1 | Không chứa drive_comparison_cache, key service account, source repo, env, DNS, JPEG nguồn/RAW; appRevision chưa mô tả dirty tree |
-| Cron DB trên VPS iNET | Theo biên bản: SQL gzip lúc 03:00 giờ Việt Nam vào /var/backups/chicongphoto; script có retention -mtime +14 | Chỉ DB trên cùng máy; chưa phải backup media/offsite, chưa xác minh cron thực tế trong lượt này; bản script mới loại dữ liệu cache so sánh |
+| Công cụ media backup mới | Snapshot schema v2 gồm 28 bảng lâu dài, manifest, media được tham chiếu, checksum, appRevision; reader nhận v1 | Không chứa drive_comparison_cache, drive_folder_preview_cache, key service account, source repo, env, DNS, JPEG nguồn/RAW; appRevision chưa mô tả dirty tree |
+| Cron DB trên VPS iNET | Theo biên bản: SQL gzip lúc 03:00 giờ Việt Nam vào /var/backups/chicongphoto; script có retention -mtime +14 | Chỉ DB trên cùng máy; chưa phải backup media/offsite, chưa xác minh cron thực tế trong lượt này; script local mới loại dữ liệu cả hai cache tạm nhưng vẫn có thể giữ schema cache |
 | Bản offline export của công cụ | Manifest và toàn bộ blob mà snapshot chọn cần | Không tự chứa mọi lịch sử snapshot trong repository hoặc quyền truy cập cloud |
 | Ảnh gốc trên ổ cứng/Drive | RAW/JPEG nguồn theo cách studio lưu | Không có selections, inquiries, album layout, password, slug history |
 
@@ -129,6 +131,20 @@ Kế hoạch R2 ghi nhận staging Render đã chạy Node 24 với PostgreSQL v
 - Retention code giữ 30 ngày lịch theo UTC+7 và bảo toàn bản tốt mới nhất; không thể giữ đủ lịch sử nếu job không chạy hoặc không đủ dung lượng. Việc dọn lỗi phải được theo dõi riêng.
 - Runner GitHub có ổ tạm; không coi thư mục trên runner sau khi job xong là bản offline đã giữ.
 - Chưa ghi một RPO/RTO production đã đạt. Phải đo trên dữ liệu đại diện và diễn tập thực tế.
+
+### 3.3. Baseline production và restore ngày 17–19/10
+
+Rollout đã giữ baseline SQL gzip và snapshot v2 với **3.287 object được tham chiếu**, verify đạt; bucket có 3.291 object không có nghĩa snapshot phải thu cả object không được tham chiếu. Dữ liệu tại mốc đó là 8 album/1.190 ảnh/1 admin. Source/config cũ được lưu riêng, không đưa secret vào evidence chia sẻ.
+
+Rollout 20/10 tạo snapshot mới trong cùng kho blob VPS, verify 3.287 object; vẫn chưa có bản media độc lập ngoài máy. Nguồn mới: [biên bản phát hành 20/10](../google-drive-sync-production-release-2026-10-20.md).
+
+Ngày 19/10, SQL baseline được copy về local, hash khớp VPS. Restore riêng schema `public` đã điều chỉnh cho PostgreSQL 16 đạt **28 bảng/28 foreign key/60 index** và số dòng khớp. Nguyên dump PostgreSQL 17 không restore được trên PG16 vì `transaction_timeout`; thử nguyên dump trên PG17.11 vẫn dừng do thiếu role `supabase_admin`. Đây chưa phải full Supabase restore. Media baseline còn cùng VPS; chưa có bằng chứng DB + media được restore thành công từ một nơi độc lập. Nguồn: [rollout](../google-drive-sync-production-release-2026-10-17.md), [follow-up](../google-drive-sync-followup-2026-10-19.md).
+
+### 3.4. Rollout folder browser và các xác nhận còn chờ
+
+Source 20/10 thêm `folder_scope` và cache `drive_folder_preview_cache`. Cập nhật web, worker và mọi backup runner cùng bản tương thích; runner cũ không nhận diện cache mới có thể chặn snapshot theo cơ chế từ chối bảng lạ. Script dump mới loại dữ liệu cả hai cache; runbook và rollout 20/10 ghi đã phát hành cùng source. Dữ liệu cũ mặc định `root`; shared đã được studio chọn. Runbook mới ghi shared/check thành công nhưng bảng nghiệm thu rollout còn PENDING: cần đối chiếu kết quả cuối trước đóng pilot. Không còn yêu cầu gom tất cả album vào một folder cha chung trong chế độ shared.
+
+Khóa thử cũ đã thu hồi ngày 19/10; khóa thay thế được kiểm đọc/list từ user worker VPS. Unit đã khởi động sau chuyển source 20/10; trạng thái enable cùng máy và nghiệm thu cuối còn chờ. Bật khởi động tự động và lịch là hai việc khác nhau. Pilot VPS cấu hình 128 MiB/60 MP, heap Node 256 MiB, cgroup CPU 50%/MemoryHigh 512 MiB/MemoryMax 768 MiB; không thay bằng default 120 MP của local. Xem [các bước còn lại](05-cap-nhat-du-an-2026-10-20.md).
 
 ## 4. Diễn tập phục hồi từ bộ offline
 
@@ -307,4 +323,4 @@ Không deploy chỉ vì CI xanh: workflow hiện không chạy browser smoke, ax
 
 Đánh dấu chỉ khi có bằng chứng; bảng này được để trống vì phiên lập tài liệu chưa kiểm toàn bộ các mục.
 
-Chi tiết deploy VPS, ba lịch độc lập (dump DB, backup Drive, Drive Sync), schema v2 và các bằng chứng 17/10 nằm trong [bản cập nhật dự án](04-cap-nhat-du-an-2026-10-17.md).
+Chi tiết trạng thái từng môi trường, ba lịch độc lập (dump DB, backup Drive, Drive Sync), schema/cache và bằng chứng mới nằm trong [bản cập nhật 20/10](05-cap-nhat-du-an-2026-10-20.md); [bản 17/10](04-cap-nhat-du-an-2026-10-17.md) giữ lịch sử.

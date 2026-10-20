@@ -67,7 +67,7 @@ Trước migration đã lưu SQLite riêng tại `output/drive-folder-browser-20
 
 | Kiểm chứng | Kết quả |
 |---|---|
-| Regression toàn bộ `studio/tests/*.test.mjs` | Lượt mới nhất sau review UI/UX và perf: 408/408 đạt, không bỏ qua; có PostgreSQL 17 riêng và SQLite |
+| Regression toàn bộ `studio/tests/*.test.mjs` | Mốc review UI/UX: 408/408 đạt; lượt tối ưu tiếp theo: [420/420 đạt](google-drive-perf-pass-2026-10-20.md), không bỏ qua, PostgreSQL 17 riêng và SQLite |
 | Syntax và khoảng trắng diff | Đạt |
 | 4 smoke trình duyệt: folder browser, album entry, panel UX, panel polling | Đạt; gồm phân trang, breadcrumb, tên có HTML, callback cũ, lỗi quyền, đóng modal, giữ draft và màn hình 320px |
 | Review độc lập về phạm vi, generation, tạo album và UI | Không phát hiện blocker trong phạm vi review |

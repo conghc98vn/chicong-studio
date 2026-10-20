@@ -1,10 +1,10 @@
 # ChiCong Studio — Sổ tay hệ thống, vận hành và thực hành QA
 
-**Phiên bản tài liệu 1.2 · Cập nhật 17/10/2026 · Giờ Việt Nam (UTC+7)**
+**Phiên bản tài liệu 1.3 · Cập nhật 20/10/2026 · Giờ Việt Nam (UTC+7)**
 
-**Mốc mới:** biên bản iNET ghi production đã chuyển sang VPS với Caddy + PM2, vẫn dùng Supabase DB/Storage. Drive Sync đã có code và bằng chứng local/Linux cách ly, chưa phát hành production. Xem [bản cập nhật và đối chiếu nguồn](04-cap-nhat-du-an-2026-10-17.md); các kết quả LIVE ngày 16/10 bên dưới là lịch sử, không phải lượt kiểm tra live mới.
+**Mốc hiện hành:** biên bản phát hành 20/10 vừa bổ sung trong lúc rà soát ghi source `5a9e83c` đã lên VPS, nhập Drive thủ công bật, scheduler tắt. Nghiệm thu pilot và trạng thái cuối vẫn đang cập nhật; chưa gọi phát hành hoàn tất. Khóa cũ đã thu hồi 19/10. Xem [cập nhật 20/10 và các mục chờ](05-cap-nhat-du-an-2026-10-20.md). Không có kiểm tra live mới trong lượt cập nhật handbook này.
 
-Bộ tài liệu này giúp bạn hiểu website mình đang sở hữu, có căn cứ để vận hành và khôi phục, đồng thời dùng chính dự án làm phòng lab QA. Nội dung được đối chiếu với mã nguồn hiện tại, cấu hình, báo cáo kiểm thử đã lưu và một số endpoint production. Không coi nội dung hội thoại cũ là bằng chứng cấu hình đang chạy.
+Bộ tài liệu này giúp bạn hiểu website mình đang sở hữu, có căn cứ để vận hành và khôi phục, đồng thời dùng chính dự án làm phòng lab QA. Nội dung được đối chiếu với mã nguồn hiện tại, cấu hình và báo cáo đã lưu, gồm kiểm tra endpoint production ngày 16/10. Không coi nội dung hội thoại cũ là bằng chứng cấu hình đang chạy.
 
 ## Đọc theo nhu cầu
 
@@ -13,7 +13,8 @@ Bộ tài liệu này giúp bạn hiểu website mình đang sở hữu, có că
 | Hiểu công nghệ, dịch vụ, dữ liệu và cách một thao tác chạy qua hệ thống | [01 — Kiến trúc và công nghệ](01-kien-truc-va-cong-nghe.md) |
 | Kiểm kê tài khoản/key, sao lưu, diễn tập phục hồi và xử lý sự cố | [02 — Vận hành, bí mật và khôi phục](02-van-hanh-bi-mat-va-khoi-phuc.md) |
 | Học test design, API, SQL, concurrency, automation và viết case study QA | [03 — Phòng lab QA](03-phong-lab-qa.md) |
-| Nhập ảnh từ Drive studio và kết hợp upload tay | [Runbook Drive Sync](../google-drive-sync-operations.md) và [workflow 17/10](../google-drive-sync-workflow-2026-10-17.md): 346 JPEG thật đã nhập local; báo cáo hồi quy mới nhất 373/373; fixture 5.000 ảnh đạt local/VPS cách ly; chưa production |
+| Nhập ảnh từ Drive studio và kết hợp upload tay | [Runbook Drive Sync](../google-drive-sync-operations.md): source hỗ trợ root/shared, đã phát hành production và bật import thủ công; pilot chưa nghiệm thu. [Cập nhật 20/10](05-cap-nhat-du-an-2026-10-20.md) phân biệt từng phiên bản |
+| Kiểm tra kết quả mới nhất và giới hạn triển khai | [QA](03-phong-lab-qa.md): REPORT 420/420, SQLite/PostgreSQL 17; [bản ghi 17/10](04-cap-nhat-du-an-2026-10-17.md) giữ lịch sử 373/373 |
 | Phân biệt điều đã biết với điều cần xác minh lại | Phần bằng chứng và đính chính bên dưới |
 
 Lần đầu, đọc mục 1–3 của tài liệu kiến trúc, sau đó làm Lab 1 của tài liệu QA. Khi cần thao tác backup/restore, đọc các điều kiện và tiêu chí xác nhận trước lệnh trong tài liệu vận hành.
@@ -29,9 +30,9 @@ Lần đầu, đọc mục 1–3 của tài liệu kiến trúc, sau đó làm L
 | **ĐỀ XUẤT** | Thực hành hoặc cải tiến nên thực hiện | Tính năng đã có hoặc lịch đã được bật |
 
 - Repo: ChiCong Studio, package **chicong-photo 2.2.1**.
-- HEAD lúc bắt đầu: **1ea50e86f78e1de13010c736acdb367b6b35d247**, nhánh **main**. Có nhiều thay đổi chưa commit và file mới, gồm R2/backup; commit này một mình không đại diện toàn bộ nội dung đang đọc.
-- [evidence.json](evidence.json) giữ nguyên bằng chứng lịch sử 16/10; [evidence-2026-10-17.json](evidence-2026-10-17.json) ghi hash nguồn đối chiếu trong lần cập nhật này. Không dùng kết quả test cũ để chứng nhận source mới.
-- Runtime shell của lần kiểm tra: **Node v23.6.0**. Blueprint và CI khai báo Node 24. Kết quả chạy local không được ghi thành kết quả Node 24.
+- Commit runtime đối chiếu 20/10: **5a9e83c0efd2bce1e18789cf1d227a7ea3414e2d**; các thay đổi Drive/VPS đã commit ở `9da05ce`, R2 được hợp nhất ở `5a9e83c`. Evidence chụp working tree trước commit tài liệu; commit tài liệu tiếp theo không thay đổi runtime được đối chiếu. Không suy bản VPS đã nhận source mới chỉ từ Git.
+- [evidence-2026-10-20.json](evidence-2026-10-20.json) lưu hash và phạm vi đối chiếu lần này. [evidence.json](evidence.json) và [evidence-2026-10-17.json](evidence-2026-10-17.json) là lịch sử, không được ghi đè thành bằng chứng mới.
+- Test audit 16/10 dùng **Node v23.6.0**; REPORT mới ngày 20/10 dùng Node 24 và PostgreSQL 17 cách ly. CI vẫn khai báo Node 24/PostgreSQL 16. Không chạy lại suite trong lượt chỉnh tài liệu này.
 - Tài liệu không chứa giá trị mật khẩu, private ICS URL, API secret, refresh token hay password hash của tài khoản thật. Danh mục nơi lưu và cách phục hồi nằm trong tài liệu 02.
 - Không thực hiện deploy, migration/cutover production, reset mật khẩu, gửi email thử, thay đổi DNS hoặc bật lịch backup trong đợt viết tài liệu này.
 
@@ -39,20 +40,24 @@ Lần đầu, đọc mục 1–3 của tài liệu kiến trúc, sau đó làm L
 
 | Thành phần | Bằng chứng | Kết luận tại thời điểm lập tài liệu |
 |---|---|---|
-| Website công khai | **LIVE**, 10:27 ngày 16/10/2026: trang chủ HTTP 200; header server=cloudflare | Website truy cập được qua Cloudflare ở thời điểm kiểm tra |
-| Health check | **LIVE**: /api/health trả HTTP 200 và {"ok":true}; **CODE**: chỉ truy vấn settings | App trả lời được và truy vấn DB thành công; không xác nhận các dịch vụ khác |
-| SEO bootstrap | **LIVE**: homepage có page-data; robots.txt trả 200 và chặn /admin, /gallery/, /api/ | Có bootstrap dữ liệu và robots; robots không phải cơ chế phân quyền |
-| Analytics | **LIVE**: HTML có beacon Cloudflare | Có mã nhúng; chưa xác nhận dashboard nhận dữ liệu hoặc toàn bộ cấu hình analytics |
-| Hosting production | **REPORT**: biên bản iNET 16/10 và workflow Drive 17/10 | VPS iNET + Caddy + PM2 phục vụ khách; Render là hạ tầng cũ, chưa đọc dashboard/SSH trong lần cập nhật này |
+| Website công khai | **REPORT kiểm live 16/10**, 10:27: trang chủ HTTP 200; header server=cloudflare | Website truy cập được qua Cloudflare ở thời điểm kiểm tra |
+| Health check | **REPORT kiểm live 16/10**: /api/health trả HTTP 200 và {"ok":true}; **CODE**: chỉ truy vấn settings | App trả lời được và truy vấn DB thành công; không xác nhận các dịch vụ khác |
+| SEO bootstrap | **REPORT kiểm live 16/10**: homepage có page-data; robots.txt trả 200 và chặn /admin, /gallery/, /api/ | Có bootstrap dữ liệu và robots; robots không phải cơ chế phân quyền |
+| Analytics | **REPORT kiểm live 16/10**: HTML có beacon Cloudflare | Có mã nhúng; chưa xác nhận dashboard nhận dữ liệu hoặc toàn bộ cấu hình analytics |
+| Hosting production | **REPORT** rollout 20/10 | VPS iNET + Caddy + PM2; sau migration, trước pilot giữ 8 album/1.190 ảnh/1 admin; chưa dùng làm số cuối sau pilot |
+| Drive trên VPS | **REPORT** rollout 20/10: source đã chuyển, web bật nhập thủ công, worker đã khởi động | Scheduler tắt; pilot/no-op, boot và trạng thái cuối chưa nghiệm thu; report còn PENDING |
+| Folder browser/perf 20/10 | **CODE + REPORT** root/shared, browse, thumbnail/counts, tối ưu SQL/worker; log 420 pass trước phát hành | Source đã lên VPS; runbook báo shared/browse thành công nhưng bảng nghiệm thu rollout chưa cập nhật tương ứng |
+| Credential Drive Sync | **REPORT** 19/10: khóa cũ thu hồi, khóa thay thế đọc/list thành công từ user worker | Đã đóng việc thay khóa thử đó; không suy mọi credential khác đã được rotate |
 | Media production | **REPORT** iNET: Supabase DB/Storage; **CONFIG** render.yaml vẫn chọn Supabase | Chưa có bằng chứng cutover R2; Blueprint Render không còn là nguồn duy nhất mô tả production |
 | Backup DB trên VPS | **REPORT** iNET: cron 03:00 giờ Việt Nam; **CODE** backup-db.sh ghi SQL gzip trên VPS | Khác backup DB + media lên Drive; chưa kiểm cron, timezone máy chủ hoặc file mới nhất trong lần này |
+| Baseline production | **REPORT** 17/10: verify 3.287 object tham chiếu; 19/10: restore phần public đạt 28 bảng | Media baseline còn cùng VPS; full dump chưa restore thành công trên PostgreSQL 17 do thiếu role Supabase; chưa có DR đầy đủ |
 | R2 staging | **REPORT** trong kế hoạch: Render + PostgreSQL + R2 riêng qua HTTP smoke, redeploy, backup/restore, rehearsal binding R2 → local → R2, ảnh lớn và client-abort/retry bằng dữ liệu giả | Staging đã được diễn tập; chưa chứng minh production dùng R2 hoặc chịu tải ảnh khách thật |
 | Google Drive backup | **REPORT** trong kế hoạch: Drive upload/refresh/download/restore với dữ liệu giả | Đã diễn tập đường backup; chưa có lịch định kỳ hay bằng chứng backup production |
-| Backup scheduler | **CODE**: media-backup.yml chỉ workflow_dispatch | Chưa có lịch tự động trong workflow; chưa xác nhận workflow này đã được push |
+| Backup scheduler | **CODE**: media-backup.yml chỉ workflow_dispatch | Workflow không có lịch tự động; khác cron dump DB trên VPS và scheduler nhập Drive |
 | Render staging | **REPORT** trong kế hoạch: service/DB staging riêng tại Singapore, Node 24, auto-deploy tắt | Đây là biên bản triển khai staging; không phải xác minh dashboard trong phiên chuẩn hóa này |
 | Quota, chi phí, DB version thật, email deliverability | Chưa truy vấn dashboard tương ứng | Cần kiểm tra trực tiếp; không dùng số lịch sử làm số hiện tại |
 
-Bằng chứng công khai của lần này nằm ở [public-checks.json](../../output/system-handbook-2026-10-16/public-checks.json). Biên bản R2, Render staging và Drive nằm trong [kế hoạch R2, mục 17](../r2-implementation-plan.md#17-triển-khai-và-kiểm-chứng-cloud-ngày-16102026). Theo biên bản, thư mục report local `output/r2-implementation-2026-10-16` đã được dọn sau khi số liệu cần thiết được chép vào mục 17; vì vậy các đường dẫn `output/...` cũ không được trình bày như file còn mở được. Các lần diễn tập sau cần lưu report bền vững hoặc xuất bản bản đã che dữ liệu nhạy cảm trước khi dọn workspace.
+Bằng chứng công khai ngày 16/10 nằm ở [public-checks.json](../../output/system-handbook-2026-10-16/public-checks.json). Biên bản R2, Render staging và Drive nằm trong [kế hoạch R2, mục 17](../r2-implementation-plan.md#17-triển-khai-và-kiểm-chứng-cloud-ngày-16102026). Theo biên bản, thư mục report local `output/r2-implementation-2026-10-16` đã được dọn sau khi số liệu cần thiết được chép vào mục 17; vì vậy các đường dẫn `output/...` cũ không được trình bày như file còn mở được. Các lần diễn tập sau cần lưu report bền vững hoặc xuất bản bản đã che dữ liệu nhạy cảm trước khi dọn workspace.
 
 Kết quả kiểm tra local và phạm vi bỏ qua được ghi trong [tài liệu QA](03-phong-lab-qa.md). Không dùng số “56 test” trong tài liệu cũ làm số test hiện tại.
 
@@ -67,7 +72,7 @@ Kết quả kiểm tra local và phạm vi bỏ qua được ghi trong [tài li�
 | RLS bảo đảm toàn bộ phân quyền | RLS được enable; không thấy policy hoặc FORCE RLS trong migration này. Backend đặc quyền vẫn phải kiểm tra quyền album/ảnh |
 | Gallery private nghĩa là luôn phải có mật khẩu | CODE cho phép gallery private không có password truy cập bằng link. Muốn giới hạn người xem cần đặt mật khẩu và kiểm tra từ phiên chưa đăng nhập |
 | Pooler 5432 là transaction/PgBouncer | Cần phân biệt direct/session/transaction. Shared pooler Supabase dùng Supavisor; session thường 5432, transaction 6543; lấy chuỗi từ Dashboard |
-| Có 12 bảng | Source hiện có 17 bảng nền + 11 bảng Drive lâu dài, thêm cache so sánh khởi tạo khi cần; không suy schema production từ source local |
+| Có 12 bảng | Source có 28 bảng lâu dài; hai cache tạm so sánh và thumbnail folder khởi tạo khi cần. Snapshot v2 vẫn gồm 28 bảng; không lấy số bảng cache làm số bảng backup |
 | Luôn tạo 3 rendition đồng thời | optimizePhoto hiện encode lần lượt. Vẫn có thể có nhiều HTTP upload đồng thời; chưa có giới hạn toàn cục cho toàn bộ upload |
 | Prepared .ccphoto tiết kiệm 100% CPU/RAM server | Chuyển phần encode về máy local, nhưng server vẫn nhận buffer, parse, kiểm hash/ảnh, ghi storage và DB. Có mẫu ảnh giả mà prepared lớn hơn JPEG nguồn |
 | ZIP stream thẳng từ cloud ra khách, không dùng RAM | Từng ảnh được đọc thành buffer rồi ghi file tạm; ZIP được tạo ra file tạm và stream ra response. Browser vẫn gom chunks thành Blob |
@@ -83,8 +88,8 @@ Nguồn của các đính chính: [app.mjs](../../studio/server/app.mjs), [db.mj
 
 ## 4. Thứ tự ưu tiên thực tế
 
-1. **Quyền truy cập:** đối chiếu và thay các credential production từng xuất hiện trong hội thoại; cập nhật mọi consumer rồi xác nhận key cũ mất hiệu lực. Không suy ra đã bị khai thác chỉ từ việc xuất hiện trong log.
-2. **Khả năng phục hồi:** lấy một bộ backup nhất quán DB + media, kiểm hash, phục hồi vào nơi mới và thực hiện smoke nghiệp vụ. Giữ ảnh gốc/RAW riêng.
+1. **Pilot Drive:** source mới đã phát hành; hoàn tất import/no-op album draft, đối chiếu heartbeat/unlock/shared/browse và trạng thái cuối giữa các biên bản. Khóa thử cũ đã thu hồi, không yêu cầu làm lại việc này.
+2. **Khả năng phục hồi:** giữ baseline đã verify, có bản media ngoài VPS và diễn tập DB + media trên môi trường tương thích Supabase. Restore riêng public chưa đóng cổng DR toàn hệ thống. Giữ ảnh gốc/RAW riêng.
 3. **Độ tin cậy vận hành:** xác nhận commit/env live, schedule backup, tuổi bản backup tốt cuối và kênh cảnh báo. Phân biệt “job thất bại” với “job không chạy”.
 4. **Chất lượng kiểm thử:** chuẩn hóa môi trường Node 24, bổ sung browser/a11y vào quy trình release nếu muốn coi đó là cổng bắt buộc; không ghi đã có CI gate trước khi thực hiện.
 5. **Học và cải tiến:** làm các lab theo invariant, lưu report, phân tích bug rồi mới mở rộng công cụ. Thêm công cụ không tự tạo ra chất lượng.

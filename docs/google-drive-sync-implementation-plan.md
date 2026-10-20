@@ -2,7 +2,9 @@
 
 **Bổ sung đã chốt 20/10/2026:** cho phép dán bất kỳ link folder đã chia sẻ cho tài khoản dịch vụ, duyệt folder con và chọn nguồn album, giữ các bộ đã liên kết. Yêu cầu này thay giới hạn một root chung trong thiết kế ban đầu; kết nối cũ vẫn giữ root mode đến khi studio đổi chế độ. Xem [hợp đồng duyệt folder và kết quả triển khai](google-drive-folder-browser-2026-10-20.md). Phần cập nhật 19/10 dưới đây giữ mốc production trước thay đổi này.
 
-**Cập nhật 19/10/2026 · Code web/worker/backup đã lên VPS; nhập Drive production và lịch vẫn tắt. Worker đang kiểm kết nối; chưa enable khởi động cùng máy. Khóa mới đã cài, khóa cũ đã thu hồi và kiểm lại từ VPS; còn chốt root và nghiệm thu pilot.** Trạng thái hiện tại: [biên bản rollout production](google-drive-sync-production-release-2026-10-17.md). Các mục 17.1–17.5 giữ kết quả lịch sử theo thời điểm chạy. Hướng dẫn dùng thử và vận hành: [vận hành Drive Sync](google-drive-sync-operations.md). Các mục thiết kế dưới đây là hợp đồng nghiệm thu; trạng thái thực tế nằm ở mục 17.
+**Trạng thái production ngày 20/10/2026:** source `5a9e83c` đã phát hành lên VPS, nhập thủ công bật, kết nối `shared` và duyệt folder thật đã kiểm thành công; scheduler tắt. Pilot album nháp đang nhập, chưa nghiệm thu hoàn tất. Xem [biên bản phát hành hiện tại](google-drive-sync-production-release-2026-10-20.md) và mục 17.8.
+
+**Mốc lịch sử 19/10/2026:** code web/worker/backup đã lên VPS nhưng nhập Drive và lịch còn tắt; worker kiểm kết nối, chưa enable cùng máy. Khóa mới đã cài và khóa cũ đã thu hồi. Yêu cầu chốt root ở mốc đó đã được thay bằng quyết định `shared` ngày 20/10. [Biên bản rollout cũ](google-drive-sync-production-release-2026-10-17.md) cùng các mục 17.1–17.7 giữ kết quả theo thời điểm chạy. Hướng dẫn hiện tại: [vận hành Drive Sync](google-drive-sync-operations.md). Các mục thiết kế là hợp đồng nghiệm thu; trạng thái thực tế mới nhất nằm ở mục 17.8.
 
 ## 1. Các quyết định đã chốt
 
@@ -422,6 +424,8 @@ Không còn câu hỏi sản phẩm nào chặn triển khai. Người dùng đ�
 
 ## 17. Trạng thái triển khai và kiểm chứng
 
+**Hiện tại: xem mục 17.8 và [biên bản phát hành ngày 20/10](google-drive-sync-production-release-2026-10-20.md).** Danh sách bên dưới là tổng kết lịch sử ngày 16/10, trước các lượt triển khai tiếp theo; không dùng các trạng thái chưa push/deploy của mốc này để suy trạng thái hiện tại.
+
 - Đã đọc chat tham chiếu “Connect Google Drive - Sync Data” và đối chiếu yêu cầu hybrid với code.
 - Đã kiểm nguồn Google/Render chính thức cho scope, quyền folder, service account, changes token, webhook và cấu hình worker.
 - Đã ghi nhận câu trả lời người dùng vào mục 1, tách lựa chọn đã chốt khỏi đề xuất triển khai.
@@ -500,3 +504,13 @@ Tại mốc 17/10, P6 đã hoàn tất phần staging/kích hoạt source và ki
 ### 17.7. Tiếp tục ngày 19/10/2026
 
 Đã thu hồi khóa cũ theo xác nhận và kiểm lại khóa mới từ user worker trên VPS; đọc/list thành công root 346 file và folder mới 160 file. Website vẫn giữ 8 album/1.190 ảnh, nhập Drive và lịch production vẫn tắt. Bản local đã khởi động lại, giữ tài khoản và dữ liệu. Còn chốt folder cha chung và nghiệm thu pilot; các kết quả phục hồi baseline và hướng dẫn UI được ghi tại [biên bản ngày 19/10](google-drive-sync-followup-2026-10-19.md).
+
+### 17.8. Phát hành production ngày 20/10/2026
+
+Đã push nhánh `codex/google-drive-sync` và phát hành runtime commit `5a9e83c0efd2bce1e18789cf1d227a7ea3414e2d` lên VPS iNET, tiếp tục dùng PostgreSQL/media Supabase. Đối chiếu đúng 102 file runtime; chuyển dịch vụ mất 7 giây. Qua migration, 8 album/1.190 ảnh có sẵn và 1 admin được giữ nguyên. Backup baseline đã kiểm trước khi chuyển source; media đã mở khóa sau triển khai.
+
+Web bật `DRIVE_SYNC_ENABLED=true`, worker có heartbeat khỏe; `DRIVE_SYNC_SCHEDULER_ENABLED=false`. Kết nối production đã chuyển sang `folder_scope=shared` và kiểm thành công. Duyệt hai folder thật 33/346 ảnh, số lượng và 6 thumbnail mỗi folder đã đạt trên production mới.
+
+Pilot album nháp `3c9ab377835fabf363c1f6b93605885e` đang nhập 33 ảnh tại mốc ghi nhận này; chưa kết luận import/no-op đạt, chưa bật worker khởi động cùng máy. Kết quả pilot, trạng thái boot và kiểm tra cuối được cập nhật trong [biên bản phát hành production ngày 20/10](google-drive-sync-production-release-2026-10-20.md), không suy hoàn tất từ việc source đã chạy.
+
+Lượt tối ưu trước phát hành đạt **420/420 test** trên SQLite/PostgreSQL cách ly; không tuyên bố chạy lại toàn bộ hồi quy trong deploy. Workload 500/5.000 JPEG full-resolution thật, rehearsal kill/restart/restore cloud và lịch tự động vẫn là các cổng riêng; fixture 5.000 ảnh không thay cho nghiệm thu tải thực tế.
