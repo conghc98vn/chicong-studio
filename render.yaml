@@ -15,17 +15,19 @@ services:
         value: ./certs/supabase-root-2021.crt
       - key: SITE_URL
         value: https://chicongphoto.vn
-      # Keep Supabase for the compatible deployment. Switch only after the runbook gates.
+      # Production media moved to private R2 on 2026-10-21; database remains Supabase.
       - key: MEDIA_STORAGE_PROVIDER
-        value: supabase
+        value: r2
       - key: DATABASE_URL
         sync: false
-      - key: SUPABASE_URL
+      - key: R2_ENDPOINT
         sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      - key: R2_ACCESS_KEY_ID
         sync: false
-      - key: SUPABASE_BUCKET
-        value: chicong-private
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        value: chicong-production
       - key: CF_BEACON_TOKEN
         value: fd0f089e6f094baca1d372c934fa801d
       - key: SETUP_TOKEN

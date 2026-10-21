@@ -1,5 +1,7 @@
 # Đưa ChiCong Studio lên máy chủ và tên miền chicongphoto.vn
 
+> Cập nhật production 21/10/2026: website chạy trên VPS iNET, ảnh dùng R2 private `chicong-production`, database vẫn Supabase. Các hướng dẫn Supabase Storage/Render dưới đây là cấu hình lịch sử trước cutover; xem [biên bản hiện tại](docs/r2-production-cutover-2026-10-21.md).
+
 > **Cập nhật ngày 16/10/2026:** Sau sự cố hết 5 GB băng thông miễn phí trên Render, website chính thức `chicongphoto.vn` đã được **chuyển đổi thành công sang máy chủ ảo riêng (Cloud Server Linux 2) tại iNET (Việt Nam)**, thời hạn 3 năm (2026–2029). Xem chi tiết cấu hình, vận hành và nghiệm thu tại [báo cáo di dời Cloud Server iNET](docs/inet-vps-migration-2026-10-16.md).
 
 > **Cập nhật Drive ngày 17/10/2026:** Source web/worker/backup mới đã lên VPS; nhập Drive và scheduler vẫn tắt. Worker systemd riêng đang kiểm kết nối, chưa enable khởi động cùng máy. [Biên bản rollout](docs/google-drive-sync-production-release-2026-10-17.md) ghi các cổng còn lại, backup và rollback.
@@ -78,6 +80,6 @@ Biểu mẫu liên hệ trên website thật cũng đã gửi thành công yêu 
 
 Code hỗ trợ `MEDIA_STORAGE_PROVIDER=r2`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Giữ `DATABASE_URL`, TLS và các biến website hiện tại. R2 không yêu cầu `SUPABASE_URL`/service-role cho Storage. Runtime chỉ dùng S3 Object Read & Write cho bucket đã tạo; không tạo bucket hoặc xác minh control-plane public access thay chủ tài khoản. Không bật r2.dev, custom media domain hoặc browser upload trực tiếp.
 
-Trước deploy bản mới vào hệ thống hiện tại, thêm `MEDIA_STORAGE_PROVIDER=supabase`. Startup gắn danh tính kho với DB. Đổi provider/bucket/endpoint trái binding sẽ bị từ chối; xem quy trình `lock → drain → backup/delta/verify → switch → restart mọi instance → smoke → unlock` ở [kế hoạch, mục 16](docs/r2-implementation-plan.md#16-kết-quả-triển-khai-local-ngày-16102026). `render.yaml` đang cố ý chọn Supabase; lúc cutover phải cập nhật cả Blueprint để lần sync sau không đổi lại kho.
+Production đã chuyển sang `MEDIA_STORAGE_PROVIDER=r2`, bucket private `chicong-production` ngày 21/10/2026; xem [biên bản cutover](docs/r2-production-cutover-2026-10-21.md). Web và worker Drive phải cùng cấu hình R2. Startup gắn danh tính kho với DB. Đổi provider/bucket/endpoint trái binding sẽ bị từ chối; xem quy trình `lock → drain → backup/delta/verify → switch → restart mọi instance → smoke → unlock` ở [kế hoạch, mục 16](docs/r2-implementation-plan.md#16-kết-quả-triển-khai-local-ngày-16102026). `render.yaml` đã cập nhật provider R2; chỉ là cấu hình dự phòng nếu dùng lại Render, không tự deploy/sync Render.
 
 Không đưa OAuth Drive vào Render web service. Runner dùng secrets riêng, DB/schema/bucket thử tách biệt, không có biến Resend/SMTP/Google Calendar của production. Chưa kích hoạt billing, deploy hoặc schedule từ các thay đổi source này.
