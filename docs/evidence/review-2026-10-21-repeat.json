@@ -1,0 +1,744 @@
+{
+  "recorded_date": "2026-10-21",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "round": 2,
+  "scope": "isolated local repeat review; no production deployment or new cloud verification",
+  "base_commit": "b772c0045cb770c22b7f104f9a34d73bc63360d1",
+  "previous_evidence": {
+    "path": "docs/evidence/review-2026-10-21.json",
+    "sha256": "9c47ae5decf631c7f6aaff32c0066f83eb5a4238898a93a92041ac320206acac",
+    "note": "Unchanged historical snapshot of round one; its source hashes do not represent round two."
+  },
+  "runtime": {
+    "node": "24.19.0",
+    "postgres": "16 (disposable postgres:16-alpine container)",
+    "browser": "155.0.8059.85",
+    "playwright": "1.62.1"
+  },
+  "tests": {
+    "postgres": {
+      "total": 427,
+      "pass": 427,
+      "fail": 0,
+      "skip": 0,
+      "duration_ms": 73568.56325
+    },
+    "sqlite_without_postgres_url": {
+      "total": 420,
+      "pass": 376,
+      "fail": 0,
+      "skip": 44,
+      "duration_ms": 26566.222542
+    },
+    "browser": {
+      "suites": 13,
+      "pass": 13,
+      "fail": 0
+    },
+    "targeted": {
+      "database_recovery": {
+        "pass": 4,
+        "fail": 0
+      },
+      "environment_isolation": {
+        "pass": 3,
+        "fail": 0
+      },
+      "drive_styles": [
+        "public/login omit Drive assets",
+        "authenticated Drive form works with one stylesheet",
+        "aborted CSS does not block inquiries; navigation retries",
+        "stalled CSS does not block admin; deadline permits distinct-URL retry"
+      ]
+    },
+    "npm_audit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "syntax": {
+      "pass": true,
+      "scope": [
+        "studio/server",
+        "studio/web",
+        "studio/tools"
+      ]
+    },
+    "docs": {
+      "markdown_files": 61,
+      "local_file_links": 419,
+      "heading_links_checked": 23,
+      "missing_targets": 0,
+      "checkout_file_membership_failures": 0,
+      "external_urls_checked": false,
+      "heading_check": "one-off heuristic plus explicit HTML anchors; not part of CI checker"
+    },
+    "source_integrity": {
+      "current_hashes_verified": 17,
+      "previous_evidence_hash_verified": true
+    },
+    "whitespace_check": {
+      "pass": true
+    },
+    "launcher_bash_syntax": {
+      "pass": true
+    }
+  },
+  "findings_fixed": [
+    {
+      "severity": "High",
+      "issue": "PostgreSQL checked-out transaction client can emit unhandled error between queries",
+      "before": "Child process terminated with unhandled Client error 57P01, exit 1",
+      "after": "Transaction rejects safely, next query succeeds, exit 0; active-query disconnect and preservation of callback error on failed rollback also pass",
+      "automatic_write_retry": false
+    },
+    {
+      "severity": "High",
+      "issue": "Local database/app fixtures can inherit ambient DATABASE_URL and NODE_ENV despite explicitly supplied local configuration",
+      "before": "Three isolation tests fail, including TCP connection attempts to the loopback trap",
+      "after": "Three tests pass; zero connections to ambient URL; explicit production configuration still requires a persistent database",
+      "real_database_used_for_reproduction": false
+    },
+    {
+      "severity": "Medium",
+      "issue": "Awaited Drive CSS failure or stall blocks authenticated admin; retry can coalesce with the original stalled request",
+      "before": "Inquiries heading never appears when CSS is aborted; same-URL retry stalls in follow-up test",
+      "after": "Optional stylesheet is nonblocking; failed/deadline link can retry on navigation with a distinct URL; abort and stall browser tests pass"
+    }
+  ],
+  "source_sha256": {
+    "studio/server/db.mjs": "0f6759d20d3f1f2d54d5cb47a1cd155db45776201720a1b8d6b3d1e17358e690",
+    "studio/server/app.mjs": "c68e05dc6cad5d7030856c7e99b781407c682666da6dbef209e641abc304cf42",
+    "studio/server/reset-admin.mjs": "930bb8f8026a5d034512b8f0bb0a8022adb7aa16c92130ab254d2c11dd7634ef",
+    "studio/server/photo-upload.mjs": "7fee48a379991d14255f442fff025f381ee2822edfeea766d141e13b76b24f63",
+    "studio/web/admin-drive-loader.mjs": "451da1aba9d0f8af66ab290e4a8ecf11c17651bdd6a673d564fa2d4efab32f99",
+    "studio/web/main.js": "cc8674ab8e71ee81adec60aedf76f29253437ebe1cfc60f53c595e4de252383b",
+    "studio/web/index.html": "b5a7ed5cfbab9f44bf3295d7b1e3d5236a169b3be00412644cc776db49f7a31d",
+    "studio/tests/database-recovery.test.mjs": "8ca40b6a6ba0f1dbe68052c21e342fcfc59a76d5976ea14405da86b546b5f0f2",
+    "studio/tests/environment-isolation.test.mjs": "0b6018ead3bcbeadb00a4547dba253b26d3b09228b122a6089dbd8bc4d468962",
+    "studio/tests/admin-drive-loading.smoke.mjs": "3038c572a4681a6abd35d2e4b8e7906b6a1e943c15ade57fe9dd7b57b8ec89aa",
+    "studio/tests/run-browser-smoke.mjs": "cd9d0f2deb945ffc6a144fb80f581a26f890bbf657aa3a74b0f9724fba325c5c",
+    "studio/tests/gallery-scale-performance.smoke.mjs": "7f3a73f9861a910447d0d4c9472a0fa454b62f7b429026d13e593160c8b6402e",
+    "studio/tests/check-docs.mjs": "b9ac90c2fb49248de833d6e24b53850aa159751726d7cfb929e06b1be06239f5",
+    "package.json": "01c2b8cc1320f3469895b1b2da350394155b12fcaa59a9a3689a09d7caf91a56",
+    "package-lock.json": "105c58fb209680b823a7bcfc83c8773607f47f343bf61860d5c9718971ecbae8",
+    ".nvmrc": "68ca3fba3b7e864770cb61aeb306d4bd4354b68ab4dd38450860c5d823e42a53",
+    ".github/workflows/check.yml": "3f8f9102153826e28091a879529d683b558c14900247402e152155ae94768d5e"
+  },
+  "gallery_benchmark": {
+    "label": "audit-repeat",
+    "recorded_at": "2026-10-21T06:34:12.027Z",
+    "fixture": {
+      "sizes": [
+        500,
+        5000
+      ],
+      "note": "Synthetic local SQLite/media fixture. Browser tests use desktop local network and mobile simulated 1.6 Mbps, 100 ms RTT, 4x CPU slowdown. These are lab observations, not production or real-device measurements.",
+      "credentials": "Synthetic admin session only; no Google or production services.",
+      "renditions": {
+        "webp_bytes": 6900,
+        "thumbnail_bytes": 1060,
+        "note": "Flat synthetic images intentionally isolate catalog/DOM work; image byte timings underestimate photographic payloads."
+      }
+    },
+    "api": [
+      {
+        "photo_count": 500,
+        "route": "/api/gallery/:album",
+        "runs": [
+          {
+            "duration_ms": 25.4,
+            "json_bytes": 161868,
+            "gzip_estimate_bytes": 9980,
+            "content_encoding": "gzip",
+            "query_count": 5,
+            "query_ms": 3.6,
+            "photo_rows_read": 500
+          },
+          {
+            "duration_ms": 8.2,
+            "json_bytes": 161868,
+            "gzip_estimate_bytes": 9980,
+            "content_encoding": "gzip",
+            "query_count": 5,
+            "query_ms": 2.8,
+            "photo_rows_read": 500
+          },
+          {
+            "duration_ms": 7.4,
+            "json_bytes": 161868,
+            "gzip_estimate_bytes": 9980,
+            "content_encoding": "gzip",
+            "query_count": 5,
+            "query_ms": 2.5,
+            "photo_rows_read": 500
+          }
+        ]
+      },
+      {
+        "photo_count": 500,
+        "route": "/api/gallery/:album/selection",
+        "runs": [
+          {
+            "duration_ms": 4.8,
+            "json_bytes": 337,
+            "gzip_estimate_bytes": 230,
+            "content_encoding": null,
+            "query_count": 7,
+            "query_ms": 0.8,
+            "photo_rows_read": 500
+          },
+          {
+            "duration_ms": 1.9,
+            "json_bytes": 337,
+            "gzip_estimate_bytes": 230,
+            "content_encoding": null,
+            "query_count": 4,
+            "query_ms": 0.2,
+            "photo_rows_read": 0
+          },
+          {
+            "duration_ms": 2.2,
+            "json_bytes": 337,
+            "gzip_estimate_bytes": 230,
+            "content_encoding": null,
+            "query_count": 4,
+            "query_ms": 0.1,
+            "photo_rows_read": 0
+          }
+        ]
+      },
+      {
+        "photo_count": 500,
+        "route": "/api/admin/albums/:album",
+        "runs": [
+          {
+            "duration_ms": 9.1,
+            "json_bytes": 181000,
+            "gzip_estimate_bytes": 9806,
+            "content_encoding": "gzip",
+            "query_count": 6,
+            "query_ms": 3.3,
+            "photo_rows_read": 500
+          },
+          {
+            "duration_ms": 8.2,
+            "json_bytes": 181000,
+            "gzip_estimate_bytes": 9806,
+            "content_encoding": "gzip",
+            "query_count": 6,
+            "query_ms": 3.5,
+            "photo_rows_read": 500
+          },
+          {
+            "duration_ms": 8.7,
+            "json_bytes": 181000,
+            "gzip_estimate_bytes": 9806,
+            "content_encoding": "gzip",
+            "query_count": 6,
+            "query_ms": 3.8,
+            "photo_rows_read": 500
+          }
+        ]
+      },
+      {
+        "photo_count": 500,
+        "route": "/api/admin/albums/:album/selection",
+        "runs": [
+          {
+            "duration_ms": 4.2,
+            "json_bytes": 337,
+            "gzip_estimate_bytes": 230,
+            "content_encoding": null,
+            "query_count": 7,
+            "query_ms": 0.9,
+            "photo_rows_read": 500
+          },
+          {
+            "duration_ms": 3.7,
+            "json_bytes": 337,
+            "gzip_estimate_bytes": 230,
+            "content_encoding": null,
+            "query_count": 7,
+            "query_ms": 0.9,
+            "photo_rows_read": 500
+          },
+          {
+            "duration_ms": 2,
+            "json_bytes": 337,
+            "gzip_estimate_bytes": 230,
+            "content_encoding": null,
+            "query_count": 7,
+            "query_ms": 0.8,
+            "photo_rows_read": 500
+          }
+        ]
+      },
+      {
+        "photo_count": 500,
+        "route": "/api/admin/albums?view=summary",
+        "runs": [
+          {
+            "duration_ms": 2.7,
+            "json_bytes": 545,
+            "gzip_estimate_bytes": 317,
+            "content_encoding": null,
+            "query_count": 5,
+            "query_ms": 0.4,
+            "photo_rows_read": 2
+          },
+          {
+            "duration_ms": 2.1,
+            "json_bytes": 545,
+            "gzip_estimate_bytes": 317,
+            "content_encoding": null,
+            "query_count": 5,
+            "query_ms": 0.3,
+            "photo_rows_read": 2
+          },
+          {
+            "duration_ms": 0.8,
+            "json_bytes": 545,
+            "gzip_estimate_bytes": 317,
+            "content_encoding": null,
+            "query_count": 5,
+            "query_ms": 0.2,
+            "photo_rows_read": 2
+          }
+        ]
+      },
+      {
+        "photo_count": 5000,
+        "route": "/api/gallery/:album",
+        "runs": [
+          {
+            "duration_ms": 41.3,
+            "json_bytes": 1623371,
+            "gzip_estimate_bytes": 93830,
+            "content_encoding": "gzip",
+            "query_count": 5,
+            "query_ms": 23.3,
+            "photo_rows_read": 5000
+          },
+          {
+            "duration_ms": 40.5,
+            "json_bytes": 1623371,
+            "gzip_estimate_bytes": 93830,
+            "content_encoding": "gzip",
+            "query_count": 5,
+            "query_ms": 22.6,
+            "photo_rows_read": 5000
+          },
+          {
+            "duration_ms": 47.8,
+            "json_bytes": 1623371,
+            "gzip_estimate_bytes": 93830,
+            "content_encoding": "gzip",
+            "query_count": 5,
+            "query_ms": 22.1,
+            "photo_rows_read": 5000
+          }
+        ]
+      },
+      {
+        "photo_count": 5000,
+        "route": "/api/gallery/:album/selection",
+        "runs": [
+          {
+            "duration_ms": 17.4,
+            "json_bytes": 338,
+            "gzip_estimate_bytes": 234,
+            "content_encoding": null,
+            "query_count": 7,
+            "query_ms": 5.8,
+            "photo_rows_read": 5000
+          },
+          {
+            "duration_ms": 1.6,
+            "json_bytes": 338,
+            "gzip_estimate_bytes": 234,
+            "content_encoding": null,
+            "query_count": 4,
+            "query_ms": 0.1,
+            "photo_rows_read": 0
+          },
+          {
+            "duration_ms": 1.8,
+            "json_bytes": 338,
+            "gzip_estimate_bytes": 234,
+            "content_encoding": null,
+            "query_count": 4,
+            "query_ms": 0.1,
+            "photo_rows_read": 0
+          }
+        ]
+      },
+      {
+        "photo_count": 5000,
+        "route": "/api/admin/albums/:album",
+        "runs": [
+          {
+            "duration_ms": 44.4,
+            "json_bytes": 1813503,
+            "gzip_estimate_bytes": 90681,
+            "content_encoding": "gzip",
+            "query_count": 6,
+            "query_ms": 26.8,
+            "photo_rows_read": 5000
+          },
+          {
+            "duration_ms": 52.1,
+            "json_bytes": 1813503,
+            "gzip_estimate_bytes": 90681,
+            "content_encoding": "gzip",
+            "query_count": 6,
+            "query_ms": 26.7,
+            "photo_rows_read": 5000
+          },
+          {
+            "duration_ms": 42.3,
+            "json_bytes": 1813503,
+            "gzip_estimate_bytes": 90681,
+            "content_encoding": "gzip",
+            "query_count": 6,
+            "query_ms": 27.1,
+            "photo_rows_read": 5000
+          }
+        ]
+      },
+      {
+        "photo_count": 5000,
+        "route": "/api/admin/albums/:album/selection",
+        "runs": [
+          {
+            "duration_ms": 12.4,
+            "json_bytes": 338,
+            "gzip_estimate_bytes": 231,
+            "content_encoding": null,
+            "query_count": 7,
+            "query_ms": 5.8,
+            "photo_rows_read": 5000
+          },
+          {
+            "duration_ms": 12.6,
+            "json_bytes": 338,
+            "gzip_estimate_bytes": 231,
+            "content_encoding": null,
+            "query_count": 7,
+            "query_ms": 6.4,
+            "photo_rows_read": 5000
+          },
+          {
+            "duration_ms": 12.5,
+            "json_bytes": 338,
+            "gzip_estimate_bytes": 231,
+            "content_encoding": null,
+            "query_count": 7,
+            "query_ms": 6.1,
+            "photo_rows_read": 5000
+          }
+        ]
+      },
+      {
+        "photo_count": 5000,
+        "route": "/api/admin/albums?view=summary",
+        "runs": [
+          {
+            "duration_ms": 2.8,
+            "json_bytes": 1091,
+            "gzip_estimate_bytes": 351,
+            "content_encoding": "gzip",
+            "query_count": 5,
+            "query_ms": 1.1,
+            "photo_rows_read": 4
+          },
+          {
+            "duration_ms": 2.4,
+            "json_bytes": 1091,
+            "gzip_estimate_bytes": 351,
+            "content_encoding": "gzip",
+            "query_count": 5,
+            "query_ms": 0.9,
+            "photo_rows_read": 4
+          },
+          {
+            "duration_ms": 2.5,
+            "json_bytes": 1091,
+            "gzip_estimate_bytes": 351,
+            "content_encoding": "gzip",
+            "query_count": 5,
+            "query_ms": 0.9,
+            "photo_rows_read": 4
+          }
+        ]
+      }
+    ],
+    "browser": [
+      {
+        "photo_count": 500,
+        "page": "gallery",
+        "profile": "desktop-local",
+        "metadata_ready_ms": 113.9,
+        "first_image_ready_ms": 128.7,
+        "initial_media_requests": 24,
+        "initial": {
+          "dom_nodes": 733,
+          "photo_cards": 90,
+          "image_elements": 91,
+          "loaded_images": 24,
+          "horizontal_overflow": false,
+          "long_tasks_ms": [],
+          "cls": 0,
+          "resources": [
+            {
+              "path": "/api/site",
+              "bytes": 934,
+              "transfer_bytes": 1234,
+              "duration_ms": 1.5
+            },
+            {
+              "path": "/api/gallery/aaaaaaaaaaaaaaaaaaaaaaaaaaaaa500",
+              "bytes": 161868,
+              "transfer_bytes": 10280,
+              "duration_ms": 6.2
+            }
+          ]
+        },
+        "cross_page_lightbox": {
+          "before": "90 / 500",
+          "after": "91 / 500",
+          "navigation_ms": 5.7,
+          "returned_to_opening_photo": true
+        },
+        "page_change_ms": 36.6
+      },
+      {
+        "photo_count": 500,
+        "page": "gallery",
+        "profile": "mobile-simulated-slow",
+        "metadata_ready_ms": 3121.7,
+        "first_image_ready_ms": 3149.8,
+        "initial_media_requests": 30,
+        "initial": {
+          "dom_nodes": 733,
+          "photo_cards": 90,
+          "image_elements": 91,
+          "loaded_images": 30,
+          "horizontal_overflow": false,
+          "long_tasks_ms": [],
+          "cls": 0,
+          "resources": [
+            {
+              "path": "/api/site",
+              "bytes": 934,
+              "transfer_bytes": 1234,
+              "duration_ms": 124.2
+            },
+            {
+              "path": "/api/gallery/aaaaaaaaaaaaaaaaaaaaaaaaaaaaa500",
+              "bytes": 161868,
+              "transfer_bytes": 10280,
+              "duration_ms": 176.7
+            }
+          ]
+        }
+      },
+      {
+        "photo_count": 500,
+        "page": "admin",
+        "profile": "desktop-local",
+        "metadata_ready_ms": 133.8,
+        "first_image_ready_ms": 146.5,
+        "initial_media_requests": 24,
+        "initial": {
+          "dom_nodes": 3099,
+          "photo_cards": 120,
+          "image_elements": 121,
+          "loaded_images": 24,
+          "horizontal_overflow": false,
+          "long_tasks_ms": [],
+          "cls": 0,
+          "resources": [
+            {
+              "path": "/api/site",
+              "bytes": 934,
+              "transfer_bytes": 1234,
+              "duration_ms": 1.3
+            },
+            {
+              "path": "/api/admin/session",
+              "bytes": 41,
+              "transfer_bytes": 341,
+              "duration_ms": 1.5
+            },
+            {
+              "path": "/api/admin/albums/aaaaaaaaaaaaaaaaaaaaaaaaaaaaa500",
+              "bytes": 181000,
+              "transfer_bytes": 10106,
+              "duration_ms": 7.1
+            }
+          ]
+        },
+        "quiet_poll_requests": [
+          {
+            "path": "/api/admin/albums/aaaaaaaaaaaaaaaaaaaaaaaaaaaaa500/selection",
+            "type": "fetch"
+          }
+        ],
+        "quiet_poll_query_count": 7,
+        "quiet_poll_photo_rows_read": 500,
+        "search_last_photo_ms": 15.2,
+        "quiet_poll_full_catalog_reload": false
+      },
+      {
+        "photo_count": 5000,
+        "page": "gallery",
+        "profile": "desktop-local",
+        "metadata_ready_ms": 166.2,
+        "first_image_ready_ms": 178.4,
+        "initial_media_requests": 24,
+        "initial": {
+          "dom_nodes": 733,
+          "photo_cards": 90,
+          "image_elements": 91,
+          "loaded_images": 24,
+          "horizontal_overflow": false,
+          "long_tasks_ms": [],
+          "cls": 0,
+          "resources": [
+            {
+              "path": "/api/site",
+              "bytes": 934,
+              "transfer_bytes": 1234,
+              "duration_ms": 1.4
+            },
+            {
+              "path": "/api/gallery/aaaaaaaaaaaaaaaaaaaaaaaaaaaa5000",
+              "bytes": 1623371,
+              "transfer_bytes": 94130,
+              "duration_ms": 37.6
+            }
+          ]
+        },
+        "cross_page_lightbox": {
+          "before": "90 / 5000",
+          "after": "91 / 5000",
+          "navigation_ms": 6.3,
+          "returned_to_opening_photo": true
+        },
+        "page_change_ms": 37
+      },
+      {
+        "photo_count": 5000,
+        "page": "gallery",
+        "profile": "mobile-simulated-slow",
+        "metadata_ready_ms": 3638.8,
+        "first_image_ready_ms": 3663.1,
+        "initial_media_requests": 30,
+        "initial": {
+          "dom_nodes": 733,
+          "photo_cards": 90,
+          "image_elements": 91,
+          "loaded_images": 30,
+          "horizontal_overflow": false,
+          "long_tasks_ms": [],
+          "cls": 0,
+          "resources": [
+            {
+              "path": "/api/site",
+              "bytes": 934,
+              "transfer_bytes": 1234,
+              "duration_ms": 123.7
+            },
+            {
+              "path": "/api/gallery/aaaaaaaaaaaaaaaaaaaaaaaaaaaa5000",
+              "bytes": 1623371,
+              "transfer_bytes": 94130,
+              "duration_ms": 596.4
+            }
+          ]
+        }
+      },
+      {
+        "photo_count": 5000,
+        "page": "admin",
+        "profile": "desktop-local",
+        "metadata_ready_ms": 190.7,
+        "first_image_ready_ms": 200.9,
+        "initial_media_requests": 24,
+        "initial": {
+          "dom_nodes": 3099,
+          "photo_cards": 120,
+          "image_elements": 121,
+          "loaded_images": 24,
+          "horizontal_overflow": false,
+          "long_tasks_ms": [],
+          "cls": 0.0002725941975911459,
+          "resources": [
+            {
+              "path": "/api/site",
+              "bytes": 934,
+              "transfer_bytes": 1234,
+              "duration_ms": 1.5
+            },
+            {
+              "path": "/api/admin/session",
+              "bytes": 41,
+              "transfer_bytes": 341,
+              "duration_ms": 1.1
+            },
+            {
+              "path": "/api/admin/albums/aaaaaaaaaaaaaaaaaaaaaaaaaaaa5000",
+              "bytes": 1813503,
+              "transfer_bytes": 90981,
+              "duration_ms": 47
+            }
+          ]
+        },
+        "quiet_poll_requests": [
+          {
+            "path": "/api/admin/albums/aaaaaaaaaaaaaaaaaaaaaaaaaaaa5000/selection",
+            "type": "fetch"
+          }
+        ],
+        "quiet_poll_query_count": 7,
+        "quiet_poll_photo_rows_read": 5000,
+        "search_last_photo_ms": 44.6,
+        "quiet_poll_full_catalog_reload": false
+      }
+    ],
+    "findings": [],
+    "errors": [],
+    "passed": true
+  },
+  "asset_bytes": {
+    "public_eager_removed": 61975,
+    "current_loader": 1345,
+    "description": "Uncompressed source bytes; no production latency improvement claim"
+  },
+  "local_logs_sha256": {
+    "browser-final.log": "2e29df251242ed15dda9d9cd8cd0938e6afb6b1c2ad5b433ab7a41d35fa42a5a",
+    "browser.log": "3e73278c12f0d9e8da512f182515d98c0ec7dc999f3a84e313acd882e8de7600",
+    "database-recovery.log": "84fd8bd7102a6f3d8f48ced56049d34524ff2863c7fd8cc0774098473dc43032",
+    "drive-styles-after.log": "6652c3a7849b400be4bb756c6cdb0cbb982f30c681a7fb4ccf2900673ac7c1c9",
+    "drive-styles-before.log": "32fb843cfa60bb4e6d98f8b9736ef129474c3122e582ff093010a8717df43c9d",
+    "environment-after.log": "da36b07b883bfbf2998c0252692d40c3302a1cb07005469a8647566840be9958",
+    "environment-before.log": "7354011115112346b6ffff33b9898397bcfdb556427c91703a3496f1044aa944",
+    "gallery-scale.log": "2faa11faece0982e050b8874b85e7b2ab9fe223a138a43d100ea380815b1ebf3",
+    "postgres.log": "9b261d8847b14d9ca8c9e05613a54827ecd4025e59ae20ff900160a528b58194",
+    "sqlite.log": "dff1452acc44687fd53d97a760c16f9377d32e6a9c2c59c43e0a2f68aa57735c",
+    "transaction-after.log": "5ae9053c166240e80267e5dc801c93cb5561a50a247ac2662d8c0da31223a1cf",
+    "transaction-before.log": "38922c4952fe7948be4cea67f9b3bfd5104b37a7a9e0a45a3511ee3d504178e7"
+  },
+  "limitations": [
+    "No production deployment or live cloud verification.",
+    "One browser sample per case per run, synthetic small images and simulated mobile profile; no statistical LCP/p95 improvement claim.",
+    "Gallery/admin metadata still includes the complete album; admin revision polling reads all photo rows.",
+    "PostgreSQL tests operate only on a disposable local database; no actual production disconnect or admin reset performed.",
+    "Browser and axe are not CI gates; axe and other browser engines not run.",
+    "Full suite executed on Node 24 only."
+  ]
+}

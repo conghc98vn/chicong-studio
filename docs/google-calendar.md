@@ -1,11 +1,23 @@
 # Google Calendar → Studio
 
-Set `GOOGLE_CALENDAR_ICS_URL` to the account's secret iCal address in the server environment. The local `.env` is configured and ignored by Git. Restart the Node server after changing this setting. For hosting, set the same variable in the hosting secret environment and redeploy; never put it in frontend code, an iframe, Git, or shared documentation.
+Cập nhật 21/10/2026. Đồng bộ một chiều từ **private iCal feed** của Google Calendar, không dùng Gmail và không tự ghi booking từ Studio về Google.
 
-The admin Cài đặt page shows connection status, last successful refresh and imported busy dates. The server reads Google on demand and caches results for five minutes. Public visitors receive busy dates only. Titles, descriptions and the secret address are never returned. Import covers today through the next 730 days in Asia/Ho_Chi_Minh; any busy event blocks the whole Studio day. Cancelled events are excluded. Free events are excluded by default; set `GOOGLE_CALENDAR_INCLUDE_FREE=true` to count them too. This option is enabled locally because the owner stores all-day photo bookings as Free in Google. Admin settings show which rule is active. Recurrences, exceptions and exclusive end dates are supported.
+## Cấu hình
 
-A failed refresh retains previously known busy dates but marks availability unavailable. New dated requests and new confirmations/reschedules are rejected until Google can be checked; undated consultation requests remain available. Dates beyond the import window cannot be confirmed while the integration is enabled. Changes to Google events are reflected after cache expiry on the next request.
+Đặt `GOOGLE_CALENDAR_ICS_URL` trong cấu hình bí mật của server rồi restart. URL phải là HTTPS `calendar.google.com/calendar/ical/...`; không đặt trong frontend, iframe, Git hoặc report chia sẻ. Không cần công khai lịch Google.
 
-This is read-only calendar integration, not Gmail inbox access. Studio bookings are not automatically written to Google. Two-way sync requires a separate Google OAuth connection with Calendar write permission. No Google privacy settings need to be changed to public.
+Mặc định bỏ sự kiện được đánh dấu **Free/Transparent**. Nếu studio dùng sự kiện cả ngày ở trạng thái Free để lưu lịch chụp, đặt `GOOGLE_CALENDAR_INCLUDE_FREE=true`. Đây là lựa chọn nghiệp vụ theo env, không phải mặc định cho mọi môi trường.
 
-Validation: unit tests cover timezones, all-day events, recurrences, overrides, caching, errors and secret redaction; route tests cover public availability and booking conflicts. A live read of the configured feed succeeded on 2026-10-09 and returned zero upcoming busy days under the original Busy-only rule. Investigation found that the expected October bookings are marked TRANSPARENT in Google; enabling inclusion of Free events imports those bookings. Production deployment has not been performed.
+## Hoạt động
+
+Trang Cài đặt hiển thị trạng thái, lần đồng bộ thành công và các ngày bận. Server đọc khi có yêu cầu, cache năm phút, timeout fetch mười giây và giới hạn feed 5 MB. Trình duyệt khách chỉ nhận ngày bận; không nhận tiêu đề/mô tả sự kiện hoặc URL bí mật.
+
+Phạm vi từ hôm nay đến hết ngày cách 730 ngày theo Asia/Ho_Chi_Minh. Một sự kiện bận chặn cả ngày studio. Có xử lý recurrence, ngoại lệ, đổi ngày, sự kiện hủy và ngày kết thúc độc quyền của sự kiện cả ngày.
+
+Khi refresh lỗi, giữ dữ liệu cũ nhưng đánh dấu chưa xác minh được lịch. Yêu cầu có ngày, xác nhận mới hoặc đổi lịch phải đợi kiểm tra thành công; khách vẫn có thể gửi tư vấn không chọn ngày. Ngày ngoài phạm vi cũng bị từ chối khi tích hợp bật. Bỏ biến URL làm tích hợp tùy chọn này tắt, không làm mất lịch studio trong DB.
+
+## Kiểm tra
+
+`studio/tests/google-calendar.test.mjs` kiểm timezone, recurrence, cache, lỗi/giấu secret và API xung đột ngày. Test API dùng ngày tương đối để không tự hỏng khi thời gian thực trôi qua. Chạy `node --test studio/tests/google-calendar.test.mjs` với Node 24, không cần feed thật.
+
+Ghi nhận 09/10 trước đây: lịch thử ban đầu không có ngày Busy; bật include-free đưa các lịch chụp Transparent vào danh sách. Đây là lịch sử, không xác nhận env hoặc lịch live hôm nay. [Trạng thái triển khai và bằng chứng](handbook/README.md).

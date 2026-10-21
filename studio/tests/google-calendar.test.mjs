@@ -31,15 +31,18 @@ test('Routes merge Google dates, enforce booking conflicts and protect sync deta
  const {createApp}=await import('../server/app.mjs');
  const {mkdtemp,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const {join}=await import('node:path');
  const dir=await mkdtemp(join(tmpdir(),'google-calendar-'));
- const googleCalendar=createGoogleCalendar({GOOGLE_CALENDAR_ICS_URL:'https://calendar.google.com/calendar/ical/test/private-secret/basic.ics'},async()=>new Response(feed('DTSTART;VALUE=DATE:20261020')),()=>now);
+ const routeNow=new Date();
+ const busyDate=new Date(+routeNow+7*86400000).toISOString().slice(0,10);
+ const studioDate=new Date(+routeNow+8*86400000).toISOString().slice(0,10);
+ const googleCalendar=createGoogleCalendar({GOOGLE_CALENDAR_ICS_URL:'https://calendar.google.com/calendar/ical/test/private-secret/basic.ics'},async()=>new Response(feed('DTSTART;VALUE=DATE:'+busyDate.replaceAll('-',''))),()=>routeNow);
  const {app,db}=await createApp({dataDir:dir,env:{},googleCalendar,seed:false,origin:'http://localhost'});
  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
  const base='http://127.0.0.1:'+server.address().port;
  try{
-  await db.run('INSERT INTO blocked_dates(date,note) VALUES(?,?)',['2026-10-21','Private studio note']);
-  const state=await (await fetch(base+'/api/availability')).json();assert.deepEqual(state.blocked.sort(),['2026-10-20','2026-10-21']);assert.doesNotMatch(JSON.stringify(state),/private|secret/i);
+  await db.run('INSERT INTO blocked_dates(date,note) VALUES(?,?)',[studioDate,'Private studio note']);
+  const state=await (await fetch(base+'/api/availability')).json();assert.deepEqual(state.blocked.sort(),[busyDate,studioDate]);assert.doesNotMatch(JSON.stringify(state),/private|secret/i);
   assert.equal((await fetch(base+'/api/admin/google-calendar')).status,401);
-  const response=await fetch(base+'/api/inquiries',{method:'POST',headers:{Origin:'http://localhost','Content-Type':'application/json'},body:JSON.stringify({name:'Calendar test',email:'test@example.com',service:'Ngày cưới',date:'2026-10-20',message:'Checking calendar conflict'})});assert.equal(response.status,409);
+  const response=await fetch(base+'/api/inquiries',{method:'POST',headers:{Origin:'http://localhost','Content-Type':'application/json'},body:JSON.stringify({name:'Calendar test',email:'test@example.com',service:'Ngày cưới',date:busyDate,message:'Checking calendar conflict'})});assert.equal(response.status,409);
   assert.ok((await response.json()).fields.date);
   assert.equal((await db.all('SELECT * FROM inquiries')).length,0);
  }finally{await new Promise(r=>server.close(r));await db.close();await rm(dir,{recursive:true,force:true});}

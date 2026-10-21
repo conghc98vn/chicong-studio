@@ -8,7 +8,7 @@ Công cụ xử lý cả thư mục ảnh đã xuất Lightroom. Ảnh gốc đ�
 2. Đợi công cụ báo hoàn tất. Đường dẫn thư mục kết quả được in cuối màn hình. Mỗi ảnh có một tệp, ví dụ `CC - 0546.jpg.ccphoto`; cấu trúc các section được giữ nguyên.
 3. Mở bộ ảnh trong admin website, chọn đúng **Tải ảnh vào phần**, rồi chọn các tệp `.ccphoto` trong thư mục tương ứng và bấm **Tải ảnh lên**. Lặp lại cho các phần khác. Công cụ không tự tạo hoặc gán section theo tên thư mục.
 
-Cần deploy phiên bản website hỗ trợ `.ccphoto` trước khi dùng cách upload này trên production. Trong thời gian chờ deploy, vẫn chuẩn bị ảnh trên Mac được; cách chọn JPEG/PNG/WebP cũ tiếp tục hoạt động.
+Source hiện tại hỗ trợ `.ccphoto`; kiểm deployment đang chạy cùng phiên bản hỗ trợ trước khi dùng trên host mới. JPEG/PNG/WebP vẫn là lựa chọn upload trực tiếp.
 
 Tệp `.ccphoto` là gói dành cho website, không phải tệp gửi khách hoặc đăng Facebook. Khách tiếp tục dùng chức năng **tải ảnh đã chọn** để nhận JPG.
 
@@ -31,11 +31,11 @@ Máy chủ kiểm tra gói và lưu nguyên byte của ba bản, không nén l�
 - Có thể chạy lại cùng nguồn và thư mục kết quả: ảnh không đổi được bỏ qua sau khi kiểm tra; ảnh nguồn thay đổi được chuẩn bị lại nếu đầu ra là gói hợp lệ của chính ảnh đó. Tệp đầu ra lạ/hỏng không bị ghi đè âm thầm.
 - Ảnh lỗi được ghi rõ tên và lý do, các ảnh còn lại tiếp tục xử lý. Xem báo cáo cuối lượt và thư mục `_reports` trong kết quả. Sửa ảnh lỗi rồi chạy lại.
 - Nếu cần dừng, nhấn Ctrl+C; những gói đã hoàn tất được giữ để chạy tiếp lần sau. Không upload tệp tạm hoặc báo cáo.
-- Việc chạy lại công cụ không đăng ảnh lên web. Nếu chọn lại ảnh thành một lượt upload mới sau khi reload trang, website có thể tạo ảnh trùng; trong một lượt lỗi mạng, giữ nguyên trang và dùng **Tải lại các ảnh còn lại**.
+- Việc chạy lại công cụ không đăng ảnh lên web. Khi upload, mặc định **Bỏ qua ảnh trùng** theo tên trong album; **Ghi đè ảnh trùng** thay nội dung ảnh upload tay và giữ lựa chọn của khách. Trong một lượt lỗi mạng, giữ nguyên trang và dùng **Tải lại các ảnh còn lại** để tái dùng mã retry.
 
 ## Dùng bằng lệnh
 
-Cần Node.js từ 22.13 và thư viện của project đã cài bằng `npm ci`. Launcher báo rõ khi thiếu, không tự cài phần mềm.
+Cần Node.js 24 (khuyến nghị theo `.nvmrc`) hoặc Node 22 từ 22.16 và thư viện của project đã cài bằng `npm ci`. Launcher báo rõ khi thiếu, không tự cài phần mềm.
 
 ```sh
 npm run photos:prepare -- "/đường/dẫn/01_Phan_Loai_Timeline"
@@ -52,6 +52,8 @@ Có thể đưa một tệp ảnh thay cho thư mục. Tham khảo `npm run phot
 
 ## Kết quả kiểm tra ngày 14/10/2026
 
+Biên bản lịch sử của công cụ; số test và trạng thái triển khai dưới đây chỉ thuộc ngày 14/10. Kết quả hiện hành nằm ở [review 21/10](review-2026-10-21.md).
+
 - Toàn project: **181/181 test pass**, có PostgreSQL 16, không bỏ qua test. Kiểm tra cú pháp JavaScript và Bash đều đạt.
 - Upload mới trên Chrome và WebKit: ảnh nguồn/gói chuẩn bị dùng chung một lượt, đúng section và tên ảnh, mất phản hồi rồi thử lại không nhân đôi, gói hỏng báo riêng, JPG khách tải đúng từng byte. Kiểm tra responsive 320/390/768/1440 px và axe không có vi phạm. Đã chạy thêm bằng hai ảnh Lightroom thực tế.
 - Regression upload nguồn và ảnh chân dung trên WebKit: ảnh trên 10 MiB, phản hồi chậm, lỗi mạng, thử lại, giới hạn dung lượng, lightbox và số liệu sau reload đều đạt.
@@ -59,4 +61,4 @@ Có thể đưa một tệp ảnh thay cho thư mục. Tham khảo `npm run phot
 - Nhóm 66 ảnh thực tế: **432.246.011 → 93.939.266 byte**, giảm khoảng **78,3%** dữ liệu cần tải (gồm cả ba bản), xử lý khoảng 126 giây trên Mac. Chạy lại bỏ qua 66 ảnh không đổi, 0 lỗi.
 - Gói tạo trên Mac được đọc thành công trên Linux arm64, Node 24, Sharp 0.35.5; profile sRGB tương thích. Mô phỏng Docker giới hạn 0,15 CPU/512 MiB: kiểm tra gói mất 1,6–2,5 giây/ảnh; lần đo nén ảnh nguồn trước đó mất 19,8–31,3 giây. Đây là số đo local, không gồm mạng/storage và không khẳng định lỗi timeout production đã hết.
 
-Bản này chỉ cập nhật code và công cụ local. Production cần deploy thủ công rồi thử một gói trước khi tải cả section.
+Lượt ngày 14/10 chỉ cập nhật code và công cụ local. Khi triển khai trên host mới, thử một gói trước khi tải cả section; đối chiếu [handbook](handbook/README.md) cho trạng thái production được báo cáo gần nhất.

@@ -1,6 +1,6 @@
 # 01 — Kiến trúc và công nghệ ChiCong Studio
 
-**Đối chiếu source và biên bản đến 20/10/2026.** Đọc [phạm vi bằng chứng](README.md) và [trạng thái từng môi trường](05-cap-nhat-du-an-2026-10-20.md) trước khi dùng các thông tin này để ra quyết định production.
+**Đối chiếu source và biên bản đến 21/10/2026.** Đọc [phạm vi bằng chứng](README.md) và [trạng thái từng môi trường](README.md#3-trạng-thái-production-theo-report-gần-nhất) trước khi dùng các thông tin này để ra quyết định production.
 
 ## 1. Mô hình hệ thống
 
@@ -12,21 +12,21 @@ flowchart LR
   C -->|HTTPS| X[VPS iNET: Caddy]
   X -->|HTTP loopback| R[PM2: Node và Express]
   R -->|SQL qua TLS| D[(PostgreSQL trên Supabase)]
-  R -->|Production theo biên bản iNET| S[Supabase private Storage]
-  RS[Render staging lịch sử] -->|S3 API, đã diễn tập| O[R2 private: S3 API]
+  R -->|S3 API; production từ 21/10| O[R2 private: chicong-production]
+  S[Supabase Storage cũ: giữ để đối chiếu và rollback]
+  RS[Render staging lịch sử] -.->|Đã diễn tập với bucket riêng| ST[R2 staging]
   R -->|HTTPS, gửi email| E[Resend]
   R -.->|Provider thay thế theo cấu hình| M[SMTP]
   R -->|Đọc HTTPS ICS| G[Google Calendar]
   U -->|Beacon trong browser| A[Cloudflare Web Analytics]
   B[Runner backup riêng] --> D
-  B --> S
-  B -.-> O
-  B -->|OAuth và HTTPS| V[Google Drive: bộ backup]
-  V --> L[Bộ offline: manifest và blobs]
+  B --> O
+  B -.->|OAuth; đã diễn tập, chưa có lịch| V[Google Drive: bộ backup]
+  B -->|Bản sao đã verify trên Mac| L[Bộ offline: manifest và blobs]
   R -.->|Queue Drive; nhập thủ công bật theo REPORT 20/10| W[Worker Drive systemd]
   GDS[Drive nguồn ảnh] -->|Service account chỉ đọc| W
   W --> D
-  W -.->|Rendition khi import được bật| S
+  W -->|Rendition; cùng binding với web| O
 ~~~
 
 **Ranh giới tin cậy:** browser gửi yêu cầu nhưng không được cầm database password, service-role key, R2 secret hoặc OAuth refresh token. Express xác thực phiên và quyền truy cập rồi mới lấy ảnh/ghi dữ liệu. Runner backup có quyền khác với web runtime. Cloudflare proxy không thay thế kiểm tra quyền ở ứng dụng.
@@ -42,13 +42,13 @@ Database lưu bản ghi: album, tên object, lựa chọn, yêu cầu tư vấn.
 | Cloudflare DNS/proxy | Nhận HTTPS cho chicongphoto.vn, proxy đến origin | DNS record, custom domain, TLS mode | REPORT kiểm live 16/10 thấy header Cloudflare; chưa kiểm dashboard DNS/TLS |
 | Cloudflare Web Analytics | Browser tải beacon và gửi telemetry | CF_BEACON_TOKEN, ANALYTICS_ENABLED | CODE + REPORT kiểm live 16/10 có beacon; token là mã nhận diện công khai, không phải quyền quản trị |
 | Supabase PostgreSQL | Backend dùng pg.Pool qua SQL/TLS | DATABASE_URL và CA | CODE; health live truy vấn DB, không công bố version/project từ endpoint |
-| Supabase Storage | REST /storage/v1, bucket private; backend proxy ảnh | SUPABASE_URL, SUPABASE_BUCKET, SUPABASE_SERVICE_ROLE_KEY | CONFIG baseline; không dùng Supabase SDK cho adapter này |
-| Cloudflare R2 | Adapter object storage tương thích S3, region auto | R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY | CODE + REPORT: bucket staging private và Render staging đã diễn tập; production chưa cutover |
+| Supabase Storage | REST /storage/v1, bucket private; backend proxy ảnh | SUPABASE_URL, SUPABASE_BUCKET, SUPABASE_SERVICE_ROLE_KEY | REPORT: kho trước cutover còn giữ; không dùng cho ghi media hiện tại. Adapter REST không dùng Supabase SDK |
+| Cloudflare R2 | Adapter object storage tương thích S3, region auto | R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY | CODE + REPORT 21/10: production private `chicong-production`, token giới hạn bucket; DB vẫn Supabase |
 | Resend | Backend POST HTTPS tới api.resend.com/emails | RESEND_API_KEY, EMAIL_FROM, NOTIFICATION_EMAIL | CODE + CONFIG; chưa thử deliverability lần này |
 | SMTP | Provider email thay thế theo cấu hình | SMTP_HOST/PORT/USER/PASS/SECURE | CODE; không phải failover tự động từ Resend |
 | Google Calendar | Backend đọc private ICS qua HTTPS, một chiều | GOOGLE_CALENDAR_ICS_URL, GOOGLE_CALENDAR_INCLUDE_FREE | CODE; không phải OAuth Calendar, không ghi event ngược về Google |
 | Google Cloud OAuth + Drive API | Runner đổi refresh token lấy access token, đọc/ghi backup | BACKUP_DRIVE_* | CODE + REPORT với dữ liệu giả; không đưa credential runner vào web |
-| Google Drive Sync + service account | Worker riêng đọc folder ảnh bằng drive.readonly, tạo rendition vào kho website | DRIVE_SYNC_*, file key ngoài DB; khác identity OAuth backup | REPORT 20/10: source có folder browser/shared scope đã lên VPS, nhập thủ công bật, scheduler tắt; còn nghiệm thu pilot/trạng thái cuối |
+| Google Drive Sync + service account | Worker riêng đọc folder ảnh bằng drive.readonly, tạo rendition vào kho website | DRIVE_SYNC_*, file key ngoài DB; khác identity OAuth backup | REPORT 20/10: pilot/no-op đạt, worker enabled/restart idle đạt; REPORT 21/10: web/worker dùng R2, scheduler tắt |
 | GitHub | Source, pull request và CI qua GitHub Actions | Quyền repository; environment secrets nếu dùng workflow backup | CODE workflow; chưa kiểm quyền/settings repository |
 | npm registry | Tải dependency khi cài/build | package-lock.json và quyền registry nếu có | CODE; không phải mỗi lượt xem web đều gọi npm |
 | Máy Mac, Lightroom/ảnh xuất | Chuẩn bị nội dung và chạy công cụ .ccphoto | File nguồn, quyền ổ đĩa | Công cụ chuẩn bị ảnh có trong repo; Lightroom nằm ngoài runtime website |
@@ -72,8 +72,9 @@ Chín dependency trực tiếp dưới đây lấy từ [package.json](../../pac
 | @aws-sdk/client-s3 | 3.1152.0 | Adapter R2 qua S3 API |
 | google-auth-library | 11.3.1 | Xác thực service account cho Drive Sync chỉ đọc |
 
-- Node yêu cầu >=22.13.0; Blueprint/CI chọn 24. Native ES modules và các module crypto, fs, path, stream, sqlite, test, assert được sử dụng trực tiếp.
-- Local dùng node:sqlite DatabaseSync với WAL và foreign_keys=ON; source bọc hàng đợi để tránh request khác chen vào transaction trên cùng connection. PostgreSQL dùng pool tối đa 3 connection **mỗi pool/process**, timeout kết nối 15 giây.
+- Node hỗ trợ `^22.16.0 || >=24.0.0`; dùng Node 24 theo `.nvmrc`/CI, đã kiểm trên Node 24.19.0. Công cụ preview cần `node:sqlite.backup` (không có ở Node 22.13 hoặc 23.6). Native ES modules và các module crypto, fs, path, stream, sqlite, test, assert được sử dụng trực tiếp.
+- Local dùng node:sqlite DatabaseSync với WAL và foreign_keys=ON; source bọc hàng đợi để tránh request khác chen vào transaction trên cùng connection. `openDatabase(directory)` mặc định SQLite; PostgreSQL phải có `{url}` từ caller. `createApp` lấy mọi cấu hình từ `options.env` nếu được truyền, kể cả `NODE_ENV`; bỏ `options.env` mới dùng môi trường process.
+- PostgreSQL dùng pool tối đa 3 connection **mỗi pool/process**, timeout kết nối 15 giây. Pool xử lý lỗi kết nối rảnh và ghi mã lỗi đã lọc. Transaction có listener riêng trong thời gian giữ client, vì pool bỏ idle listener khi cho mượn kết nối. Mất kết nối làm transaction reject, client hỏng bị loại; rollback lỗi không che lỗi ban đầu. Không tự retry transaction ghi chưa rõ đã commit hay chưa.
 - Không có ORM hoặc framework frontend trong dependency trực tiếp. HTML/CSS/JavaScript được phục vụ trực tiếp, không có pipeline Vite/Webpack trong scripts hiện tại.
 - Playwright và axe có trong mã kiểm thử nhưng không được khai báo dependency/devDependency hiện tại. Chúng được cung cấp qua module ngoài; cài npm ci một mình không làm browser suite sẵn sàng.
 - Docker postgres:16-alpine trong CI cung cấp DB dùng một lần. Không suy ra app production chạy Docker hoặc DB production là PostgreSQL 16.
@@ -82,7 +83,7 @@ Chín dependency trực tiếp dưới đây lấy từ [package.json](../../pac
 
 | Nhóm | Cơ chế hiện có | Ý nghĩa với người dùng và QA |
 |---|---|---|
-| Cấu trúc frontend | bootstrap.js, main.js và ES modules theo chức năng | Kiểm cả tải lần đầu, chuyển trang, retry và response về muộn |
+| Cấu trúc frontend | bootstrap.js, main.js và ES modules; UI/CSS Drive chỉ tải khi vào quản trị đã đăng nhập | CSS Drive lỗi/treo không chặn admin; sau lỗi hoặc deadline 10 giây, điều hướng tiếp có thể thử lại; kiểm cả response về muộn |
 | Layout | CSS variables, Grid, Flexbox, responsive CSS | Kiểm viewport, zoom, nội dung dài, ảnh dọc/ngang |
 | Font | Cormorant Garamond WOFF2 tự host, OFL | Không cần tải font từ Google Fonts cho các font này; vẫn kiểm glyph tiếng Việt và font fallback |
 | SEO HTML | Server chèn nội dung ngữ nghĩa và JSON page-data | HTML có nội dung cho crawler, nhưng root còn hidden cho tới khi JS bootstrap thành công; không phải React hydration |
@@ -98,7 +99,7 @@ Nguồn: [studio/web](../../studio/web), [SSR/SEO trong app.mjs](../../studio/se
 
 ## 5. Từ điển dữ liệu
 
-Source có **17 bảng nền + 11 bảng Drive lâu dài**, thêm hai cache tạm `drive_comparison_cache` và `drive_folder_preview_cache` khởi tạo khi cần; snapshot media v2 vẫn gồm 28 bảng. Bảng dưới mô tả 17 bảng nền; 11 bảng Drive/revisions có trong [bản 17/10](04-cap-nhat-du-an-2026-10-17.md), scope và cache mới ở [bản 20/10](05-cap-nhat-du-an-2026-10-20.md). Schema ở [db.mjs](../../studio/server/db.mjs), [drive-schema.mjs](../../studio/server/drive-schema.mjs) và [album-slugs.mjs](../../studio/server/album-slugs.mjs). Biên bản restore 19/10 đã kiểm 28 bảng production trong baseline; source scope/cache folder 20/10 đã deploy theo biên bản; nghiệm thu cuối còn mở.
+Source có **17 bảng nền + 11 bảng Drive lâu dài**, thêm hai cache tạm `drive_comparison_cache` và `drive_folder_preview_cache` khởi tạo khi cần; snapshot media v2 gồm 28 bảng. Hai bảng dưới là từ điển hiện hành; schema chi tiết ở [db.mjs](../../studio/server/db.mjs), [drive-schema.mjs](../../studio/server/drive-schema.mjs) và [album-slugs.mjs](../../studio/server/album-slugs.mjs). Số bảng trong report restore chỉ mô tả snapshot của lượt đó.
 
 | Bảng | Nội dung/khóa quan trọng | Điều cần giữ khi test và restore |
 |---|---|---|
@@ -120,13 +121,22 @@ Source có **17 bảng nền + 11 bảng Drive lâu dài**, thêm hai cache tạ
 | media_writes | object key, storage, sha256, bytes, state | Journal ghi storage, phát hiện kết quả ghi chưa rõ |
 | backup_runs | id, created, state, manifest_hash, detail | Phân biệt running/complete/failed; không coi file bất kỳ là backup tốt |
 
+| Nhóm Drive | Bảng và vai trò | Invariant |
+|---|---|---|
+| Kết nối / nguồn | `drive_connections`, `drive_album_links`, `drive_source_files`: scope, folder, mapping, provenance và generation | Key service account không vào DB; đổi scope/generation làm preview cũ mất hiệu lực; missing không tự xóa ảnh web |
+| Job / duyệt | `drive_sync_jobs`, `drive_job_requests`, `drive_sync_job_items`, `drive_sync_approvals`: lease, retry receipt, từng item và approval | Duyệt đúng revision/generation; không dùng approval cũ khi nguồn thay đổi; job retry không nhân đôi publication |
+| Import / phục hồi | `drive_reimport_intents`, `photo_ingest_attempts`: ý định nhập lại và journal publication | Ảnh detach/suppressed không tự hồi sinh; kiểm trạng thái object/DB trước recovery hoặc cleanup |
+| Khách / worker | `gallery_submissions`, `drive_worker_heartbeats`: receipt khách gửi lựa chọn và trạng thái worker | Giữ selection generation nhất quán; heartbeat phải đúng revision/binding, không suy process enabled là worker đang khỏe |
+
+Hai cache tạm có thể tái tạo, không phải bản nguồn để restore. Restore giữ provenance cần thiết nhưng vô hiệu sessions, kết nối/job/approval Drive cũ; phải kiểm kết nối và preview mới theo [runbook](../google-drive-sync-operations.md).
+
 RLS được enable cho các bảng PostgreSQL trong migration, nhưng code này không định nghĩa policy cho khách hoặc FORCE RLS. Bảo vệ qua RLS còn phụ thuộc role/quyền thực tế. Service-role Storage và kết nối DB đặc quyền phải ở server; việc cho phép một request vẫn phụ thuộc logic xác thực ứng dụng.
 
 Một invariant có giá trị hơn câu “DB đúng”: **mọi ảnh đang tham chiếu trong snapshot phải có đúng các object mà snapshot yêu cầu, đúng số byte/checksum; selection chỉ trỏ tới ảnh thuộc album đó; phiên cũ không được sống lại sau restore.**
 
 ## 6. Các luồng cần hiểu từ đầu đến cuối
 
-Sáu luồng nền bên dưới được bổ sung bởi luồng **Drive → preview → approval → worker ingest → gallery** trong [bản cập nhật](04-cap-nhat-du-an-2026-10-17.md). Giới hạn upload tay không áp dụng nguyên xi cho JPEG Drive.
+Bảy luồng dưới đây đi từ request tới dữ liệu và kết quả người dùng thấy. Giới hạn upload tay không áp dụng nguyên xi cho JPEG Drive.
 
 ### 6.1. Xem portfolio và album công khai
 
@@ -188,7 +198,7 @@ Admin dán link → worker kiểm quyền, duyệt folder con/phân trang → ch
 
 Source 20/10 hỗ trợ `root` và `shared`. `root` giới hạn nguồn trong thư viện đã chọn; `shared` nhận folder tài khoản dịch vụ đọc được, folder bắt đầu chỉ là điểm mở đầu. Migration giữ `root` cho dữ liệu cũ. Đổi chế độ tăng generation, vô hiệu job/preview cũ nhưng giữ ảnh/mapping. Chỉ nhập file trực tiếp; duyệt được folder con không có nghĩa import đệ quy.
 
-Số đếm có thể đầy đủ, một phần hoặc chưa khả dụng; không coi lỗi thành 0. Deadline enrichment 15 giây không bao gồm toàn bộ thời gian xếp hàng/kiểm quyền đầu/DB. Worker vẫn xử lý FIFO một batch, nên browse có thể đợi import nặng. **Oracle QA:** mất quyền, cancel hoặc đổi generation không được xuất bản kết quả muộn; thumbnail hết hạn không truy cập được; preview danh sách thay đổi vẫn phải được duyệt trước import. Chi tiết cache, nguồn test và phạm vi production ở [cập nhật 20/10](05-cap-nhat-du-an-2026-10-20.md).
+Số đếm có thể đầy đủ, một phần hoặc chưa khả dụng; không coi lỗi thành 0. Deadline enrichment 15 giây không bao gồm toàn bộ thời gian xếp hàng/kiểm quyền đầu/DB. Worker vẫn xử lý FIFO một batch, nên browse có thể đợi import nặng. **Oracle QA:** mất quyền, cancel hoặc đổi generation không được xuất bản kết quả muộn; thumbnail hết hạn không truy cập được; preview danh sách thay đổi vẫn phải được duyệt trước import. Chi tiết cache, nguồn test và phạm vi production ở [cập nhật 20/10](../archive/handbook/05-cap-nhat-du-an-2026-10-20.md).
 
 ## 7. Bảo mật và giới hạn vận hành trong code
 
@@ -201,7 +211,7 @@ Số đếm có thể đầy đủ, một phần hoặc chưa khả dụng; khô
 | SQL | Giá trị qua parameter binding; migration và dynamic identifier phải được kiểm riêng |
 | CSV | Quote/escape cell và prefix một số ký tự công thức; UTF-8 BOM hỗ trợ tiếng Việt; test cả whitespace/control character và ứng dụng mở file |
 | Upload input | Tối đa 20 MiB/file, 40 megapixel, 8 file/request; JPEG/PNG/WebP tĩnh và prepared theo validator |
-| Drive JPEG | Default code 128 MiB/120 MP, encode 120 giây; cấu hình pilot VPS theo REPORT là 60 MP; 20/10 đã bật nhập thủ công, pilot chưa nghiệm thu; không dùng default local để suy giới hạn VPS |
+| Drive JPEG | Default code 128 MiB/120 MP, encode 120 giây; cấu hình pilot VPS theo REPORT là 60 MP; pilot 33 ảnh đã nghiệm thu; nhập thủ công bật, scheduler tắt; không dùng default local để suy giới hạn VPS |
 | Memory upload | Multer memoryStorage; 8 × 20 MiB chỉ là buffer đầu vào có thể có, chưa gồm encode/runtime; giới hạn một request không giới hạn tổng request đồng thời |
 | Rendition storage | derivedFileSizeLimit 24 MiB là giới hạn trong adapter/cấu hình bucket, không phải quota tài khoản Supabase |
 | ZIP | Tối đa 50 ảnh, 100 MiB; timeout xử lý 180 giây; 2 slot/process, 1 lượt/album/process |
@@ -211,17 +221,19 @@ Số đếm có thể đầy đủ, một phần hoặc chưa khả dụng; khô
 
 Đây là giới hạn **ứng dụng**. RAM/CPU/disk VPS hoặc plan hosting, quota storage/egress/API, giá dịch vụ, pause policy và tuổi token thuộc **nhà cung cấp**; cần đọc dashboard/chính sách tại thời điểm vận hành. Số 3 connection là cấu hình pool ứng dụng, không phải toàn bộ quota Supabase.
 
-## 8. Trạng thái R2 sau giai đoạn staging
+## 8. R2 production và đường đi của ảnh
 
-Biên bản tại [kế hoạch R2, mục 17](../r2-implementation-plan.md#17-triển-khai-và-kiểm-chứng-cloud-ngày-16102026) ghi nhận bốn lớp bằng chứng: R2 local với bucket staging (9/9 bước), Drive với dữ liệu giả (5/5 bước), Render staging với PostgreSQL/R2 riêng (HTTP smoke, redeploy và cleanup), cùng rehearsal backup/restore, binding R2 → local → R2, ảnh lớn và client-abort/retry. Rehearsal binding dùng schema PostgreSQL cô lập và dữ liệu tổng hợp; không có bước nào là cutover dữ liệu hay biến môi trường production.
+Theo [biên bản cutover 21/10](../archive/r2-production-cutover-2026-10-21.md), web và worker đã dùng R2 private, 3.386 object/1.431.587.015 byte được verify; database không chuyển khỏi Supabase. Kho Supabase nguồn còn giữ. `.env.example` và `render.yaml` đã đổi cấu hình tham chiếu; không có deploy Render trong lượt cutover.
 
-| Đã có | Còn phải làm trước production |
+Ảnh vẫn đi qua Express trên VPS: kiểm quyền/DB → đọc R2 và kiểm checksum → kiểm quyền lại → trả bytes. Ảnh published dùng `private,no-cache`; ảnh khác `private,no-store`; báo cáo HTTPS thấy Cloudflare DYNAMIC. Conditional GET hợp lệ có thể trả 304 trước đọc storage. R2 private không đồng nghĩa browser truy cập bucket trực tiếp hoặc toàn bộ ảnh đã có CDN cache.
+
+[Rà soát hiệu năng](../archive/r2-performance-review-2026-10-21.md) ghi 284/1.223 ảnh chưa có JPEG tạo sẵn: tải các ảnh này phải chuyển WebP sang JPEG. ZIP đọc/chuyển ảnh lần lượt; R2 GET giữ toàn bộ file trong RAM, kiểm checksum trước trả; ingest ghi ba rendition tuần tự trước publish DB. Đây là các đường cần đo trước khi tối ưu, không phải lỗi mới do cutover. Giữ giới hạn download 50 ảnh/100 MiB, 2 slot/process và 180 giây.
+
+| Đã được báo cáo đạt | Phạm vi còn thiếu |
 |---|---|
-| R2 private, adapter S3, dữ liệu giả, retry/overwrite, media private, backup/restore, cleanup và rehearsal binding R2 → local → R2 trên staging | Inventory/quota production; migration Supabase → R2 toàn kho và delta cuối; rehearsal đa instance trên cloud; tập ảnh khách đại diện; R2 PUT timeout/ghi muộn; cửa sổ vận hành và người chịu trách nhiệm |
-| Render staging tách DB, bucket và credential; Node 24; noindex/analytics tắt | Xác minh env/commit production thực tế và cập nhật cả Blueprint khi chuyển provider |
-| Client upload bị ngắt vẫn giữ writer, retry dùng receipt; một ảnh tổng hợp khoảng 11 MiB đã được thử trên Render | Đo giới hạn tải với tập ảnh khách đại diện và xác minh deadline ở tầng provider, không chỉ HTTP abort |
-
-Vì vậy cách gọi chính xác là **R2 đã hoàn thành staging validation**, không phải “R2 production đã hoàn thành”.
+| Copy/verify toàn kho, binding và env web/worker, smoke quyền/media, probe upload/password/logout | Workload lớn và nhiều request đồng thời; không có baseline toàn trang trước migration |
+| Backup ngoài VPS, restore ứng dụng offline, integrity/FK đạt | Backup media có lịch/cảnh báo, full cloud restore và RPO/RTO được chốt |
+| Pilot Drive 33 ảnh trước cutover, heartbeat R2 sau cutover | Import Drive mới trên R2 không chạy trong lượt review; chưa kiểm reboot/kill giữa import hoặc 500/5.000 JPEG thật |
 
 ## 9. Mô hình hỏng để QA và chủ website cùng hiểu
 

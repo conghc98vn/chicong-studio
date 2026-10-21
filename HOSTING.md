@@ -1,85 +1,68 @@
-# Đưa ChiCong Studio lên máy chủ và tên miền chicongphoto.vn
+# Hosting và release ChiCong Studio
 
-> Cập nhật production 21/10/2026: website chạy trên VPS iNET, ảnh dùng R2 private `chicong-production`, database vẫn Supabase. Các hướng dẫn Supabase Storage/Render dưới đây là cấu hình lịch sử trước cutover; xem [biên bản hiện tại](docs/r2-production-cutover-2026-10-21.md).
+Hướng dẫn hiện hành ngày 21/10/2026. Production theo [biên bản cutover](docs/archive/r2-production-cutover-2026-10-21.md): **Cloudflare → Caddy trên VPS iNET → PM2/Node**, database **PostgreSQL Supabase**, media **R2 private**. [Handbook](docs/handbook/README.md) phân biệt trạng thái đã báo cáo với kiểm tra mới.
 
-> **Cập nhật ngày 16/10/2026:** Sau sự cố hết 5 GB băng thông miễn phí trên Render, website chính thức `chicongphoto.vn` đã được **chuyển đổi thành công sang máy chủ ảo riêng (Cloud Server Linux 2) tại iNET (Việt Nam)**, thời hạn 3 năm (2026–2029). Xem chi tiết cấu hình, vận hành và nghiệm thu tại [báo cáo di dời Cloud Server iNET](docs/inet-vps-migration-2026-10-16.md).
+## 1. Runtime và dữ liệu
 
-> **Cập nhật Drive ngày 17/10/2026:** Source web/worker/backup mới đã lên VPS; nhập Drive và scheduler vẫn tắt. Worker systemd riêng đang kiểm kết nối, chưa enable khởi động cùng máy. [Biên bản rollout](docs/google-drive-sync-production-release-2026-10-17.md) ghi các cổng còn lại, backup và rollback.
+Dùng Node 24 và `npm ci --omit=dev`; chạy `npm start` hoặc PM2 theo [ecosystem.config.cjs](ecosystem.config.cjs). PM2 chạy fork, nên kích hoạt release có gián đoạn ngắn. Caddy chuyển tiếp tới cổng Node, TLS/Cloudflare do cấu hình máy chủ quản lý. Giữ cổng Node chỉ tiếp cận từ proxy được tin cậy.
 
-Phương án ban đầu (lịch sử): **Render Free** chạy Node.js, **Supabase Free** lưu PostgreSQL và ảnh trong bucket riêng. Website chính thức đang hoạt động tại [chicongphoto.vn](https://chicongphoto.vn) (được định tuyến qua Cloudflare proxy đến máy chủ mới) từ ngày 09/10/2026; [trang quản trị](https://chicongphoto.vn/admin) dùng tài khoản studio đã cấu hình. Tên miền `chicongphoto.vn` đã trỏ đúng và kích hoạt HTTPS thành công với Cloudflare Origin Certificate (15 năm).
+| Cấu hình | Yêu cầu |
+|---|---|
+| `NODE_ENV` | `production` |
+| `SITE_URL` | Origin HTTPS chuẩn, ví dụ `https://chicongphoto.vn`; không path/query |
+| `DATABASE_URL` | PostgreSQL đúng project/schema, TLS xác thực hostname/CA |
+| `NODE_EXTRA_CA_CERTS` | Nếu cần CA Supabase: đường dẫn tuyệt đối tới certificate đã đối chiếu, đặt trước lúc Node khởi động |
+| `MEDIA_STORAGE_PROVIDER` | `r2` theo production hiện hành; phải khớp binding DB |
+| `R2_ENDPOINT`, `R2_BUCKET` | Endpoint tài khoản và bucket private đã tạo |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Credential phía server, giới hạn đúng bucket và quyền cần thiết |
+| `TRUST_PROXY` | Địa chỉ/CIDR proxy hoặc số hop đã xác minh; không dùng `true` |
+| `PORT`, `HOST` | Khớp Caddy/PM2; không coi default `0.0.0.0` là firewall |
+| `SETUP_TOKEN` | Cần khi tạo admin đầu tiên; không có tài khoản/mật khẩu mặc định |
 
-## 1. Tạo Supabase project Free
+Repo giữ CA công khai `certs/supabase-root-2021.crt`. Kiểm tính hợp lệ/expiry theo chứng chỉ thực tế; không tắt TLS verification để xử lý lỗi kết nối. `NODE_EXTRA_CA_CERTS` không có tác dụng nếu chỉ đặt muộn trong file do ứng dụng tự đọc.
 
-Bạn tự tạo tài khoản/project, chọn vùng gần người dùng và giữ mật khẩu database.
+R2 runtime không cần service-role Supabase Storage. Bucket phải giữ private, không bật r2.dev/custom media domain để bỏ qua backend. Runtime kiểm HeadBucket và binding, không thay thao tác kiểm public-access trên dashboard.
 
-Lấy các thông tin dưới đây để nhập trực tiếp vào Environment trên Render. Không đăng key/password trong chat hoặc file commit:
+Web và worker dùng cùng database/storage identity. Không đổi provider/bucket/endpoint bằng env đơn thuần: startup từ chối binding sai. Supabase Storage còn là adapter tương thích và kho nguồn rollback theo report, không phải nơi ghi ảnh mới hiện hành.
 
-- `DATABASE_URL`: Connect → Session pooler (IPv4, cổng 5432), dạng `postgresql://postgres.PROJECT:…@…pooler.supabase.com:5432/postgres`. URL-encode mật khẩu và dùng tham số `sslmode=verify-full`. Không tắt kiểm tra chứng chỉ; nếu nhà cung cấp yêu cầu certificate CA riêng, cấu hình certificate đúng theo tài liệu.
-- `SUPABASE_URL`: URL project `https://PROJECT.supabase.co`.
-- `SUPABASE_SERVICE_ROLE_KEY`: legacy **service_role JWT** phía máy chủ, không phải anon/public key.
-- `SUPABASE_BUCKET`: `chicong-private`.
+## 2. Worker, backup và staging
 
-Repository có chứng chỉ công khai `certs/supabase-root-2021.crt`, tải từ Database → Settings → SSL configuration của Supabase. Đặt `NODE_EXTRA_CA_CERTS=./certs/supabase-root-2021.crt` trong Environment của Render để Node tin cậy CA này và vẫn kiểm tra hostname/chứng chỉ với `sslmode=verify-full`. Chứng chỉ hết hạn ngày 26/04/2031; SHA-256: `807025AD50D4ED219D2C9C7D299C004F824EB00CF7F65AFEF607D07B72E6CAFA`. Nếu Supabase thay CA, tải và đối chiếu chứng chỉ mới trước khi thay file. Biến này phải được đặt trước khi Node khởi động, không chỉ trong file `.env` được app nạp.
+Worker Drive là service riêng theo [scripts/systemd/chicong-drive.service](scripts/systemd/chicong-drive.service). Key service account chỉ ở worker, quyền file 0600, scope chỉ đọc; web không cần key này. Cả web/worker dùng `DRIVE_SYNC_ENABLED`; `DRIVE_SYNC_SCHEDULER_ENABLED` là cổng riêng và hiện tắt theo report. [Runbook Drive](docs/google-drive-sync-operations.md).
 
-Ứng dụng kiểm tra bucket khi khởi động và tạo bucket riêng nếu chưa có. Nếu bucket có sẵn, nó phải là **private**. Không bật Public cho bucket này. Backend tự tạo bảng và bật RLS; không có policy cho anon/browser. Browser chỉ gọi backend cùng domain, không nhận service role key hay database URL.
+Backup runner có credential riêng, không dùng key service account nhập ảnh. Dump SQL theo [backup-db.sh](scripts/backup-db.sh) không chứa bytes R2. Workflow [media-backup.yml](.github/workflows/media-backup.yml) chạy thủ công; file workflow không chứng minh đã có lịch hoặc cảnh báo.
 
-## 2. Đưa mã nguồn vào repository của bạn
+Staging dùng DB/schema/bucket/credential riêng, `SITE_INDEXING=false`, `ANALYTICS_ENABLED=false`, không mail/Calendar khách thật. `render.yaml` là cấu hình dự phòng/rehearsal nếu dùng lại Render, không phản ánh VPS. Hướng dẫn Render cũ và số liệu triển khai được giữ trong [lưu trữ](docs/archive/README.md).
 
-Các file cần: `studio/`, `certs/`, `package.json`, `package-lock.json`, `render.yaml`, `.gitignore`. Không upload `node_modules/`, `.env`, `data/`, `legacy-prototype/` hoặc thư mục WordPress/SQL.
+## 3. Chuẩn bị và kích hoạt release
 
-`studio/tests/manual-fixture.mjs` chỉ là server kiểm thử local; không chạy nó trên host. Lệnh production là `npm start`.
+Trước tiên chạy kiểm tra source và QA trên database tạm theo [hướng dẫn](docs/handbook/03-phong-lab-qa.md). Giữ commit/diff của bản chuẩn bị, kết quả kiểm tra và revision rollback hiểu schema hiện tại.
 
-## 3. Tạo Render Web Service Free
+```sh
+npm run deploy:vps -- --help
+npm run deploy:vps -- --stage
+```
 
-Kết nối repository, chọn Node.js và gói Free. Có thể dùng Blueprint `render.yaml` hoặc cấu hình thủ công:
+`--stage` kết nối SSH alias `chicong-vps` hoặc `VPS_HOST`, đóng gói source theo allowlist và cài dependency trong thư mục release riêng. Nó không đưa `.env`/ảnh/credential vào gói, không kích hoạt release, restart hay migration. Script từ chối chạy deploy không có `--stage`.
 
-- Node: 24 LTS.
-- Build: `npm ci --omit=dev`.
-- Start: `npm start`.
-- Health check: `/api/health`.
-- `NODE_ENV=production`.
-- `MEDIA_STORAGE_PROVIDER=supabase` cho bản tương thích trước chuyển kho; không đổi sang `r2` chỉ bằng chỉnh biến môi trường.
-- `NODE_EXTRA_CA_CERTS=./certs/supabase-root-2021.crt`.
-- `SITE_URL=https://chicongphoto.vn` (trước khi nối domain có thể đặt URL https://…onrender.com để preview).
-- Các biến Supabase ở bước 1.
-- `SETUP_TOKEN`: tự tạo chuỗi ngẫu nhiên dài dùng một lần để bảo vệ trang thiết lập đầu tiên.
+Kích hoạt do người vận hành thực hiện với cấu hình production rõ ràng:
 
-Mã khởi động không tạo album minh họa, không tạo mật khẩu admin mặc định và không gửi email.
+1. Giữ source/config/service definition hiện tại và xác nhận phương án rollback. Lấy maintenance lease, ngừng claim/schedule, drain writer/cleanup; dừng worker/runner cũ và xác minh đã thoát.
+2. Chụp **DB + media baseline**, verify và giữ bản ngoài VPS; lease phải còn hiệu lực. Hết hạn không có nghĩa được bỏ khóa.
+3. Dừng web sau khi writer đã drain. Giữ `.env` 0600, credential ngoài repo, data và quyền đọc module cho user worker; thay source từ release đã kiểm.
+4. Khởi động một web instance với Drive tắt để migration có một owner. Kiểm health, số lượng/invariant DB, public/private media và admin. Cập nhật worker/runner về cùng revision và binding.
+5. Kiểm heartbeat, quyền người dùng worker, upload/đọc bằng fixture được phép, rồi bật nhập thủ công và unlock đúng lease. Giữ scheduler tắt trừ khi có kế hoạch riêng.
+6. Kiểm album draft và retry/no-op theo runbook. Nếu thất bại, giữ writer dừng và dùng rollback tương thích. Không restore DB cũ đè lên dữ liệu khách đã được nhận sau release.
 
-## 4. Tạo tài khoản studio
+Chi tiết lease/recovery và lệnh chính xác nằm ở [runbook Drive](docs/google-drive-sync-operations.md#6-lỗi-dừng-và-phục-hồi) và `npm run media -- help`. Chuyển storage cần `lock → drain → backup/copy/verify → switch → restart mọi consumer → smoke → unlock`; giữ kho nguồn cho tới khi nghiệm thu xong. Có ảnh mới ở R2 thì rollback phải xử lý delta ngược dưới khóa.
 
-Mở `/admin` trên đúng domain trong `SITE_URL`. Nếu dùng địa chỉ `https://…onrender.com/admin` để thiết lập, đặt `SITE_URL` tương ứng trước; khi chuyển sang tên miền chính, cập nhật lại `SITE_URL`. Production yêu cầu HTTPS và chỉ nhận thao tác ghi từ Origin đã cấu hình. Tự nhập email, mật khẩu từ 12 ký tự và `SETUP_TOKEN`. Sau khi tạo xong, bạn có thể xóa biến `SETUP_TOKEN` khỏi Render; app không cho tạo thêm tài khoản qua endpoint thiết lập.
+## 4. Kiểm tra sau release
 
-Với dịch vụ hiện tại, tài khoản local đã được chuyển và kiểm tra khớp hoàn toàn; `SETUP_TOKEN` đã xóa khỏi Render. Chỉ cần đăng nhập tài khoản studio cũ. Không dùng mật khẩu database Supabase để đăng nhập studio.
+- `/api/health` trả 200 và `{"ok":true}` chỉ xác nhận truy vấn DB; kiểm thêm ảnh public và gallery có mật khẩu bằng phiên khách.
+- API admin phải trả 401 khi chưa đăng nhập; đổi mật khẩu gallery phải thu hồi quyền cũ. Public media dùng `private,no-cache`; private media dùng `private,no-store`; 304 vẫn phải qua kiểm quyền.
+- Không cấu hình CDN ghi đè cache theo prefix `/media/*`: public/private dùng chung route. R2 private qua proxy không tự thành CDN cache.
+- Kiểm upload/retry, JPEG/ZIP dùng được, lựa chọn khách, DB/media tồn tại sau restart và worker đúng revision/binding. Inquiry đã lưu không phụ thuộc email giao thành công.
+- Xem log lỗi và tuổi backup hoàn chỉnh, không chỉ trạng thái process. Bản vá local xử lý mất kết nối PostgreSQL cả lúc pool rảnh và giữa transaction, giữ lỗi gốc nếu rollback thất bại, không tự chạy lại thao tác ghi chưa rõ kết quả. Nó chưa được coi là có trên VPS trước release.
 
-Trong **Website**, điền email, điện thoại, nội dung giới thiệu và Instagram. Trong **Portfolio**, tạo album, upload ảnh, chọn ảnh bìa rồi đặt trạng thái công khai. Gallery riêng có mật khẩu từ 8 ký tự.
+## 5. Giới hạn nghiệm thu
 
-## 5. Đã nối và xác thực chicongphoto.vn
-
-Tên miền `chicongphoto.vn` đã được thêm vào Custom Domains của Render và trỏ bản ghi DNS qua Cloudflare. Biến môi trường `SITE_URL=https://chicongphoto.vn` và `CF_BEACON_TOKEN` đã cấu hình trên Render. HTTPS hoạt động bình thường, cookie và session admin không bị phân tán.
-
-### Proxy và triển khai bản vá bảo mật 13/10/2026
-
-`TRUST_PROXY` mặc định giữ một hop trên production và tắt ở local. Có thể đặt `false` khi truy cập trực tiếp không có reverse proxy, số hop đã xác minh, hoặc danh sách IP/CIDR proxy tin cậy theo cú pháp Express. Giá trị `true` bị từ chối. Trước khi thay đổi trên Render, cần kiểm tra IP thực tế Express nhận qua cả domain Cloudflare và đường truy cập trực tiếp Render. Không lấy thẳng `CF-Connecting-IP` hoặc IP đầu tiên trong `X-Forwarded-For` nếu chưa xác thực proxy gửi nó. Bản vá chưa chứng minh cấu hình một hop trên hosting hiện tại có lỗi, nên không tự đổi số hop.
-
-Migration thêm index `rate_limits_expires`, giữ nguyên dữ liệu. Unlock gallery giới hạn tổng 60 lần/IP/15 phút, đồng thời giữ giới hạn 8 lần/gallery/IP/15 phút cho gallery có thật. ID không tồn tại không tạo quota riêng; dọn bản ghi hết hạn tối đa mỗi phút khi có request.
-
-Ảnh công khai và chân dung chuyển sang `private,no-cache`, giữ ETag để phản hồi 304 sau khi kiểm tra quyền; ảnh private và phản hồi media bị từ chối dùng `private,no-store`. Cache một giờ từ phiên bản cũ có thể còn hiệu lực tối đa một giờ sau lần cuối nhận header cũ. Nếu đã cấu hình CDN cache ảnh, purge các URL ảnh cần thu hồi khi triển khai; không tạo quy tắc CDN ghi đè header mới. Thay đổi header không thu hồi bản ảnh người xem đã tải về.
-
-## Đã kiểm chứng và vận hành thực tế
-
-Đã kiểm chứng trên tài khoản cloud thật ngày 08/10/2026 và 09/10/2026: health PostgreSQL, 9 bảng ứng dụng bật RLS, các trang/API công khai, API quản trị trả 401 khi chưa đăng nhập, và Storage ghi/đọc khớp dữ liệu trong bucket private với truy cập công khai bị từ chối. Mã nguồn tự động xử lý tạo bucket private khi chưa có.
-
-Bộ kiểm thử tự động đạt 56/56 bài test (bao gồm SEO album slug, retry upload, bảo mật gallery, CSRF, Schema.org và Cloudflare Analytics). Portfolio trên production hiện đã công khai 7 album với 284 ảnh. Ngày 09/10/2026 đã chụp snapshot sao lưu toàn bộ dữ liệu công khai và 568 file WebP vào `data/backups/launch-2026-10-09/public-1791512046057`.
-
-Biểu mẫu liên hệ trên website thật cũng đã gửi thành công yêu cầu thử; PostgreSQL lưu đúng một bản ghi và không giữ ngày chụp khi chưa chọn ngày.
-
-Ảnh upload được đổi sang WebP (cạnh dài tối đa 2400px + thumbnail 900px) và loại metadata; hệ thống phục vụ gallery xem/chọn, không phải kho giao file RAW/ảnh gốc độ phân giải đầy đủ. Email tự động chưa tích hợp: yêu cầu nằm trong **Yêu cầu đặt lịch**, bạn chủ động liên hệ khách. Không có thanh toán hoặc booking tự động được xác nhận.
-
-## Cấu hình R2 sau khi triển khai bản tương thích
-
-Code hỗ trợ `MEDIA_STORAGE_PROVIDER=r2`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Giữ `DATABASE_URL`, TLS và các biến website hiện tại. R2 không yêu cầu `SUPABASE_URL`/service-role cho Storage. Runtime chỉ dùng S3 Object Read & Write cho bucket đã tạo; không tạo bucket hoặc xác minh control-plane public access thay chủ tài khoản. Không bật r2.dev, custom media domain hoặc browser upload trực tiếp.
-
-Production đã chuyển sang `MEDIA_STORAGE_PROVIDER=r2`, bucket private `chicong-production` ngày 21/10/2026; xem [biên bản cutover](docs/r2-production-cutover-2026-10-21.md). Web và worker Drive phải cùng cấu hình R2. Startup gắn danh tính kho với DB. Đổi provider/bucket/endpoint trái binding sẽ bị từ chối; xem quy trình `lock → drain → backup/delta/verify → switch → restart mọi instance → smoke → unlock` ở [kế hoạch, mục 16](docs/r2-implementation-plan.md#16-kết-quả-triển-khai-local-ngày-16102026). `render.yaml` đã cập nhật provider R2; chỉ là cấu hình dự phòng nếu dùng lại Render, không tự deploy/sync Render.
-
-Không đưa OAuth Drive vào Render web service. Runner dùng secrets riêng, DB/schema/bucket thử tách biệt, không có biến Resend/SMTP/Google Calendar của production. Chưa kích hoạt billing, deploy hoặc schedule từ các thay đổi source này.
+Report 21/10 ghi đã chuyển 3.386 object sang R2, có backup ngoài VPS và restore offline. Chưa nghiệm thu full Supabase/cloud restore, reboot/kill worker giữa import, tải 500/5.000 JPEG thật, lịch backup media hoặc cảnh báo snapshot. Không thay các mục đó bằng kết quả unit test. [Bằng chứng và việc còn mở](docs/handbook/README.md).

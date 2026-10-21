@@ -1,0 +1,1068 @@
+{
+  "recorded_date": "2026-10-21",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "scope": "isolated local audit; no production deployment or new cloud verification",
+  "base_commit": "b772c0045cb770c22b7f104f9a34d73bc63360d1",
+  "node": "24.19.0",
+  "postgres": "16 (disposable postgres:16-alpine container)",
+  "tests": {
+    "postgres": {
+      "total": 421,
+      "pass": 421,
+      "fail": 0,
+      "skip": 0
+    },
+    "sqlite_without_postgres_url": {
+      "total": 414,
+      "pass": 373,
+      "fail": 0,
+      "skip": 41
+    },
+    "browser": {
+      "suites": 11,
+      "passed": 11
+    },
+    "npm_audit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "syntax": {
+      "pass": true,
+      "scope": [
+        "studio/server",
+        "studio/web",
+        "studio/tools"
+      ]
+    },
+    "docs": {
+      "markdown_files": 61,
+      "local_file_links": 417,
+      "missing_targets": 0,
+      "checkout_file_membership_failures": 0,
+      "external_urls_checked": false,
+      "heading_check": "one-off heuristic plus explicit HTML anchors; not part of CI checker"
+    },
+    "launcher": {
+      "bash_syntax_pass": true,
+      "engine_boundary_cases_pass": 9,
+      "interactive_launch_not_repeated": true
+    },
+    "whitespace_check": {
+      "pass": true
+    }
+  },
+  "runtime_sha256": {
+    "studio/server/db.mjs": "94e5368da68e39f1bd0fef6b6edfc2a4356dbf9f6b99fa5acb06512a09b33e48",
+    "studio/server/photo-upload.mjs": "7fee48a379991d14255f442fff025f381ee2822edfeea766d141e13b76b24f63",
+    "studio/web/main.js": "cc8674ab8e71ee81adec60aedf76f29253437ebe1cfc60f53c595e4de252383b",
+    "studio/web/index.html": "b5a7ed5cfbab9f44bf3295d7b1e3d5236a169b3be00412644cc776db49f7a31d",
+    "studio/web/admin-drive-loader.mjs": "9764fb5a4fca2c2bd02849c98fee354f053166863bfe45dc5e2cda2955b4cdb3",
+    "studio/tests/database-recovery.test.mjs": "fc58dd757088f0ea85cdd6f741dfbf3f4b7444b8194904a1823f9aeea42abd2f",
+    "studio/tests/google-calendar.test.mjs": "abfe4f0c72a368ca2d4e4af374afc7badf70cac082678a1f83f05366d9836953",
+    "scripts/prepare-photos.command": "2101d61d6c86e666e7bf6619eb3230cc1915bb16dc840fb7407d9d227878b72d",
+    "package.json": "01c2b8cc1320f3469895b1b2da350394155b12fcaa59a9a3689a09d7caf91a56",
+    "package-lock.json": "105c58fb209680b823a7bcfc83c8773607f47f343bf61860d5c9718971ecbae8",
+    "studio/tests/run-browser-smoke.mjs": "66400854ae4063e8f6eff83155140ef8e4b85d13f07a1839e836d4c394143ea5",
+    "studio/tests/admin-drive-loading.smoke.mjs": "c4a20d778a48189716c3d1dda7f9711f49100896ad35e93db156229cb9825a2c",
+    "studio/tests/gallery-download-browser.smoke.mjs": "6e1c861221f9308fc919d39c642c8bb4149ecc40af9ddd4ab4de0d3761aac770",
+    "studio/tests/check-docs.mjs": "b9ac90c2fb49248de833d6e24b53850aa159751726d7cfb929e06b1be06239f5"
+  },
+  "gallery_benchmark": {
+    "before": {
+      "fixture": {
+        "sizes": [
+          500,
+          5000
+        ],
+        "note": "Synthetic local SQLite/media fixture. Browser tests use desktop local network and mobile simulated 1.6 Mbps, 100 ms RTT, 4x CPU slowdown. These are lab observations, not production or real-device measurements.",
+        "credentials": "Synthetic admin session only; no Google or production services.",
+        "renditions": {
+          "webp_bytes": 6900,
+          "thumbnail_bytes": 1060,
+          "note": "Flat synthetic images intentionally isolate catalog/DOM work; image byte timings underestimate photographic payloads."
+        }
+      },
+      "errors": [],
+      "observations": [
+        {
+          "photos": 500,
+          "page": "gallery",
+          "profile": "desktop-local",
+          "metadata_ready_ms": 556,
+          "dom_nodes": 734,
+          "first_image_ready_ms": 569.6
+        },
+        {
+          "photos": 500,
+          "page": "gallery",
+          "profile": "mobile-simulated-slow",
+          "metadata_ready_ms": 3211.9,
+          "dom_nodes": 734,
+          "first_image_ready_ms": 3253
+        },
+        {
+          "photos": 500,
+          "page": "admin",
+          "profile": "desktop-local",
+          "metadata_ready_ms": 452.5,
+          "dom_nodes": 3099,
+          "first_image_ready_ms": 474.6
+        },
+        {
+          "photos": 5000,
+          "page": "gallery",
+          "profile": "desktop-local",
+          "metadata_ready_ms": 171.5,
+          "dom_nodes": 734,
+          "first_image_ready_ms": 185.7
+        },
+        {
+          "photos": 5000,
+          "page": "gallery",
+          "profile": "mobile-simulated-slow",
+          "metadata_ready_ms": 3771.7,
+          "dom_nodes": 734,
+          "first_image_ready_ms": 3814.5
+        },
+        {
+          "photos": 5000,
+          "page": "admin",
+          "profile": "desktop-local",
+          "metadata_ready_ms": 424.5,
+          "dom_nodes": 3099,
+          "first_image_ready_ms": 447.2
+        }
+      ],
+      "api": [
+        {
+          "photo_count": 500,
+          "route": "/api/gallery/:album",
+          "runs": [
+            {
+              "duration_ms": 32.2,
+              "json_bytes": 161868,
+              "gzip_estimate_bytes": 9980,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 3.6,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 18.1,
+              "json_bytes": 161868,
+              "gzip_estimate_bytes": 9980,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 5.9,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 12.7,
+              "json_bytes": 161868,
+              "gzip_estimate_bytes": 9980,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 3.3,
+              "photo_rows_read": 500
+            }
+          ]
+        },
+        {
+          "photo_count": 500,
+          "route": "/api/gallery/:album/selection",
+          "runs": [
+            {
+              "duration_ms": 6.6,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 1.2,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 2.8,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 4,
+              "query_ms": 0.2,
+              "photo_rows_read": 0
+            },
+            {
+              "duration_ms": 3.6,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 4,
+              "query_ms": 0.3,
+              "photo_rows_read": 0
+            }
+          ]
+        },
+        {
+          "photo_count": 500,
+          "route": "/api/admin/albums/:album",
+          "runs": [
+            {
+              "duration_ms": 12.6,
+              "json_bytes": 181000,
+              "gzip_estimate_bytes": 9806,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 6.2,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 12.3,
+              "json_bytes": 181000,
+              "gzip_estimate_bytes": 9806,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 4.9,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 15.8,
+              "json_bytes": 181000,
+              "gzip_estimate_bytes": 9806,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 8.4,
+              "photo_rows_read": 500
+            }
+          ]
+        },
+        {
+          "photo_count": 500,
+          "route": "/api/admin/albums/:album/selection",
+          "runs": [
+            {
+              "duration_ms": 3.6,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 1.1,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 4.8,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 1.2,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 4.9,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 1.5,
+              "photo_rows_read": 500
+            }
+          ]
+        },
+        {
+          "photo_count": 500,
+          "route": "/api/admin/albums?view=summary",
+          "runs": [
+            {
+              "duration_ms": 3.5,
+              "json_bytes": 545,
+              "gzip_estimate_bytes": 317,
+              "content_encoding": null,
+              "query_count": 5,
+              "query_ms": 0.6,
+              "photo_rows_read": 2
+            },
+            {
+              "duration_ms": 3.1,
+              "json_bytes": 545,
+              "gzip_estimate_bytes": 317,
+              "content_encoding": null,
+              "query_count": 5,
+              "query_ms": 0.5,
+              "photo_rows_read": 2
+            },
+            {
+              "duration_ms": 2.9,
+              "json_bytes": 545,
+              "gzip_estimate_bytes": 317,
+              "content_encoding": null,
+              "query_count": 5,
+              "query_ms": 0.4,
+              "photo_rows_read": 2
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/gallery/:album",
+          "runs": [
+            {
+              "duration_ms": 59.9,
+              "json_bytes": 1623371,
+              "gzip_estimate_bytes": 93830,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 26.9,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 49.9,
+              "json_bytes": 1623371,
+              "gzip_estimate_bytes": 93830,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 23.4,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 42.1,
+              "json_bytes": 1623371,
+              "gzip_estimate_bytes": 93830,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 23,
+              "photo_rows_read": 5000
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/gallery/:album/selection",
+          "runs": [
+            {
+              "duration_ms": 14.3,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 234,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 5.6,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 2,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 234,
+              "content_encoding": null,
+              "query_count": 4,
+              "query_ms": 0.2,
+              "photo_rows_read": 0
+            },
+            {
+              "duration_ms": 2.1,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 234,
+              "content_encoding": null,
+              "query_count": 4,
+              "query_ms": 0.2,
+              "photo_rows_read": 0
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/admin/albums/:album",
+          "runs": [
+            {
+              "duration_ms": 67.5,
+              "json_bytes": 1813503,
+              "gzip_estimate_bytes": 90681,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 38.3,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 62,
+              "json_bytes": 1813503,
+              "gzip_estimate_bytes": 90681,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 28.8,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 61.6,
+              "json_bytes": 1813503,
+              "gzip_estimate_bytes": 90681,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 39.8,
+              "photo_rows_read": 5000
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/admin/albums/:album/selection",
+          "runs": [
+            {
+              "duration_ms": 15.2,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 231,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 7.2,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 14.2,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 231,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 7,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 14.2,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 231,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 7,
+              "photo_rows_read": 5000
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/admin/albums?view=summary",
+          "runs": [
+            {
+              "duration_ms": 3.2,
+              "json_bytes": 1091,
+              "gzip_estimate_bytes": 351,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 1.2,
+              "photo_rows_read": 4
+            },
+            {
+              "duration_ms": 2.8,
+              "json_bytes": 1091,
+              "gzip_estimate_bytes": 351,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 1.1,
+              "photo_rows_read": 4
+            },
+            {
+              "duration_ms": 2.9,
+              "json_bytes": 1091,
+              "gzip_estimate_bytes": 351,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 1,
+              "photo_rows_read": 4
+            }
+          ]
+        }
+      ],
+      "browser_assertions": [
+        {
+          "photos": 500,
+          "page": "gallery",
+          "profile": "desktop-local",
+          "photo_cards": 90,
+          "horizontal_overflow": false,
+          "cross_page_lightbox": {
+            "before": "90 / 500",
+            "after": "91 / 500",
+            "navigation_ms": 51.1,
+            "returned_to_opening_photo": true
+          }
+        },
+        {
+          "photos": 500,
+          "page": "gallery",
+          "profile": "mobile-simulated-slow",
+          "photo_cards": 90,
+          "horizontal_overflow": false
+        },
+        {
+          "photos": 500,
+          "page": "admin",
+          "profile": "desktop-local",
+          "photo_cards": 120,
+          "horizontal_overflow": false,
+          "quiet_poll_full_catalog_reload": false,
+          "quiet_poll_photo_rows_read": 500
+        },
+        {
+          "photos": 5000,
+          "page": "gallery",
+          "profile": "desktop-local",
+          "photo_cards": 90,
+          "horizontal_overflow": false,
+          "cross_page_lightbox": {
+            "before": "90 / 5000",
+            "after": "91 / 5000",
+            "navigation_ms": 28.2,
+            "returned_to_opening_photo": true
+          }
+        },
+        {
+          "photos": 5000,
+          "page": "gallery",
+          "profile": "mobile-simulated-slow",
+          "photo_cards": 90,
+          "horizontal_overflow": false
+        },
+        {
+          "photos": 5000,
+          "page": "admin",
+          "profile": "desktop-local",
+          "photo_cards": 120,
+          "horizontal_overflow": false,
+          "quiet_poll_full_catalog_reload": false,
+          "quiet_poll_photo_rows_read": 5000
+        }
+      ]
+    },
+    "after": {
+      "fixture": {
+        "sizes": [
+          500,
+          5000
+        ],
+        "note": "Synthetic local SQLite/media fixture. Browser tests use desktop local network and mobile simulated 1.6 Mbps, 100 ms RTT, 4x CPU slowdown. These are lab observations, not production or real-device measurements.",
+        "credentials": "Synthetic admin session only; no Google or production services.",
+        "renditions": {
+          "webp_bytes": 6900,
+          "thumbnail_bytes": 1060,
+          "note": "Flat synthetic images intentionally isolate catalog/DOM work; image byte timings underestimate photographic payloads."
+        }
+      },
+      "errors": [],
+      "observations": [
+        {
+          "photos": 500,
+          "page": "gallery",
+          "profile": "desktop-local",
+          "metadata_ready_ms": 171.6,
+          "dom_nodes": 733,
+          "first_image_ready_ms": 191.6
+        },
+        {
+          "photos": 500,
+          "page": "gallery",
+          "profile": "mobile-simulated-slow",
+          "metadata_ready_ms": 3140.7,
+          "dom_nodes": 733,
+          "first_image_ready_ms": 3171.9
+        },
+        {
+          "photos": 500,
+          "page": "admin",
+          "profile": "desktop-local",
+          "metadata_ready_ms": 135.1,
+          "dom_nodes": 3099,
+          "first_image_ready_ms": 179.4
+        },
+        {
+          "photos": 5000,
+          "page": "gallery",
+          "profile": "desktop-local",
+          "metadata_ready_ms": 136.7,
+          "dom_nodes": 733,
+          "first_image_ready_ms": 151
+        },
+        {
+          "photos": 5000,
+          "page": "gallery",
+          "profile": "mobile-simulated-slow",
+          "metadata_ready_ms": 3664.6,
+          "dom_nodes": 733,
+          "first_image_ready_ms": 3690.6
+        },
+        {
+          "photos": 5000,
+          "page": "admin",
+          "profile": "desktop-local",
+          "metadata_ready_ms": 168.4,
+          "dom_nodes": 3099,
+          "first_image_ready_ms": 179.2
+        }
+      ],
+      "api": [
+        {
+          "photo_count": 500,
+          "route": "/api/gallery/:album",
+          "runs": [
+            {
+              "duration_ms": 25.5,
+              "json_bytes": 161868,
+              "gzip_estimate_bytes": 9980,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 2.6,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 9.9,
+              "json_bytes": 161868,
+              "gzip_estimate_bytes": 9980,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 2.6,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 10,
+              "json_bytes": 161868,
+              "gzip_estimate_bytes": 9980,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 2.5,
+              "photo_rows_read": 500
+            }
+          ]
+        },
+        {
+          "photo_count": 500,
+          "route": "/api/gallery/:album/selection",
+          "runs": [
+            {
+              "duration_ms": 5,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 0.8,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 2.1,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 4,
+              "query_ms": 0.2,
+              "photo_rows_read": 0
+            },
+            {
+              "duration_ms": 2.3,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 4,
+              "query_ms": 0.2,
+              "photo_rows_read": 0
+            }
+          ]
+        },
+        {
+          "photo_count": 500,
+          "route": "/api/admin/albums/:album",
+          "runs": [
+            {
+              "duration_ms": 8.8,
+              "json_bytes": 181000,
+              "gzip_estimate_bytes": 9806,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 3.2,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 9.7,
+              "json_bytes": 181000,
+              "gzip_estimate_bytes": 9806,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 3.4,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 8.1,
+              "json_bytes": 181000,
+              "gzip_estimate_bytes": 9806,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 3.3,
+              "photo_rows_read": 500
+            }
+          ]
+        },
+        {
+          "photo_count": 500,
+          "route": "/api/admin/albums/:album/selection",
+          "runs": [
+            {
+              "duration_ms": 4.2,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 0.9,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 3.8,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 0.8,
+              "photo_rows_read": 500
+            },
+            {
+              "duration_ms": 3.6,
+              "json_bytes": 337,
+              "gzip_estimate_bytes": 230,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 0.8,
+              "photo_rows_read": 500
+            }
+          ]
+        },
+        {
+          "photo_count": 500,
+          "route": "/api/admin/albums?view=summary",
+          "runs": [
+            {
+              "duration_ms": 2.9,
+              "json_bytes": 545,
+              "gzip_estimate_bytes": 317,
+              "content_encoding": null,
+              "query_count": 5,
+              "query_ms": 0.4,
+              "photo_rows_read": 2
+            },
+            {
+              "duration_ms": 2.6,
+              "json_bytes": 545,
+              "gzip_estimate_bytes": 317,
+              "content_encoding": null,
+              "query_count": 5,
+              "query_ms": 0.4,
+              "photo_rows_read": 2
+            },
+            {
+              "duration_ms": 3.8,
+              "json_bytes": 545,
+              "gzip_estimate_bytes": 317,
+              "content_encoding": null,
+              "query_count": 5,
+              "query_ms": 0.4,
+              "photo_rows_read": 2
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/gallery/:album",
+          "runs": [
+            {
+              "duration_ms": 43.7,
+              "json_bytes": 1623371,
+              "gzip_estimate_bytes": 93830,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 22.3,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 39.5,
+              "json_bytes": 1623371,
+              "gzip_estimate_bytes": 93830,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 22.7,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 40.1,
+              "json_bytes": 1623371,
+              "gzip_estimate_bytes": 93830,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 23.5,
+              "photo_rows_read": 5000
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/gallery/:album/selection",
+          "runs": [
+            {
+              "duration_ms": 13.6,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 234,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 5.4,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 1.6,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 234,
+              "content_encoding": null,
+              "query_count": 4,
+              "query_ms": 0.2,
+              "photo_rows_read": 0
+            },
+            {
+              "duration_ms": 1.9,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 234,
+              "content_encoding": null,
+              "query_count": 4,
+              "query_ms": 0.1,
+              "photo_rows_read": 0
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/admin/albums/:album",
+          "runs": [
+            {
+              "duration_ms": 50.7,
+              "json_bytes": 1813503,
+              "gzip_estimate_bytes": 90681,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 30.4,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 45.1,
+              "json_bytes": 1813503,
+              "gzip_estimate_bytes": 90681,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 30.6,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 45.7,
+              "json_bytes": 1813503,
+              "gzip_estimate_bytes": 90681,
+              "content_encoding": "gzip",
+              "query_count": 6,
+              "query_ms": 32.7,
+              "photo_rows_read": 5000
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/admin/albums/:album/selection",
+          "runs": [
+            {
+              "duration_ms": 13.5,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 231,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 6.4,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 13,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 231,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 6.5,
+              "photo_rows_read": 5000
+            },
+            {
+              "duration_ms": 12.4,
+              "json_bytes": 338,
+              "gzip_estimate_bytes": 231,
+              "content_encoding": null,
+              "query_count": 7,
+              "query_ms": 6.4,
+              "photo_rows_read": 5000
+            }
+          ]
+        },
+        {
+          "photo_count": 5000,
+          "route": "/api/admin/albums?view=summary",
+          "runs": [
+            {
+              "duration_ms": 4.3,
+              "json_bytes": 1091,
+              "gzip_estimate_bytes": 351,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 1.2,
+              "photo_rows_read": 4
+            },
+            {
+              "duration_ms": 2.5,
+              "json_bytes": 1091,
+              "gzip_estimate_bytes": 351,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 1,
+              "photo_rows_read": 4
+            },
+            {
+              "duration_ms": 2.7,
+              "json_bytes": 1091,
+              "gzip_estimate_bytes": 351,
+              "content_encoding": "gzip",
+              "query_count": 5,
+              "query_ms": 1,
+              "photo_rows_read": 4
+            }
+          ]
+        }
+      ],
+      "browser_assertions": [
+        {
+          "photos": 500,
+          "page": "gallery",
+          "profile": "desktop-local",
+          "photo_cards": 90,
+          "horizontal_overflow": false,
+          "cross_page_lightbox": {
+            "before": "90 / 500",
+            "after": "91 / 500",
+            "navigation_ms": 7.2,
+            "returned_to_opening_photo": true
+          }
+        },
+        {
+          "photos": 500,
+          "page": "gallery",
+          "profile": "mobile-simulated-slow",
+          "photo_cards": 90,
+          "horizontal_overflow": false
+        },
+        {
+          "photos": 500,
+          "page": "admin",
+          "profile": "desktop-local",
+          "photo_cards": 120,
+          "horizontal_overflow": false,
+          "quiet_poll_full_catalog_reload": false,
+          "quiet_poll_photo_rows_read": 500
+        },
+        {
+          "photos": 5000,
+          "page": "gallery",
+          "profile": "desktop-local",
+          "photo_cards": 90,
+          "horizontal_overflow": false,
+          "cross_page_lightbox": {
+            "before": "90 / 5000",
+            "after": "91 / 5000",
+            "navigation_ms": 7.6,
+            "returned_to_opening_photo": true
+          }
+        },
+        {
+          "photos": 5000,
+          "page": "gallery",
+          "profile": "mobile-simulated-slow",
+          "photo_cards": 90,
+          "horizontal_overflow": false
+        },
+        {
+          "photos": 5000,
+          "page": "admin",
+          "profile": "desktop-local",
+          "photo_cards": 120,
+          "horizontal_overflow": false,
+          "quiet_poll_full_catalog_reload": false,
+          "quiet_poll_photo_rows_read": 5000
+        }
+      ]
+    }
+  },
+  "asset_bytes": {
+    "public_eager_removed": 61975,
+    "loader_added": 1046,
+    "description": "uncompressed source bytes; dynamic imports are not fetched by public pages; no production network timing claim"
+  },
+  "browser_runtime": {
+    "engine": "Chrome",
+    "version": "155.0.8059.85",
+    "playwright": "1.62.1"
+  },
+  "drive_metadata_benchmark": [
+    {
+      "count": 500,
+      "batchSize": 5,
+      "preview": {
+        "queries": 83,
+        "rows": 2052,
+        "folder_gets": 4,
+        "file_gets": 0,
+        "list_pages": 1,
+        "membership_pages": 0,
+        "downloads": 0,
+        "batches": 1,
+        "milliseconds": 26,
+        "status": "awaiting_review"
+      },
+      "apply": {
+        "queries": 103,
+        "rows": 2568,
+        "folder_gets": 4,
+        "file_gets": 0,
+        "list_pages": 1,
+        "membership_pages": 0,
+        "downloads": 0,
+        "batches": 1,
+        "milliseconds": 37,
+        "status": "completed"
+      }
+    },
+    {
+      "count": 5000,
+      "batchSize": 5,
+      "preview": {
+        "queries": 228,
+        "rows": 20076,
+        "folder_gets": 4,
+        "file_gets": 0,
+        "list_pages": 5,
+        "membership_pages": 0,
+        "downloads": 0,
+        "batches": 1,
+        "milliseconds": 275,
+        "status": "awaiting_review"
+      },
+      "apply": {
+        "queries": 257,
+        "rows": 25092,
+        "folder_gets": 4,
+        "file_gets": 0,
+        "list_pages": 5,
+        "membership_pages": 0,
+        "downloads": 0,
+        "batches": 1,
+        "milliseconds": 372,
+        "status": "completed"
+      }
+    }
+  ],
+  "limitations": [
+    "No production deployment or new live cloud verification.",
+    "Single before/after browser run per case; background machine load differs, no statistical latency improvement claim.",
+    "Gallery fixture uses small synthetic images; not real JPEG import capacity.",
+    "PostgreSQL admin selection polling still reads all photo metadata.",
+    "Browser/axe not a CI gate; axe and other browser engines not run in this audit.",
+    "Node 22 engine compatibility declared from API availability, full suite executed on Node 24 only."
+  ]
+}

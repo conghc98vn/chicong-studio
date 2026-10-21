@@ -44,8 +44,9 @@ const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',yea
 const validDate=x=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x))&&new Date(x).toISOString().slice(0,10)===x;
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 export async function createApp(options={}){
- const production=options.production??process.env.NODE_ENV==='production';
- const env=options.env||process.env;const dataDir=options.dataDir||env.DATA_DIR||path.resolve('data/live');
+ const env = options.env || process.env;
+ const production = options.production ?? env.NODE_ENV === 'production';
+ const dataDir = options.dataDir || env.DATA_DIR || path.resolve('data/live');
  const indexing=env.SITE_INDEXING!=='false';
  const security=requestSecurity({production,origin:options.origin,env});
  if(production&&!env.DATABASE_URL)throw Error('Production requires persistent DATABASE_URL. See HOSTING.md.');

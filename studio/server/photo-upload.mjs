@@ -43,10 +43,12 @@ export async function uploadPhoto({db, storage, mediaControl, albumId, file, upl
   const original = (decoded.originalName || multipartName(file.originalname)).trim().normalize('NFC').slice(0, 180);
   const resolveTarget = async (tx, originalName) => {
     if (targetId) return null;
-    const matches = (await tx.all("SELECT * FROM photos WHERE album_id=? AND source='manual' ORDER BY position,id", [albumId])).filter(photo => nameKey(photo.original) === nameKey(originalName));
+    // Matching needs only names and IDs. Avoid transferring every photo's full
+    // metadata and upload hashes for each file in a large upload batch.
+    const matches = (await tx.all("SELECT id,original FROM photos WHERE album_id=? AND source='manual' ORDER BY position,id", [albumId])).filter(photo => nameKey(photo.original) === nameKey(originalName));
     if (matches.length && policy === 'skip') return {result: {success: true, id: matches[0].id, skipped: true, reused: false}};
     if (matches.length > 1) throw issue('Có nhiều ảnh cùng tên trong bộ ảnh. Hãy chọn ảnh cụ thể để thay.', 'AMBIGUOUS_FILENAME');
-    return {target: matches[0]};
+    return {target: matches.length ? await tx.get('SELECT * FROM photos WHERE id=? AND album_id=?', [matches[0].id, albumId]) : null};
   };
   // Validate even skipped inputs, but avoid remote PUTs for known duplicates.
   if (!targetId && policy === 'skip') {

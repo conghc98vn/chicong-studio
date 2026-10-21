@@ -39,7 +39,8 @@ try{
  const uploaded=await request('/api/admin/albums/'+album+'/photos',body);assert.equal(uploaded.status,201);const result=await uploaded.json();assert.equal(result.results.filter(photo=>photo.success).length,3);
  const photos=[];for(const resultPhoto of result.results)photos.push(await instance.db.get('SELECT * FROM photos WHERE id=?',[resultPhoto.id]));
  for(const [index,photo] of photos.entries())await instance.db.run('UPDATE photos SET section_id=? WHERE id=?',[sections[index===1?1:0],photo.id]);
- await instance.db.run('UPDATE photos SET download_bytes=NULL WHERE id=?',[photos[1].id]);await instance.storage.remove(photos[1].filename+'-download.jpg');
+ await instance.db.run('UPDATE photos SET download_bytes=NULL WHERE id=?',[photos[1].id]);// Simulate a legacy object set directly in this disposable local fixture.
+ await rm(path.join(dir,'uploads',photos[1].filename+'-download.jpg'));
  const storedJpeg=await instance.storage.get(photos[0].filename+'-download.jpg');
  const browserName=process.env.STUDIO_BROWSER||'chromium';
  browser=await (pw[browserName]||pw.default[browserName]).launch({...(browserName==='chromium'?{channel:'chrome'}:{}),headless:true});

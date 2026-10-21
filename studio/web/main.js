@@ -1,6 +1,5 @@
-import {driveAlbumFields,mountDriveAlbumEntry,checkedDriveAlbumData,driveEntryError} from './drive-album-entry.mjs';
-import {mountDriveAlbumStatuses} from './drive-album-status.mjs';
-import {mountDrivePanel} from './drive-panel.mjs';
+import {loadAdminDrive} from './admin-drive-loader.mjs';
+let driveAlbumFields,mountDriveAlbumEntry,checkedDriveAlbumData,driveEntryError,mountDriveAlbumStatuses,mountDrivePanel;
 import {pageWindow,photoPager,albumPageSize,adminPageSize,largeGalleryThreshold,largeAdminThreshold} from './photo-pagination.mjs';
 import {adminVisiblePhotos,matchesAdminPhoto,selectedFileNames} from './admin-proofing.mjs';
 import {uploadRequest,uploadProgressText} from './upload-request.mjs';
@@ -676,6 +675,8 @@ async function refreshAdmin(){
  const key=adminAlbumId,view=adminView,navigation=adminNavigation;
  const current=()=>navigation===adminNavigation&&key===adminAlbumId&&view===adminView;
  try{
+  ({driveAlbumFields,mountDriveAlbumEntry,checkedDriveAlbumData,driveEntryError,mountDriveAlbumStatuses,mountDrivePanel}=await loadAdminDrive());
+  if(!current())return;
   if(key){
    const a=await api('/api/admin/albums/'+key);if(!current())return;
    adminAlbums=adminAlbums.filter(item=>item.id!==a.id);adminAlbums.push(a);return adminAlbumDetail();

@@ -1,6 +1,6 @@
 # 03 — Dùng ChiCong Studio làm phòng lab QA
 
-**Dành cho chủ website đang làm QA · 16/10/2026.** Mục tiêu là giải thích được vì sao hệ thống đúng, thiết kế cách làm nó sai có kiểm soát, và thu thập bằng chứng. Không cần biến mọi bài tập thành một framework automation mới.
+**Dành cho chủ website đang làm QA · Cập nhật 21/10/2026.** Mục tiêu là giải thích được vì sao hệ thống đúng, thiết kế cách làm nó sai có kiểm soát, và thu thập bằng chứng. Không cần biến mọi bài tập thành một framework automation mới.
 
 ## 1. Chiến lược kiểm thử theo rủi ro
 
@@ -17,30 +17,34 @@ Ba tài sản quan trọng nhất là **ảnh và quyền riêng tư**, **dữ l
 
 Chọn test oracle độc lập với cách code đang viết. Ví dụ, kiểm DB có đúng một inquiry sau retry đáng tin hơn chỉ kiểm toast “thành công”. Test dùng mock chứng minh ứng dụng phản ứng với giả lập, không chứng minh dịch vụ ngoài hôm nay còn hoạt động.
 
-## 2. Kết quả hiện hành và lịch sử kiểm chứng
+## 2. Kết quả hiện hành và cách chạy
 
-**REPORT mới nhất ngày 20/10:** [perf pass](../google-drive-perf-pass-2026-10-20.md) ghi **420/420, 0 fail/skip**, Node 24, SQLite/PostgreSQL 17 cách ly; tail [log](../../output/drive-perf-pass-2026-10-20/regression-tests.log) khớp số này, khoảng 51,51 giây. Có browser smoke và Chrome thật desktop/mobile 320px cho folder picker. Không chạy lại suite trong lượt chỉnh handbook, không coi đây là suite vừa chạy lại trong rollout VPS 20/10. [Cập nhật 20/10](05-cap-nhat-du-an-2026-10-20.md) giải thích giảm truy vấn, deadline và giới hạn workload.
+Lượt review bổ sung 21/10 chạy **Node 24.19.0**, SQLite và PostgreSQL 16 cách ly: nhánh PostgreSQL đạt **427/427, 0 fail/skip**; lượt không cấp URL DB đạt **376 pass, 44 skip, 0 fail**. Skips ở lượt SQLite là test cần PostgreSQL, không phải lỗi bị bỏ qua. [Report hiện hành](../review-2026-10-21.md) giữ kết quả browser/benchmark và giới hạn xác minh; các số 421/373 của lượt đầu thuộc baseline trước sáu test hồi quy mới.
 
-Workflow 17/10 với 373/373, Node 24.19.0/PG16 và fixture 5.000 ảnh là mốc trước, được giữ ở [bản lịch sử](04-cap-nhat-du-an-2026-10-17.md). Bảng dưới giữ kết quả audit 16/10 để truy vết.
+```sh
+nvm use
+npm ci
+npm run check
+npm run check:docs
+npm test
+STUDIO_TEST_POSTGRES_URL=postgresql://USER:PASSWORD@127.0.0.1:PORT/TEST_DB npm test
+STUDIO_PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs npm run test:browser
+```
 
-| Kiểm tra | Kết quả | Giới hạn |
-|---|---|---|
-| npm run check | Đạt, syntax server/frontend được xác minh | Không phải typecheck, lint chuyên sâu hoặc test nghiệp vụ |
-| npm test | **270 test: 263 pass, 0 fail, 7 skipped**, khoảng 20,9 giây | Local Node **v23.6.0**, không dùng DB/cloud production, không cung cấp STUDIO_TEST_POSTGRES_URL |
-| Test PostgreSQL | 7 test báo SKIP; nhiều fixture có thể chỉ chạy nhánh SQLite khi thiếu URL | Không kết luận parity PostgreSQL đã được kiểm trong lượt này |
-| Browser/axe | Không chạy lại trong đợt tài liệu | Không dùng report cũ làm kết quả browser của working tree hôm nay |
-| Website public | Home/health/robots HTTP 200 lúc 10:27 ngày 16/10 | Không đăng nhập, upload, booking, gửi email hoặc thử tải private gallery live |
+`npm test` không nạp `.env`. Cấp URL DB disposable, các suite có quyền CREATE/DROP schema; test `database-recovery` ngắt duy nhất PID từ pool riêng để kiểm idle, transaction giữa các query, query đang chạy và rollback thất bại. `environment-isolation` dùng TCP trap local để xác nhận fixture không kết nối tới `DATABASE_URL` kế thừa. `openDatabase` mặc định SQLite; caller muốn PostgreSQL phải truyền URL rõ ràng. Kiểm tra fixture không gọi mail/Drive/cloud thật trước khi chọn một smoke script riêng.
 
-Log đầy đủ: [node-tests.log](../../output/system-handbook-2026-10-16/node-tests.log). Đây là test của working tree vốn đang có thay đổi, không phải bản chứng nhận deployment. Các biến kết nối DB/cloud/mail/Calendar được loại khỏi process chạy test của lượt này; npm test không nạp .env.
+`test:browser` chạy tuần tự 13 suite được chọn trong [runner](../../studio/tests/run-browser-smoke.mjs): public/login không tải Drive, admin phục hồi CSS lỗi/treo, quyền gallery, đồng bộ giữa tab, JPEG/ZIP, quản lý/thay/xóa ảnh, prepared upload, proofing, tạo album Drive, folder browser, polling và slug. Hai suite bổ sung là `proofing-concurrency` (response/export về muộn và điều hướng) và `photo-management-recovery` (xóa thành công nhưng refresh lỗi, retry). Nó không chạy các script `*-live`, `render-*` hay benchmark đọc `data/live`.
 
-Source đối chiếu 20/10 có **51 file *.test.mjs** và **36 file *.smoke.mjs** trực tiếp dưới studio/tests. Đây là số file, không phải số scenario hay phần trăm coverage. CI [check.yml](../../.github/workflows/check.yml) vẫn dùng Node 24 và PostgreSQL 16 dùng một lần, khác PG17 trong report local mới; chạy npm ci, npm run check, npm test. CI không gọi các smoke script; một số smoke script có axe tùy chọn qua STUDIO_AXE_MODULE. Không cấp biến này thì scan có thể không chạy mà browser script vẫn hoàn thành.
+Playwright/axe hiện là dependency ngoài, không tự được cài bởi `npm ci`. Browser runner cần Playwright import được và Google Chrome; các suite hỗ trợ WebKit có thể chạy riêng với `STUDIO_BROWSER=webkit` khi engine đã cài. `STUDIO_AXE_MODULE` là opt-in ở suite có hỗ trợ; không cấp thì không được ghi “axe đã chạy”.
+
+CI [check.yml](../../.github/workflows/check.yml) dùng Node 24/PostgreSQL 16: `npm ci`, syntax, link tài liệu và `npm test`. Browser runner hiện chạy local, chưa là CI gate. Không dùng CI xanh thay kiểm cloud/backup/rollback.
 
 ## 3. Chuẩn bị lab tách khỏi dữ liệu studio
 
 Đối với bài manual đầu tiên, dùng fixture được repo thiết kế sẵn. Không dùng npm run dev cho lab email bởi script đó nạp .env có Resend/ICS thật.
 
 ~~~sh
-cd /Users/conghoang/Desktop/photo/web-porfolio-photography
+cd /path/to/chicong-studio
 env -i PATH="$PATH" node studio/tests/manual-fixture.mjs
 ~~~
 
@@ -273,7 +277,7 @@ Open risks: <tác động + workaround + người xử lý>
 Decision: <có thể release trong phạm vi nào / điều kiện còn thiếu>
 ~~~
 
-Ví dụ báo cáo của lượt audit 16/10: “syntax đạt; local Node 23.6 chạy 270 test, 263 pass và 7 skip; chưa chạy browser/PostgreSQL/cloud trong lượt đó”. Lượt cập nhật handbook 20/10 chỉ đọc source/report; kết quả 420/420 là của lượt tối ưu đã lưu, không phải suite vừa chạy lại. Câu “toàn bộ hệ thống production pass” vượt quá bằng chứng.
+Ghi kết quả theo [report hiện hành](../review-2026-10-21.md), tách rõ SQLite, PostgreSQL, browser và cloud. Không cộng các suite có ca trùng thành phần trăm coverage; câu “toàn bộ production pass” vượt quá bằng chứng local.
 
 ## 8. Lộ trình bốn tuần và portfolio
 

@@ -9,6 +9,8 @@
     "start": "node --env-file-if-exists=.env studio/server/start.mjs",
     "test": "node --test studio/tests/*.test.mjs",
     "check": "node studio/tests/check-syntax.mjs",
+    "test:browser": "node studio/tests/run-browser-smoke.mjs",
+    "check:docs": "node studio/tests/check-docs.mjs",
     "admin:reset": "node --env-file-if-exists=.env studio/server/reset-admin.mjs",
     "photos:prepare": "node studio/tools/prepare-photos.mjs",
     "media": "node studio/tools/media-ops.mjs",
@@ -19,7 +21,7 @@
     "backup:db": "ssh chicong-vps /var/www/chicongphoto/scripts/backup-db.sh"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": "^22.16.0 || >=24.0.0"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1152.0",

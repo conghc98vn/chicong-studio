@@ -9,13 +9,42 @@ import pg from 'pg';
 export const id=()=>randomBytes(16).toString('hex');
 export function hashPassword(value){const salt=randomBytes(16).toString('hex');return salt+':'+scryptSync(value,salt,64).toString('hex');}
 export function verifyPassword(value,stored){try{const [salt,key]=stored.split(':');const actual=scryptSync(value,salt,64);const expected=Buffer.from(key,'hex');return actual.length===expected.length&&timingSafeEqual(actual,expected);}catch{return false;}}
-export async function openDatabase(dir,{url=process.env.DATABASE_URL,initialize=true}={}){
+// Callers select the database explicitly. A local fixture must never inherit
+// a production URL merely because it was exported in the parent terminal.
+export async function openDatabase(dir,{url=null,initialize=true}={}){
  let db;
  if(url){
   const pool=new pg.Pool({connectionString:url,max:3,connectionTimeoutMillis:15000});
+  // pg removes failed idle clients, but its unhandled pool error would otherwise
+  // terminate the web/worker process. Never log credentials or raw server text.
+  pool.on('error',error=>console.error('Database idle connection failed:',/^[A-Z0-9]{5}$/.test(error?.code||'')?error.code:'CONNECTION_ERROR'));
   const connection=client=>{const query=(sql,p=[])=>{let i=0;return client.query(sql.replace(/\?/g,()=>'$'+(++i)),p);};return {all:async(s,p)=>(await query(s,p)).rows,get:async(s,p)=>(await query(s,p)).rows[0],run:async(s,p)=>({changes:(await query(s,p)).rowCount}),exec:s=>client.query(s),cloud:true};};
   db={...connection(pool),close:()=>pool.end(),transaction:async fn=>{
-   const client=await pool.connect();try{await client.query('BEGIN');const result=await fn(connection(client));await client.query('COMMIT');return result;}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+   const client = await pool.connect();
+   let connectionError;
+   // A checked-out client no longer has the pool's idle error listener. Keep
+   // the connection owned until the callback settles, even if it awaits I/O.
+   const onError = error => { connectionError ??= error; };
+   client.on('error', onError);
+   try {
+    await client.query('BEGIN');
+    const result = await fn(connection(client));
+    if (connectionError) throw connectionError;
+    await client.query('COMMIT');
+    return result;
+   } catch (error) {
+    try {
+     await client.query('ROLLBACK');
+    } catch (rollbackError) {
+     connectionError ??= rollbackError;
+    }
+    // A broken connection can also reject ROLLBACK. Preserve the original
+    // failure, discard that client, and never retry an uncertain write here.
+    throw error;
+   } finally {
+    client.release(connectionError);
+    client.removeListener('error', onError);
+   }
   }};
  }
  else{

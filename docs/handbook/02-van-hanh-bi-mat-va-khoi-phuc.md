@@ -1,6 +1,6 @@
 # 02 — Vận hành, bí mật và khôi phục
 
-**Cập nhật 20/10/2026 · Phạm vi: source/config/report, không kiểm live mới.** Production là VPS iNET theo rollout 20/10. Source web/worker/backup mới đã triển khai, nhập thủ công bật và scheduler tắt; nghiệm thu cuối/boot còn chờ. Baseline production đã verify media tại VPS; full Supabase restore và bản media ngoài VPS chưa hoàn tất. Danh mục Render dành cho hạ tầng cũ/staging.
+**Cập nhật 21/10/2026 · Phạm vi: source/config/report, không kiểm live mới.** Production: VPS iNET, database Supabase, media R2 private. Pilot Drive/no-op đã đạt; worker enabled và restart idle đạt, chưa reboot VPS. Backup ngoài VPS và restore ứng dụng offline đã đạt; chưa có lịch backup media hoặc full cloud restore. Danh mục Render dành cho hạ tầng cũ/staging.
 
 ## 1. Bộ hồ sơ cần có để tự quản lý website
 
@@ -69,15 +69,17 @@ Nguồn đầy đủ: [.env.example](../../.env.example), [render.yaml](../../re
 
 GitHub workflow dùng environment **website-backup**; secrets và vars được đọc từ đó. File workflow tồn tại không chứng minh environment, permissions, schedule hoặc alert đã được cấu hình trên GitHub.
 
-### 2.3. Kiểm kê file local đã làm, không đọc ra giá trị
+### 2.3. Kiểm kê file local ở mốc audit 16/10, không đọc ra giá trị
 
-| File hiện có | Nhóm biến có giá trị | Quyền file lúc kiểm tra | Ý nghĩa |
+| File tại mốc kiểm tra | Nhóm biến có giá trị | Quyền file lúc kiểm tra | Ý nghĩa |
 |---|---|---|---|
 | .env | PORT, Resend, địa chỉ mail, Calendar ICS và include-free | 0600 | Không có DATABASE_URL trong file này; không phải bản backup đầy đủ env prod |
 | .env.r2-staging | Provider và 4 biến R2, MEDIA_CLEANUP_ENABLED | 0600 | Credential bucket staging đã dùng cho validation, không dùng thay credential production |
 | .env.render-staging | DATABASE_URL, SETUP_TOKEN, tài khoản/mật khẩu fixture staging | 0600 | Credential Render staging riêng; không đưa Drive/mail/Calendar production vào runtime staging |
 | .env.oauth-client | Drive client ID/secret, email | 0600 | Hồ sơ OAuth; chưa đủ nếu thiếu refresh token |
 | .env.backup-drive | Drive client ID/secret, refresh token, owner email/folder | 0600 | Bộ runner đang có local; không chứng minh token còn hiệu lực hiện tại |
+
+Biên bản 21/10 bổ sung credential R2 production riêng, token giới hạn đúng bucket và lưu file 0600 ngoài Git; lượt handbook này không đọc lại giá trị secret. Bảng 16/10 không phải inventory đầy đủ của các file mới.
 
 Git hiện chỉ track .env.example trong nhóm .env*. File 0600 và Git ignore ngăn một số cách lộ thông thường nhưng **không phải mã hóa**, không bảo vệ bản copy/upload nhầm. .env.backup-drive là tên file credential của runner, không phải file backup website.
 
@@ -136,15 +138,23 @@ Kế hoạch R2 ghi nhận staging Render đã chạy Node 24 với PostgreSQL v
 
 Rollout đã giữ baseline SQL gzip và snapshot v2 với **3.287 object được tham chiếu**, verify đạt; bucket có 3.291 object không có nghĩa snapshot phải thu cả object không được tham chiếu. Dữ liệu tại mốc đó là 8 album/1.190 ảnh/1 admin. Source/config cũ được lưu riêng, không đưa secret vào evidence chia sẻ.
 
-Rollout 20/10 tạo snapshot mới trong cùng kho blob VPS, verify 3.287 object; vẫn chưa có bản media độc lập ngoài máy. Nguồn mới: [biên bản phát hành 20/10](../google-drive-sync-production-release-2026-10-20.md).
+Rollout 20/10 tạo snapshot mới trong cùng kho blob VPS, verify 3.287 object. Biên bản nghiệm thu cuối ghi SQL/media đã copy về Mac, verify và restore offline đạt; snapshot này trước pilot, chưa chứa 33 ảnh mới. Nguồn mới: [biên bản phát hành 20/10](../archive/google-drive-sync-production-release-2026-10-20.md).
 
-Ngày 19/10, SQL baseline được copy về local, hash khớp VPS. Restore riêng schema `public` đã điều chỉnh cho PostgreSQL 16 đạt **28 bảng/28 foreign key/60 index** và số dòng khớp. Nguyên dump PostgreSQL 17 không restore được trên PG16 vì `transaction_timeout`; thử nguyên dump trên PG17.11 vẫn dừng do thiếu role `supabase_admin`. Đây chưa phải full Supabase restore. Media baseline còn cùng VPS; chưa có bằng chứng DB + media được restore thành công từ một nơi độc lập. Nguồn: [rollout](../google-drive-sync-production-release-2026-10-17.md), [follow-up](../google-drive-sync-followup-2026-10-19.md).
+Ngày 19/10, SQL baseline được copy về local, hash khớp VPS. Restore riêng schema `public` đã điều chỉnh cho PostgreSQL 16 đạt **28 bảng/28 foreign key/60 index** và số dòng khớp. Nguyên dump PostgreSQL 17 không restore được trên PG16 vì `transaction_timeout`; thử nguyên dump trên PG17.11 vẫn dừng do thiếu role `supabase_admin`. Đây chưa phải full Supabase restore. Đây là giới hạn của lần 19/10; bằng chứng restore ứng dụng offline ngoài VPS ngày 20–21/10 đã có, nhưng không thay full Supabase platform restore. Nguồn: [rollout](../archive/google-drive-sync-production-release-2026-10-17.md), [follow-up](../archive/google-drive-sync-followup-2026-10-19.md).
 
-### 3.4. Rollout folder browser và các xác nhận còn chờ
+### 3.4. Rollout folder browser và nghiệm thu pilot
 
-Source 20/10 thêm `folder_scope` và cache `drive_folder_preview_cache`. Cập nhật web, worker và mọi backup runner cùng bản tương thích; runner cũ không nhận diện cache mới có thể chặn snapshot theo cơ chế từ chối bảng lạ. Script dump mới loại dữ liệu cả hai cache; runbook và rollout 20/10 ghi đã phát hành cùng source. Dữ liệu cũ mặc định `root`; shared đã được studio chọn. Runbook mới ghi shared/check thành công nhưng bảng nghiệm thu rollout còn PENDING: cần đối chiếu kết quả cuối trước đóng pilot. Không còn yêu cầu gom tất cả album vào một folder cha chung trong chế độ shared.
+Source 20/10 thêm `folder_scope` và cache `drive_folder_preview_cache`. Cập nhật web, worker và mọi backup runner cùng bản tương thích; runner cũ không nhận diện cache mới có thể chặn snapshot theo cơ chế từ chối bảng lạ. Script dump mới loại dữ liệu cả hai cache; runbook và rollout 20/10 ghi đã phát hành cùng source. Dữ liệu cũ mặc định `root`; shared đã được studio chọn. Biên bản cuối đã xác nhận shared/check, browse, pilot 33 ảnh và no-op đạt; bảng PENDING trước đó được thay bằng kết quả thực tế. Không còn yêu cầu gom tất cả album vào một folder cha chung trong chế độ shared.
 
-Khóa thử cũ đã thu hồi ngày 19/10; khóa thay thế được kiểm đọc/list từ user worker VPS. Unit đã khởi động sau chuyển source 20/10; trạng thái enable cùng máy và nghiệm thu cuối còn chờ. Bật khởi động tự động và lịch là hai việc khác nhau. Pilot VPS cấu hình 128 MiB/60 MP, heap Node 256 MiB, cgroup CPU 50%/MemoryHigh 512 MiB/MemoryMax 768 MiB; không thay bằng default 120 MP của local. Xem [các bước còn lại](05-cap-nhat-du-an-2026-10-20.md).
+Khóa thử cũ đã thu hồi ngày 19/10; khóa thay thế được kiểm đọc/list từ user worker VPS. Unit đã enable cùng máy và restart khi idle thành công; chưa thử reboot VPS hoặc kill giữa import. Bật khởi động tự động và lịch là hai việc khác nhau. Pilot VPS cấu hình 128 MiB/60 MP, heap Node 256 MiB, cgroup CPU 50%/MemoryHigh 512 MiB/MemoryMax 768 MiB; không thay bằng default 120 MP của local. Xem [các bước còn lại](../archive/handbook/06-cap-nhat-du-an-2026-10-21.md).
+
+### 3.5. Backup và rollback sau cutover R2 ngày 21/10
+
+Snapshot `2026-10-21T02-19-52-867Z-83c5216a-aee7-4e92-b7e4-ed0ce9e716e8` gồm 3.386 object/1.431.587.015 byte và dữ liệu sau pilot: 9 album/1.223 ảnh. Có bản độc lập trên Mac, SHA-256 verify đạt; restore vào SQLite/media offline đạt integrity_check và 0 lỗi FK. Hai working copy restore đã dọn; backup và report vẫn giữ. Không xem đường dẫn working copy cũ là bản phục hồi còn mở được. Nguồn: [cutover R2](../archive/r2-production-cutover-2026-10-21.md).
+
+Runtime dùng token Object Read & Write giới hạn bucket `chicong-production`, lưu ngoài Git; token staging không được dùng thay. Giữ nguyên kho Supabase nguồn và bản env rollback. Không công khai manifest/private backup vì chứa dữ liệu khách và hash xác thực. Bucket private: r2.dev tắt, không custom media domain/CORS; quy tắc hủy multipart dở sau 7 ngày không phải TTL xóa ảnh.
+
+Cron SQL 03:00 vẫn không chứa bytes ảnh. Lịch backup media, kiểm tuổi snapshot và cảnh báo job không chạy còn phải hoàn thiện. Khôi phục ứng dụng offline đã đạt không có nghĩa một lệnh CLI dựng lại được PostgreSQL/Supabase, R2, DNS và quyền cloud.
 
 ## 4. Diễn tập phục hồi từ bộ offline
 
@@ -253,9 +263,9 @@ Khác với CLI restore local, pg_restore giữ cả sessions, storage binding, 
 
 ## 7. Chuyển storage: các cổng phải đạt
 
-Trình tự đã thiết kế là **bản tương thích → inventory → khóa → drain → backup/delta/verify → switch → restart mọi instance → smoke khi còn khóa → unlock**. Chi tiết và các bước reconcile được giữ trong [kế hoạch R2, mục 16–17](../r2-implementation-plan.md).
+Trình tự đã thiết kế là **bản tương thích → inventory → khóa → drain → backup/delta/verify → switch → restart mọi instance → smoke khi còn khóa → unlock**. Chi tiết và các bước reconcile được giữ trong [kế hoạch R2, mục 16–17](../archive/r2-implementation-plan.md).
 
-- Xác minh app đang chạy đã hỗ trợ provider rõ ràng và binding DB; cấu hình baseline production vẫn là Supabase, dù staging R2 đã qua validation.
+- Production đã chuyển sang R2 ngày 21/10; trước mọi lần đổi kho tiếp theo vẫn phải đối chiếu binding DB, cấu hình web/worker và snapshot mới nhất. Không coi config Supabase lịch sử là cấu hình đang chạy.
 - Tách staging DB/schema và bucket; bucket thử riêng nhưng DB thật vẫn có thể gây hại dữ liệu thật.
 - Còn writer/unknown writes/cleanup chưa drain thì dừng tại cổng đó; không xóa journal để làm trạng thái trông sạch.
 - Copy đúng object được snapshot tham chiếu, verify hash/size/type; không chỉ đếm file hoặc dùng id thay filename.
@@ -263,7 +273,7 @@ Trình tự đã thiết kế là **bản tương thích → inventory → khóa
 - Có kế hoạch rollback trước khi mở lại ghi. Sau khi đích nhận dữ liệu mới, nguồn cũ đã stale; rollback không chỉ là đổi env về nguồn.
 - Chốt quota, cửa sổ vận hành, người xử lý và điều kiện dừng trước thực hiện.
 
-Các kiểm thử R2 thật gồm cả **máy local → bucket thử** và **Render staging → R2** với dữ liệu tổng hợp. Chúng không chứng minh đường production có cùng latency, tải nhiều instance, tập ảnh khách đại diện hoặc xử lý đúng mọi timeout/ghi muộn của nhà cung cấp.
+Các kiểm thử R2 lịch sử gồm **máy local → bucket thử** và **Render staging → R2**. Cutover 21/10 bổ sung verify toàn kho production và probe quyền/upload thật; vẫn chưa chứng minh tải nhiều instance hay mọi timeout/ghi muộn. Khi R2 đã có ảnh mới, rollback cần đồng bộ delta ngược dưới lease và đổi binding; không chỉ đổi env hoặc restore DB cũ đè dữ liệu hiện tại.
 
 ## 8. Theo dõi để phát hiện lỗi trước khách
 
@@ -323,4 +333,4 @@ Không deploy chỉ vì CI xanh: workflow hiện không chạy browser smoke, ax
 
 Đánh dấu chỉ khi có bằng chứng; bảng này được để trống vì phiên lập tài liệu chưa kiểm toàn bộ các mục.
 
-Chi tiết trạng thái từng môi trường, ba lịch độc lập (dump DB, backup Drive, Drive Sync), schema/cache và bằng chứng mới nằm trong [bản cập nhật 20/10](05-cap-nhat-du-an-2026-10-20.md); [bản 17/10](04-cap-nhat-du-an-2026-10-17.md) giữ lịch sử.
+Trạng thái hiện hành và ba lịch độc lập nằm ở [mục lục handbook](README.md). Snapshot bàn giao, gồm kiểm kê file và số đo cũ, được giữ trong [lưu trữ](../archive/README.md); không suy file/cron/key còn đúng chỉ từ ngày ghi nhận cũ.
