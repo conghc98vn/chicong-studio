@@ -8,6 +8,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16-alpine
@@ -34,3 +35,45 @@ jobs:
       - run: npm run check
       - run: npm run check:docs
       - run: npm test
+  browser-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install pinned browser test tools outside the project
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/browser-tools" --no-package-lock --no-save playwright@1.62.1 @axe-core/playwright@4.14.0 axe-core@4.14.0
+          "$RUNNER_TEMP/browser-tools/node_modules/.bin/playwright" install --with-deps chromium
+          echo "STUDIO_PLAYWRIGHT_MODULE=$RUNNER_TEMP/browser-tools/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          echo "STUDIO_AXE_MODULE=$RUNNER_TEMP/browser-tools/node_modules/@axe-core/playwright/dist/index.mjs" >> "$GITHUB_ENV"
+          node --input-type=module -e 'const {chromium} = await import(process.env.RUNNER_TEMP + "/browser-tools/node_modules/playwright/index.mjs"); console.log("CHROME_BIN=" + chromium.executablePath())' >> "$GITHUB_ENV"
+      - name: Run isolated browser suites and supported accessibility scans
+        shell: bash
+        run: |
+          mkdir -p output/browser-ci
+          node --version
+          "$CHROME_BIN" --version
+          # Only synthetic local fixtures: no .env, cloud secrets, external image
+          # samples, staging URLs, database service or live smoke scripts.
+          env -i PATH="$PATH" HOME="$HOME" TMPDIR="$RUNNER_TEMP" \
+            NODE_ENV=test CHROME_BIN="$CHROME_BIN" \
+            STUDIO_PLAYWRIGHT_MODULE="$STUDIO_PLAYWRIGHT_MODULE" \
+            STUDIO_AXE_MODULE="$STUDIO_AXE_MODULE" \
+            STUDIO_BROWSER_EVIDENCE_DIR="$GITHUB_WORKSPACE/output/browser-ci" \
+            npm run test:browser 2>&1 | tee output/browser-ci/smoke.log
+      - name: Save synthetic browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-browser-smoke
+          path: output/browser-ci/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -22,6 +22,11 @@ import {parseSelection,defaultHeroSelection} from '../web/hero-slides.mjs';
 import {defaultStorySelection,homeHeroSlides} from '../web/home-curation.mjs';
 import {imageSources,heroDesktopSizes,heroMobileSizes} from '../web/responsive-image.mjs';
 import {createMailer} from './mailer.mjs';
+import {registerFeedbackRoutes} from './feedback.mjs';
+import {createFeedbackDispatcher} from './feedback-notifications.mjs';
+import {FEEDBACK_TABLES} from './feedback-schema.mjs';
+import {privateFeedbackHeaders,registerFeedbackShell} from './private-feedback-shell.mjs';
+import {registerFreelancerSite} from './freelancer-site.mjs';
 import express from 'express';
 import {sendCatalog} from './catalog-response.mjs';
 import multer from 'multer';
@@ -34,7 +39,7 @@ import {createStorage} from './storage.mjs';
 import {requestSecurity} from './request-security.mjs';
 const digest=t=>createHash('sha256').update(t).digest('hex');
 const mediaSources=p=>{const version=p.filename&&p.filename!==p.id?digest(p.filename).slice(0,16):'';return {src:'/media/'+p.id+(version?'?v='+version:''),thumb:'/media/'+p.id+'?size=thumb'+(version?'&v='+version:'')};};
-const categories=['wedding','prewedding','portrait','lifestyle'];
+const categories=['wedding','prewedding','portrait','lifestyle','event','birthday','teambuilding'];
 const albumStatuses=['draft','published','private','archived'];
 const inquiryStatuses=['new','contacted','confirmed','completed','cancelled'];
 const clean=(x,max=200)=>typeof x==='string'?x.trim().slice(0,max):'';
@@ -57,12 +62,18 @@ export async function createApp(options={}){
  const storage=trackedStorage(db,rawStorage,mediaControl);
  const asyncRoute=fn=>(req,res,next)=>Promise.resolve().then(()=>mediaMutation(req)?mediaControl.run('admin-media',()=>fn(req,res)):fn(req,res)).catch(next);
  const mailer=options.mailer||createMailer(env);
+ // Restore leaves a persistent gate. Reconciliation is an offline operator
+ // step; runtime never clears it simply because a new signing key is present.
+ const feedbackRestorePending=(await db.get("SELECT value FROM settings WHERE key='feedback_restore_pending'"))?.value==='true';
+ const feedbackEnv=feedbackRestorePending?{...env,FEEDBACK_API_PAUSED:'true',FEEDBACK_NOTIFICATIONS_PAUSED:'true'}:env;
+ const feedbackDispatcher=createFeedbackDispatcher({db,env:feedbackEnv,mailer});
  const googleCalendar=options.googleCalendar||createGoogleCalendar(env);
  const deletedPhotos=photoDeletion({db,storage,mediaControl,enabled:env.MEDIA_CLEANUP_ENABLED!=='false'});
  await deletedPhotos.initialize();
  const app=express();app.disable('x-powered-by');app.set('trust proxy',security.trustProxy);
  app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",'Permissions-Policy':'camera=(), microphone=(), geolocation=()'});if(production)res.set('Strict-Transport-Security','max-age=31536000');next();});
  app.use((req,res,next)=>{if(!indexing)res.set('X-Robots-Tag','noindex, nofollow');next();});
+ app.use(privateFeedbackHeaders);
  app.use(security.middleware);
  app.use(uploadTrace(options.uploadLogger||(production?(entry=>console.info('[upload] '+JSON.stringify(entry))):(()=>{}))));
  app.use(express.json({limit:'128kb'}));
@@ -81,7 +92,7 @@ export async function createApp(options={}){
   const row=await db.get('INSERT INTO rate_limits(key,count,expires) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.expires<? THEN 1 ELSE rate_limits.count+1 END,expires=CASE WHEN rate_limits.expires<? THEN ? ELSE rate_limits.expires END WHERE rate_limits.expires<? OR rate_limits.count<? RETURNING count',[k,time+900000,time,time,time+900000,time,max]);
   if(!row)throw fail(429,'Bạn đã thao tác nhiều lần liên tiếp. Vui lòng thử lại sau 15 phút.');
  };
- const settings=async()=>currentCopy(Object.fromEntries((await db.all('SELECT * FROM settings')).map(r=>[r.key,r.value])));
+ const settings=async()=>currentCopy(Object.fromEntries((await db.all('SELECT * FROM settings')).filter(r=>!r.key.startsWith('feedback_')).map(r=>[r.key,r.value])));
  const albumDTOs=async(rows,admin=false)=>{
   if(!rows.length)return [];
   const ids=rows.map(a=>a.id),placeholders=ids.map(()=>'?').join(',');
@@ -124,6 +135,8 @@ export async function createApp(options={}){
    return {id:a.id,slug:a.slug,title:a.title,category:a.category,description:a.description,status:a.status,event_date:a.event_date,cover_id:a.cover_id,created:a.created,photo_count:Number(a.photo_count),photos:list.filter((p,i)=>i===0||chosen.get(a.id).has(p.id)).map(({album_id,filename,...p})=>({...p,...mediaSources({...p,filename})}))};
   });
  };
+ const freelancerAlbum=async key=>{const a=await findAlbum(db,key);return a&&a.status==='published'?albumDTO(a):null;};
+ registerFreelancerSite({app,db,settings,portfolioCards,freelancerAlbum,googleCalendar,env,rate,production});
  app.get('/api/site',asyncRoute(async(req,res)=>res.json(await settings())));
  app.get('/api/health',async(req,res)=>{try{await db.get('SELECT key FROM settings LIMIT 1');res.json({ok:true});}catch{res.status(503).json({ok:false});}});
  app.get('/api/portfolio',asyncRoute(async(req,res)=>{if(req.query.view==='cards')return res.json(await portfolioCards());const rows=await db.all("SELECT * FROM albums WHERE status='published' ORDER BY created DESC");await sendCatalog(req,res,await albumDTOs(rows));}));
@@ -250,6 +263,7 @@ export async function createApp(options={}){
  app.post('/api/admin/login',asyncRoute(async(req,res)=>{await rate(req,'login',8);const a=await db.get('SELECT * FROM admins WHERE email=?',[clean(req.body.email,150)]);if(!a||!verifyPassword(clean(req.body.password,200),a.password))throw fail(401,'Email hoặc mật khẩu chưa đúng.');await makeSession(res,{admin:a.id});res.json({success:true});}));
  app.post('/api/admin/logout',requireAdmin,asyncRoute(async(req,res)=>{const t=cookies(req).studio_admin;await db.run('DELETE FROM sessions WHERE token=?',[digest(t)]);res.clearCookie('studio_admin',{path:'/',httpOnly:true,sameSite:'strict',secure:production});res.json({success:true});}));
  app.use('/api/admin',requireAdmin);
+ const feedback=registerFeedbackRoutes(app,{db,env:feedbackEnv,mailer,wake:()=>feedbackDispatcher.wake()});
  registerSectionRoutes(app,db,asyncRoute);
  registerDriveRoutes(app,{db,control:mediaControl,env,routeWrapper:asyncRoute});
  registerDriveComparisonRoutes(app,{db,storage,control:mediaControl,env,routeWrapper:asyncRoute});
@@ -376,6 +390,12 @@ export async function createApp(options={}){
  app.patch('/api/admin/inquiries/:id',asyncRoute(async(req,res)=>{
   const r=await db.get('SELECT * FROM inquiries WHERE id=?',[req.params.id]);
   if(!r)throw fail(404,'Không tìm thấy yêu cầu tư vấn.');
+  const expected=req.body.expected;
+  const changed=()=>fail(409,'Yêu cầu tư vấn đã thay đổi. Vui lòng tải lại rồi cập nhật.');
+  if(expected!==undefined){
+   if(!expected||Array.isArray(expected)||typeof expected!=='object'||!inquiryStatuses.includes(expected.status)||typeof expected.date!=='string'||(expected.date!==''&&!validDate(expected.date))||typeof expected.notes!=='string'||expected.notes.length>3000)throw fail(422,'Thông tin đối chiếu yêu cầu không hợp lệ. Vui lòng mở lại yêu cầu.');
+   if(['status','date','notes'].some(key=>expected[key]!==r[key]))throw changed();
+  }
   const status=req.body.status===undefined?r.status:req.body.status;
   if(!inquiryStatuses.includes(status))throw fail(422,'Trạng thái yêu cầu tư vấn không hợp lệ. Vui lòng chọn lại.');
   if(req.body.date!==undefined&&(typeof req.body.date!=='string'||(req.body.date!==''&&!validDate(req.body.date))))throw fail(422,'Ngày chụp không hợp lệ. Vui lòng chọn lại ngày.');
@@ -389,7 +409,15 @@ export async function createApp(options={}){
    if(r.status!=='confirmed'||date!==r.date)await googleCalendar.assertAvailable(date);
    if(await db.get('SELECT date FROM blocked_dates WHERE date=?',[date]))throw fail(409,'Ngày này đang được đánh dấu bận. Vui lòng chọn ngày khác hoặc kiểm tra lại lịch bận.');
   }
-  try{await db.run('UPDATE inquiries SET status=?,date=?,notes=? WHERE id=?',[status,date,notes,r.id]);}
+  // The optional editor snapshot protects a form opened before another save.
+  // Also guard the server snapshot across async calendar reads; legacy partial
+  // requests preserve omitted notes while explicit edits reject lost updates.
+  try{
+   const editNotes=req.body.notes!==undefined;
+   const checkNotes=editNotes||expected!==undefined;
+   const updated=await db.run('UPDATE inquiries SET status=?,date=?'+(editNotes?',notes=?':'')+' WHERE id=? AND status=? AND date=?'+(checkNotes?' AND notes=?':''),[status,date,...(editNotes?[notes]:[]),r.id,r.status,r.date,...(checkNotes?[r.notes]:[])]);
+   if(!updated.changes)throw changed();
+  }
   catch(e){if(e.code==='23505'||String(e.message).includes('UNIQUE'))throw fail(409,'Ngày này đã có lịch chụp được xác nhận. Vui lòng chọn ngày khác.');throw e;}
   res.json({success:true});
  }));
@@ -403,7 +431,12 @@ export async function createApp(options={}){
    if(req.body[key]===undefined)continue;
    if(key==='portrait') {if(req.body[key]!=='')throw fail(422,'Vui lòng dùng chức năng tải ảnh chân dung để thay ảnh.');updates.push([key,'']);continue;}
    const curated=['heroSelection','storySelection'].includes(key);
-   if(typeof req.body[key]!=='string'||req.body[key].length>(curated?12000:['about','intro'].includes(key)?3000:500))throw fail(422,'Nội dung quá dài hoặc không hợp lệ. Vui lòng kiểm tra và rút gọn nội dung.');
+   const freelancerCurated=key==='freelancerSelection';
+   const structured=['freelancerGear','freelancerPricing','freelancerSurcharges','freelancerCommitments','freelancerRoles'].includes(key);
+   const longCopy=['about','intro','freelancerAbout'].includes(key);
+   const freelancerCopy=['freelancerHeadline','freelancerLead','freelancerWorkIntro','freelancerGearIntro','freelancerProcessIntro','freelancerCalendarIntro','freelancerBookingIntro'].includes(key);
+   const maxLength=curated||freelancerCurated?12000:structured?24000:longCopy?3000:freelancerCopy?1000:500;
+   if(typeof req.body[key]!=='string'||req.body[key].length>maxLength)throw fail(422,'Nội dung quá dài hoặc không hợp lệ. Vui lòng kiểm tra và rút gọn nội dung.');
    const value=req.body[key].trim();
    if(['brand','headline','name'].includes(key)&&!value)throw fail(422,'Vui lòng điền tên thương hiệu, tên nhiếp ảnh gia và tiêu đề.');
    if(key==='email'&&value&&!validEmail(value))throw fail(422,'Email chưa hợp lệ. Vui lòng kiểm tra lại địa chỉ email.');
@@ -411,6 +444,12 @@ export async function createApp(options={}){
    if(key==='instagram'&&value&&!/^https:\/\/(www\.)?instagram\.com\/[^\s]*$/.test(value))throw fail(422,'Vui lòng nhập đường dẫn Instagram dạng https://instagram.com/…');
    if(key==='facebook'&&value&&!/^https:\/\/(www\.)?facebook\.com\/[^\s]+$/.test(value))throw fail(422,'Vui lòng nhập đường dẫn Facebook dạng https://www.facebook.com/…');
    if(key==='zalo'&&value&&!/^https:\/\/zalo\.me\/[0-9]+$/.test(value))throw fail(422,'Vui lòng nhập đường dẫn Zalo dạng https://zalo.me/sốđiệnthoại.');
+   if(freelancerCurated&&value){
+    let choices;try{choices=JSON.parse(value);}catch{throw fail(422,'Danh sách bộ ảnh đối tác chưa hợp lệ. Vui lòng chọn lại bộ ảnh.');}
+    if(!Array.isArray(choices)||choices.length>24||choices.some(choice=>typeof choice!=='string'))throw fail(422,'Danh sách bộ ảnh đối tác chưa hợp lệ hoặc vượt quá 24 bộ ảnh.');
+    if(new Set(choices).size!==choices.length)throw fail(422,'Mỗi bộ ảnh chỉ được chọn một lần. Vui lòng kiểm tra lại danh sách.');
+    for(const albumId of choices){const a=await db.get("SELECT id FROM albums WHERE id=? AND status='published'",[albumId]);if(!a)throw fail(422,'Vui lòng chỉ chọn bộ ảnh đang công khai.');}
+   }
    if(curated&&value){
     let choices;try{choices=JSON.parse(value);}catch{throw fail(422,'Danh sách ảnh chưa hợp lệ. Vui lòng chọn lại ảnh.');}
     if(!Array.isArray(choices)||choices.length>(key==='heroSelection'?4:6))throw fail(422,'Danh sách ảnh chưa hợp lệ hoặc vượt số lượng cho phép. Vui lòng kiểm tra lại.');
@@ -436,13 +475,23 @@ export async function createApp(options={}){
   deletedPhotos.schedule();
   res.json({success:true});
  }));
- app.get('/api/admin/export',asyncRoute(async(req,res)=>{const output={version:2,exported:now()};for(const table of ['settings','albums','photos','selections','inquiries','blocked_dates','album_slugs','album_sections'])output[table]=await db.all('SELECT * FROM '+table);res.attachment('chicong-backup.json').json(output);}));
+ app.get('/api/admin/export',asyncRoute(async(req,res)=>{
+  if(feedbackRestorePending||feedbackEnv.FEEDBACK_API_PAUSED==='true')throw fail(503,'Phần cảm nhận đang được đối soát. Chưa thể xuất dữ liệu.');
+  const output=await db.transaction(async tx=>{
+   if(tx.cloud)await tx.exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+   const data={version:3,exported:now()};
+   for(const table of ['settings','albums','photos','selections','inquiries','blocked_dates','album_slugs','album_sections',...FEEDBACK_TABLES])data[table]=await tx.all('SELECT * FROM '+table);
+   return data;
+  });
+  res.attachment('chicong-backup.json').json(output);
+ }));
  app.use('/api',(req,res)=>res.status(404).json({error:'Không tìm thấy chức năng này.'}));
  app.use('/app',express.static(path.resolve('studio/web'),{maxAge:0,index:false}));
+ registerFeedbackShell(app);
  // Services content is retained in web/services.mjs for a future launch.
  app.get('/services',(req,res)=>res.redirect(302,'/'));
  app.get('/bookme',(req,res)=>res.redirect(301,'/contact'));
- app.get('/robots.txt',(req,res)=>res.type('text/plain').send(indexing?`User-agent: *\nDisallow: /admin\nDisallow: /gallery/\nDisallow: /api/\nSitemap: ${(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'')}/sitemap.xml`:'User-agent: *\nDisallow: /'));
+ app.get('/robots.txt',(req,res)=>res.type('text/plain').send(indexing?`User-agent: *\nDisallow: /admin\nDisallow: /gallery/\nDisallow: /feedback/\nDisallow: /api/\nSitemap: ${(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'')}/sitemap.xml`:'User-agent: *\nDisallow: /'));
  app.get('/sitemap.xml',asyncRoute(async(req,res)=>{
   const url=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');
   const albums=await db.all("SELECT slug,created FROM albums WHERE status='published' ORDER BY created DESC");
@@ -516,5 +565,5 @@ export async function createApp(options={}){
  app.get(['/', '/portfolio','/about','/contact','/admin','/album/:key','/gallery/:id'],page);
  app.use((req,res)=>res.status(404).send(shell.replaceAll('__TITLE__','Không tìm thấy trang').replaceAll('__DESCRIPTION__','').replaceAll('__CANONICAL__','').replaceAll('__ROBOTS__','noindex').replaceAll('__OG_META__','').replaceAll('__STRUCTURED_DATA__','').replaceAll('__ANALYTICS__','')));
  app.use((err,req,res,next)=>{if(res.headersSent)return next(err);if(err.code==='MEDIA_LOCKED')return res.status(503).set('Retry-After','30').json({code:err.code,error:err.message});const status=err instanceof multer.MulterError?422:err.status||500;if(status>=500)console.error('Request failed:',err.name);res.status(status).json({...(err.fields?{fields:err.fields}:{}),error:status>=500?'Hệ thống chưa xử lý được thao tác này. Vui lòng thử lại sau ít phút.':err instanceof multer.MulterError?`Mỗi lần tải tối đa 8 ảnh, dung lượng tối đa ${uploadSizeLabel} mỗi ảnh.`:err.message});});
- return {app,db,storage,mailer,mediaControl,photoCleanup:deletedPhotos};
+ return {app,db,storage,mailer,mediaControl,photoCleanup:deletedPhotos,feedback,feedbackDispatcher};
 }

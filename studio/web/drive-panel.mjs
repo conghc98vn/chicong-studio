@@ -180,14 +180,18 @@ export function mountDrivePanel(container, {album, onChanged = async () => {}} =
       album ? api(`${base}?offset=${sourceOffset}&limit=50`) : null
     ]);
     if (!container.isConnected || document.hidden) return false;
-    state = {status, info};
     const jobs = album ? info.jobs : status.jobs;
-    if (!jobId) jobId = jobs[0]?.id;
+    const selectedJobId = jobId || jobs[0]?.id;
     const query = new URLSearchParams({offset: String(jobOffset), limit: '50'});
     if (actionFilter) query.set('action', actionFilter);
     if (statusFilter) query.set('status', statusFilter);
-    detail = jobId ? await api(`/api/admin/drive/jobs/${jobId}?${query}`) : null;
+    const loadedDetail = selectedJobId ? await api(`/api/admin/drive/jobs/${selectedJobId}?${query}`) : null;
     if (!container.isConnected || document.hidden) return false;
+    // Commit the source page and job together; a failed detail read must not
+    // leave a new source page paired with the previous pagination controls.
+    state = {status, info};
+    detail = loadedDetail;
+    jobId = selectedJobId;
     if (detail?.job.error_code) markStale(detail.job.id, detail.job.error_code);
     draw();
     return true;
@@ -431,7 +435,7 @@ export function mountDrivePanel(container, {album, onChanged = async () => {}} =
   }
   async function perform(action, operation) {
     if (busy) return;
-    const previousPage = {jobId, jobOffset, actionFilter, statusFilter};
+    const previousPage = {jobId, jobOffset, actionFilter, statusFilter, sourceOffset};
     busy = true;
     clearTimeout(timer);
     feedback(readActions.has(action) ? 'Đang cập nhật…' : 'Đang gửi yêu cầu…');
@@ -449,7 +453,7 @@ export function mountDrivePanel(container, {album, onChanged = async () => {}} =
       if (!readActions.has(action)) await refresh();
       feedback(result?.job_id ? 'Đã ghi nhận yêu cầu. Bạn có thể rời trang; máy chủ tiếp tục xử lý.' : readActions.has(action) ? 'Đã cập nhật trạng thái.' : 'Đã lưu thay đổi.');
     } catch (error) {
-      if (readActions.has(action)) ({jobId, jobOffset, actionFilter, statusFilter} = previousPage);
+      if (readActions.has(action)) ({jobId, jobOffset, actionFilter, statusFilter, sourceOffset} = previousPage);
       if (error.status === 401) authenticationRequired = true;
       else if (!readActions.has(action) && (!error.status || error.status === 408 || error.status === 429 || error.status >= 500)) {
         needsRefresh = true;

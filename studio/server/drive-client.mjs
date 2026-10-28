@@ -21,7 +21,10 @@ export function safeDriveError(error) {
 const retryAfter = value => {
   if (!value) return undefined;
   const seconds = Number(value);
-  return Math.min(3600000,Math.max(1000,Number.isFinite(seconds) ? seconds*1000 : Date.parse(value)-Date.now()));
+  const delay = Number.isFinite(seconds) ? seconds*1000 : Date.parse(value)-Date.now();
+  // Invalid upstream headers must use the queue's ordinary backoff. NaN would
+  // make jobs.retry reject and leave the job running until its lease expires.
+  return Number.isFinite(delay) ? Math.min(3600000,Math.max(1000,delay)) : undefined;
 };
 
 // The adapter never accepts a user-supplied download URL, refresh token, or OAuth client.

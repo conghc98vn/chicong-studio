@@ -1,6 +1,6 @@
 # Mục lục tài liệu
 
-Cập nhật 21/10/2026. Mỗi chủ đề có một hướng dẫn chính; biên bản có ngày được giữ trong `archive/`, không dùng như hướng dẫn cấu hình hiện hành.
+Cập nhật 28/10/2026. Mỗi chủ đề có một hướng dẫn chính; biên bản cũ được giữ trong `archive/` hoặc file có ngày, không dùng như hướng dẫn cấu hình hiện hành.
 
 | Cần làm gì? | Đọc ở đâu? |
 |---|---|
@@ -8,14 +8,18 @@ Cập nhật 21/10/2026. Mỗi chủ đề có một hướng dẫn chính; biê
 | Sử dụng studio hằng ngày | [OPERATIONS](../OPERATIONS.md) |
 | Hosting, release và rollback | [HOSTING](../HOSTING.md) |
 | Trạng thái production được báo cáo, bằng chứng và giới hạn | [Handbook — bắt đầu tại đây](handbook/README.md) |
+| Trạng thái release production mới nhất | [Biên bản production 28/10](handbook/08-production-release-2026-10-28.md) |
+| Snapshot local trước release | [Handbook 28/10](handbook/07-cap-nhat-du-an-2026-10-28.md) |
 | Kiến trúc/API/dữ liệu | [01 — Kiến trúc](handbook/01-kien-truc-va-cong-nghe.md) |
 | Credential, backup, restore và sự cố | [02 — Vận hành kỹ thuật](handbook/02-van-hanh-bi-mat-va-khoi-phuc.md) |
 | Cách chạy test, ma trận rủi ro và bài lab | [03 — QA](handbook/03-phong-lab-qa.md) |
 | Drive import, preview, duyệt và recovery | [Runbook Drive](google-drive-sync-operations.md) |
 | Chuẩn bị ảnh `.ccphoto` | [Chuẩn bị ảnh local](local-photo-preparation.md) |
 | Nối lịch Google | [Google Calendar](google-calendar.md) |
-| Kết quả audit code/performance mới | [Review 21/10](review-2026-10-21.md) |
-| Yêu cầu feedback chưa triển khai | [Đặc tả feedback](customer-feedback-spec.md) |
+| Kết quả audit mới | [Review 23/10](review-2026-10-23.md) |
+| Bằng chứng code/performance ngày 21/10 | [Review 21/10](review-2026-10-21.md) |
+| Prompt audit áp dụng riêng cho project | [Prompt ChiCong Studio](project-audit-prompt.md) |
+| Feedback: yêu cầu, cách dùng, cấu hình và trạng thái production | [Đặc tả feedback](customer-feedback-spec.md) |
 | Tìm quyết định hoặc release cũ | [Lưu trữ lịch sử](archive/README.md) |
 
 ## Quy tắc cập nhật
@@ -23,6 +27,6 @@ Cập nhật 21/10/2026. Mỗi chủ đề có một hướng dẫn chính; biê
 - Hành vi ứng dụng thay đổi: cập nhật hướng dẫn chính tương ứng, không nối thêm một khối “cập nhật mới” mâu thuẫn với phần cũ.
 - Một lượt release/audit: lưu biên bản có ngày, source/revision, môi trường, cách chạy, pass/fail/skip và giới hạn; cập nhật link từ handbook.
 - Giữ nguyên snapshot/evidence lịch sử; không sửa hash cũ thành bằng chứng của code mới. Link file `output/` chỉ có trên máy thực hiện, không phải artifact bảo đảm có trong checkout sạch.
-- Mẫu config không chứng minh cấu hình live. Kết quả đọc report phải ghi REPORT, chạy thử cách ly ghi TEST, kiểm production trực tiếp mới ghi LIVE.
-- Không đưa credential, ảnh khách, cookie, private ICS URL hay dump DB vào Git. Spec feedback là thiết kế, không được ghi như chức năng đã có.
+- Mẫu config không chứng minh cấu hình live. Kết quả đọc report phải ghi REPORT, chạy thử cách ly ghi TEST, xác nhận của chủ dự án ghi DEPLOYED-REPORTED, kiểm production trực tiếp mới ghi LIVE.
+- Không đưa credential, ảnh khách, cookie, private ICS URL hay dump DB vào Git. Feedback đã được xác nhận đưa lên production ngày 28/10; revision, secret, log và live smoke phải được ghi ở [biên bản release](handbook/08-production-release-2026-10-28.md), không suy ra từ working tree.
 - `npm run check:docs` kiểm file đích của liên kết nội bộ; còn cần đọc lại nội dung và đối chiếu code. Lệnh này không xác minh cloud hoặc liên kết web ngoài.

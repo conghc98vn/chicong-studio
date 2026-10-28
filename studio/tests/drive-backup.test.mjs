@@ -24,10 +24,10 @@ function mockDrive(){
  };
  return {files,deleted,fetchImpl,set quota(v){quota=v;},set refreshFailure(v){refreshFailure=v;},set shared(v){shared=v;}};
 }
-async function snapshot(root,runId,capturedAt){
- const data={schemaVersion:2,capturedAt,tables:Object.fromEntries(tables.map(t=>[t,[]]))};const key='a'.repeat(32);data.tables.settings=[{key:'portrait',value:key}];
- const bytes=Buffer.from('image'),digest=sha256(bytes),dbBytes=jsonBytes(data),databaseSha256=sha256(dbBytes);await putBlob(root,digest,bytes);await putBlob(root,databaseSha256,dbBytes);
- return {version:1,state:'complete',runId,capturedAt,appRevision:'fixture',storage:'fixture-source',mappingHash:mappingHash(data),databaseSha256,objects:[{key:key+'.webp',bytes:5,contentType:'image/webp',sha256:digest}]};
+async function snapshot(root,runId,capturedAt,image=Buffer.from('image')){
+ const data={schemaVersion:3,capturedAt,tables:Object.fromEntries(tables.map(t=>[t,[]]))};const key='a'.repeat(32);data.tables.settings=[{key:'portrait',value:key}];
+ const bytes=image,digest=sha256(bytes),dbBytes=jsonBytes(data),databaseSha256=sha256(dbBytes);await putBlob(root,digest,bytes);await putBlob(root,databaseSha256,dbBytes);
+ return {version:1,state:'complete',runId,capturedAt,appRevision:'fixture',storage:'fixture-source',mappingHash:mappingHash(data),databaseSha256,objects:[{key:key+'.webp',bytes:bytes.length,contentType:'image/webp',sha256:digest}]};
 }
 test('Drive backup refreshes OAuth, verifies all bytes, deduplicates and exports without source storage',async()=>{
  const root=await mkdtemp(path.join(tmpdir(),'drive-backup-')),mock=mockDrive();try{
@@ -50,4 +50,59 @@ test('Drive rejects public folders, wrong account, failed refresh and lost lease
   mock.refreshFailure=true;await assert.rejects(driveRepository(env,{fetchImpl:mock.fetchImpl}).initialize(),/refresh/);mock.refreshFailure=false;
   const manifest=await snapshot(root,'lost',new Date().toISOString());await assert.rejects(driveRepository(env,{fetchImpl:mock.fetchImpl,check:async()=>{throw Error('lease lost');}}).publish(root,manifest),/lease lost/);assert.equal(mock.files.size,0);
  }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('Drive retention refuses incomplete listings before deleting any snapshot or blob',async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),'drive-incomplete-')),mock=mockDrive();
+ try {
+  const drive=driveRepository(env,{fetchImpl:mock.fetchImpl});
+  await drive.publish(root,await snapshot(root,'old','2020-01-01T00:00:00Z'));
+  await drive.publish(root,await snapshot(root,'current',new Date().toISOString()));
+  const before=[...mock.files.keys()];
+  const unsafe=driveRepository(env,{fetchImpl:async(url,options)=>{
+   const response=await mock.fetchImpl(url,options);
+   if(new URL(url).pathname==='/drive/v3/files')return Response.json({...await response.json(),incompleteSearch:true});
+   return response;
+  }});
+  await assert.rejects(unsafe.prune(),/incomplete/i);
+  assert.deepEqual([...mock.files.keys()],before);
+  assert.deepEqual(mock.deleted,[]);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('Drive backup rejects repeated page tokens and malformed pages without continuing indefinitely',async()=>{
+ for(const mode of ['cycle','missing-files']) {
+  const mock=mockDrive();let pages=0;
+  const drive=driveRepository(env,{fetchImpl:async(url,options)=>{
+   if(new URL(url).pathname==='/drive/v3/files') {
+    if(++pages>3)throw Error('fixture exceeded page budget');
+    return Response.json(mode==='cycle'?{files:[],nextPageToken:'repeat'}:{});
+   }
+   return mock.fetchImpl(url,options);
+  }});
+  await assert.rejects(drive.age(),mode==='cycle'?/pagination cycle/i:/incomplete/i);
+  assert.ok(pages<=2);
+  assert.deepEqual(mock.deleted,[]);
+ }
+});
+
+test('Drive retention rejects malformed snapshot metadata before deleting shared backup bytes',async()=>{
+ for(const mode of ['wrong-kind','missing-marker','wrong-run-id','duplicate-name']) {
+  const root=await mkdtemp(path.join(tmpdir(),'drive-snapshot-metadata-')),mock=mockDrive();
+  try {
+   const drive=driveRepository(env,{fetchImpl:mock.fetchImpl}),shared=Buffer.from('shared only by old and hidden snapshots');
+   await drive.publish(root,await snapshot(root,'old','2020-01-01T00:00:00Z',shared));
+   await drive.publish(root,await snapshot(root,'current',new Date().toISOString()));
+   await drive.publish(root,await snapshot(root,'hidden',new Date().toISOString(),shared));
+   const hidden=[...mock.files.values()].find(entry=>entry.file.name==='snapshot-hidden');
+   if(mode==='wrong-kind')hidden.file.appProperties.kind='unknown';
+   if(mode==='missing-marker')delete hidden.file.appProperties.chicongBackup;
+   if(mode==='wrong-run-id')hidden.file.name='snapshot-another-run';
+   if(mode==='duplicate-name')mock.files.set('duplicate',{...hidden,file:{...hidden.file,id:'duplicate'}});
+   const before=[...mock.files.keys()];
+   await assert.rejects(drive.prune(),/metadata|manifest.*name|duplicate/i,mode);
+   assert.deepEqual(mock.deleted,[],mode);
+   assert.deepEqual([...mock.files.keys()],before,mode);
+  }finally{await rm(root,{recursive:true,force:true});}
+ }
 });

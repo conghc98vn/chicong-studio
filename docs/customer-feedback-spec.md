@@ -1,8 +1,8 @@
 # Đặc tả feedback sau bàn giao — ChiCong Studio
 
-**Bản hợp nhất: 21/10/2026 · v1.3 tài liệu · bản duy nhất để review và triển khai sau này.** Quyết định nghiệp vụ kế thừa v0.4; kết quả rà mới nhất nằm tại mục 11.4, lượt trước tại mục 11.3.
+**Bản hiện hành: 28/10/2026 · v1.7 · đã được xác nhận đưa lên production.** Quyết định nghiệp vụ giữ nguyên; contract, cấu hình, vận hành và bằng chứng mới ở mục 13, lượt rà độc lập ở mục 13.6 và kiểm tra phát hành ở mục 13.7. Bản ghi release production, revision và checklist LIVE nằm trong [handbook 08](handbook/08-production-release-2026-10-28.md). Mục 10–11 lưu bằng chứng các lượt thiết kế trước.
 
-**Trạng thái: đang review thiết kế, chưa triển khai tính năng.** Đây là tài liệu chính duy nhất cho tính năng feedback sau bàn giao. Nội dung đã hợp nhất kế hoạch, câu chữ sản phẩm và kết quả review; có thể dùng độc lập làm ngữ cảnh cho AI triển khai sau này. Việc tạo tài liệu này không phải yêu cầu bắt đầu code, deploy hoặc gửi lời mời/email thật.
+**Trạng thái: đã có backend, form khách, admin, email queue và vận hành khôi phục/xóa; chủ dự án xác nhận bản tính năng đã được đưa lên production ngày 28/10.** Lượt tài liệu này chưa SSH/đọc log live, nên chưa đánh dấu các ca edge/SMTP/Zalo/restore là LIVE; cần hoàn tất checklist sau release trước khi gửi lời mời thật trên diện rộng. Đây là tài liệu chính duy nhất. Mục 13 ghi cách dùng và bằng chứng triển khai; các phần thiết kế bên dưới giữ các yêu cầu nghiệm thu.
 
 Luồng đã thống nhất: **studio xác nhận giao đủ → copy link gửi riêng → khách viết cảm nhận và chấm sao tùy chọn → khách được sửa khi hồ sơ mở → admin đọc bản mới nhất, xem toàn bộ lịch sử và nhận email.** Feedback chỉ dùng nội bộ, không có ngày hết hạn.
 
@@ -29,6 +29,7 @@ Studio có thể đọc trước mục **1, 3, 4, 8, 9 và 12.1**. AI triển kh
 10. [Bằng chứng review, source map và giới hạn xác minh](#review-evidence)
 11. [Những điểm dễ triển khai sai và đề xuất đã bị thay thế](#review-decisions)
 12. [Checklist của studio và bàn giao cho AI](#ai-handoff)
+13. [Triển khai, contract và vận hành hiện hành](#implementation)
 
 <a id="scope"></a>
 
@@ -50,7 +51,7 @@ Studio có thể đọc trước mục **1, 3, 4, 8, 9 và 12.1**. AI triển kh
 - Email hiển thị đầy đủ nội dung feedback của đúng phiên bản được thông báo: tên người gửi, ngữ cảnh buổi chụp, bốn điểm sao, lời chia sẻ và góp ý, thời điểm/phiên bản/mã hồ sơ, link admin. Dùng cách xưng “Chí Công — bạn” trong nội dung dành cho khách.
 - Đã yêu cầu soạn copy form, tin nhắn mời và lời cảm ơn. Copy là bản nháp để studio review, chưa phải nội dung đã được duyệt.
 
-Thiết kế kỹ thuật dưới đây là phương án thực hiện các quyết định đó; chưa phải xác nhận bắt đầu code. Không hỏi lại các lựa chọn đã chốt; studio review luồng/trạng thái tại mục 4, câu chữ tại mục 9 và checklist tại mục 12.1.
+Thiết kế kỹ thuật dưới đây thực hiện các quyết định đó; người dùng đã yêu cầu triển khai ngày 23/10/2026. Không hỏi lại các lựa chọn đã chốt; studio review luồng/trạng thái tại mục 4, câu chữ tại mục 9 và checklist tại mục 12.1.
 
 <a id="current-code"></a>
 
@@ -74,7 +75,7 @@ Lượt v0.2 đã đọc code và chạy 30 kiểm thử nền hiện có trên 
 | Công việc media/R2 song song đã bổ sung công cụ snapshot/backup riêng, có registry bảng và kiểm schema | `studio/tools/media-backup.mjs`, `databaseSnapshot`, `verifyBackup`, `restoreBackup` tại lượt review 16/10/2026 | Thêm bảng feedback phải cập nhật cả công cụ này, không chỉ export admin; đây là code đang thay đổi, chưa phải bằng chứng đã vận hành trên production |
 | Khóa bảo trì media chỉ chặn một số mutation ảnh/settings | `studio/server/media-control.mjs`, `mediaMutation` | Không dùng khóa này thay cho việc chặn API feedback hoặc dispatcher khi restore |
 
-Luồng gallery hiện chạm tim tự lưu; tài liệu cũ còn nói về nút “Gửi lựa chọn”. Số ảnh chọn, tải JPG/ZIP và trạng thái chọn ảnh đều không xác nhận đã giao đủ sản phẩm. Ảnh tải trên website cũng không thay thế việc bàn giao nguồn độ phân giải đầy đủ ở kênh khác.
+Đối chiếu source ngày 23/10/2026: gallery chạm tim tự lưu và có nút **Gửi lựa chọn** (`submit-selection`) để chốt phiên bản catalog/lựa chọn, tạo submission và yêu cầu duyệt thay đổi Drive tiếp theo. Mô tả trước đây coi nút này chỉ thuộc tài liệu cũ đã lỗi thời. Số ảnh chọn, lượt gửi lựa chọn, tải JPG/ZIP và trạng thái chọn ảnh đều không xác nhận đã giao đủ sản phẩm; không dùng chúng để tự mở feedback. Ảnh tải trên website cũng không thay thế việc bàn giao nguồn độ phân giải đầy đủ ở kênh khác. Các quyết định feedback và bằng chứng lịch sử bên dưới giữ nguyên; tính năng feedback được triển khai sau lượt đối chiếu này, xem mục 13.
 
 <a id="business-model"></a>
 
@@ -276,7 +277,7 @@ Không cam kết số ngày khi chưa chốt thiết kế và kiểm môi trư�
 
 ### Ma trận nghiệm thu cần thực hiện khi có implementation
 
-**Toàn bộ các ca FB bên dưới chưa chạy.** 30 test nền hiện có không thay thế các ca này. Test DB/concurrency phải chạy trên SQLite và PostgreSQL thử riêng; test PostgreSQL không dùng database production.
+**Đây là ma trận yêu cầu; kết quả thực thi mới nhất ở mục 13.** Không đánh đồng một test tự động với toàn bộ nội dung một ca FB, đặc biệt những ca yêu cầu Zalo/edge/SMTP thật. 30 test nền lịch sử không thay thế các ca này. Test DB/concurrency phải chạy trên SQLite và PostgreSQL thử riêng; test PostgreSQL không dùng database production.
 
 | Mã | Tình huống và kết quả bắt buộc | Cách kiểm |
 | --- | --- | --- |
@@ -346,13 +347,13 @@ Ngoài MVP: testimonials công khai, duyệt/ghim, ảnh đại diện, Review s
 
 Không còn câu hỏi nghiệp vụ bắt buộc về hạn, độ đầy đủ email hoặc xưng hô. Bước review tiếp theo là đọc mẫu form/email và đối chiếu bốn nhãn danh sách với bảng chuyển trạng thái; chỉ ghi nhận ngoại lệ thực tế nếu studio có, không mở thêm chức năng chỉ để tiếp tục hỏi.
 
-Các tiêu chí kỹ thuật chưa được xác minh khi chưa có implementation: fragment/Zalo, lifecycle, transaction/history trên PostgreSQL, retry/lease và email đúng snapshot. Đây là việc kiểm chứng của người triển khai, không yêu cầu studio chọn chi tiết mật mã/database. Tài liệu này vẫn ở giai đoạn lập kế hoạch, chưa bắt đầu code. Không tự công khai feedback nội bộ nếu tương lai bổ sung testimonials.
+Các tiêu chí kỹ thuật chưa được xác minh khi chưa có implementation: fragment/Zalo, lifecycle, transaction/history trên PostgreSQL, retry/lease và email đúng snapshot. Đây là việc kiểm chứng của người triển khai, không yêu cầu studio chọn chi tiết mật mã/database. Implementation hiện có và giới hạn xác minh được ghi ở mục 13. Không tự công khai feedback nội bộ nếu tương lai bổ sung testimonials.
 
 <a id="product-copy"></a>
 
 ## 9. Toàn bộ câu chữ form, Zalo và email
 
-Đây là bản nháp để studio review, chưa được đưa vào ứng dụng hoặc gửi cho khách. Dùng “bạn” trên form cho cả chân dung và cặp đôi; tin nhắn mời có hai phiên bản. Không yêu cầu khách khen, không hứa Chí Công đã đọc hoặc email đã đến khi mới lưu thành công. Các đoạn dưới đây là nguồn câu chữ thống nhất, thay cho ví dụ rời rạc ở các tài liệu trước.
+Bộ câu chữ này đã được dùng làm nền cho giao diện triển khai local; chưa gửi lời mời cho khách thật. Dùng “bạn” trên form cho cả chân dung và cặp đôi; tin nhắn mời có hai phiên bản. Không yêu cầu khách khen, không hứa Chí Công đã đọc hoặc email đã đến khi mới lưu thành công. Các đoạn dưới đây là nguồn câu chữ thống nhất, thay cho ví dụ rời rạc ở các tài liệu trước.
 
 ### 9.1. Tin nhắn mời gửi qua Zalo/tin nhắn
 
@@ -749,3 +750,146 @@ Nếu lúc đó studio đã muốn bắt đầu code, thay câu “Ở lượt n
 Tài liệu này tổng hợp bản kế hoạch v0.4, bộ copy cùng phiên bản và các kết luận review còn hiệu lực từ ba tài liệu ngày 15/10/2026. Các tài liệu trùng lặp đã được dọn để chỉ còn một nguồn đặc tả. Những lựa chọn lịch sử bị thay thế đã được tóm tắt ở mục 11.2, không trộn vào yêu cầu hiện hành.
 
 Khi studio chốt thay đổi mới, cập nhật quy tắc, copy, dữ liệu/API và ca nghiệm thu liên quan cùng một lượt trong file này. Luôn giữ riêng phần đã chốt, phương án dự kiến và bằng chứng đã kiểm để người đọc không nhầm kế hoạch với tính năng đã có.
+
+
+<a id="implementation"></a>
+
+## 13. Triển khai ngày 23/10/2026
+
+### 13.1. Phần đã có và cách dùng
+
+- Mở **Quản trị → Cảm nhận → Tạo hồ sơ bàn giao**, hoặc **Bàn giao & cảm nhận** trong chi tiết bộ ảnh. Hồ sơ có thể không gắn gallery/inquiry; liên kết nhiều gallery khi cần. Tìm hồ sơ tương tự bao gồm cả lưu trữ.
+- Điền thông tin cùng buổi chụp, lưu nháp, rồi chọn **Đã bàn giao đầy đủ & mở nhận**. Copy link hoặc lời mời để studio tự gửi qua kênh đã trao đổi. Copy thất bại có ô để sao chép thủ công. Không có tự gửi lời mời.
+- Khách dùng `/feedback/:handoverId#token`: tên và lời chia sẻ bắt buộc, bốn tiêu chí sao độc lập không chọn sẵn, góp ý tùy chọn; xem/sửa bản mới nhất. Không đặt hạn. Cảnh báo lịch sử và quyền riêng tư ở ngay form.
+- Admin xem phiên bản mới nhất, lịch sử phân trang, ghi chú riêng, đánh dấu đúng phiên bản đã đọc, trạng thái email và thử lại với người nhận đã xác nhận. Đóng/mở/thu hồi/cấp mới/lưu trữ tách khỏi trạng thái đã nhận/đã đọc.
+- Sửa gán nhầm gallery bằng **Chuyển bộ ảnh sang hồ sơ khác**: chọn hồ sơ nhận và xác nhận, kiểm phiên bản của cả hai hồ sơ và chuyển trong cùng transaction. Không cần tạo khoảng trống bằng gỡ rồi gán hai lần.
+- Hồ sơ đã cấp lời mời chỉ dùng cho cùng khách/buổi chụp; giao diện nhắc tạo hồ sơ mới cho đối tượng khác. Việc sửa chính tả/ngày của cùng buổi vẫn được phép. Hệ thống không thể tự suy luận hai tên khác nhau là sửa chính tả hay khách khác; studio chịu trách nhiệm chọn đúng hồ sơ. Snapshot phản hồi đã nhận luôn bất biến.
+
+Mã nằm tại [backend](../studio/server/feedback.mjs), [schema](../studio/server/feedback-schema.mjs), [dispatcher/email](../studio/server/feedback-notifications.mjs), [shell riêng](../studio/server/private-feedback-shell.mjs), [form khách](../studio/web/feedback-page.mjs), [admin](../studio/web/feedback-admin.mjs). `app.mjs`, `main.js` và `start.mjs` chỉ nối vào ứng dụng hiện có. Không thêm framework/Redis hoặc public testimonials.
+
+### 13.2. Contract thực thi
+
+| Endpoint | Request / kết quả chính |
+| --- | --- |
+| `GET /api/admin/handovers` | `q,state,unread,archived,albumId,page,pageSize`; trả `{handovers,total,unreadCount,page,pageSize,readiness}` |
+| `POST /api/admin/handovers` | `clientName,title,service,shootDate,deliveredOn,inquiryId,albumIds,notes,requestKey`; trả `{handover,replayed}` |
+| `GET /api/admin/handovers/:id` | `{handover}` gồm latest, context snapshot và notifications |
+| `PATCH /api/admin/handovers/:id` | Các trường sửa + `expectedVersion,requestKey`; kiểm optimistic version |
+| `POST /api/admin/handovers/:id/commands` | `command,expectedVersion,requestKey`; command: complete/pause/resume/revoke/issue/uncomplete/archive/unarchive |
+| `POST /api/admin/handovers/:id/transfer-album` | `albumId,toHandoverId,expectedVersion,expectedTargetVersion,requestKey`; khóa hai hồ sơ theo thứ tự ID, chuyển atomic |
+| `GET /api/admin/handovers/:id/link` | `{url}` chỉ khi delivered + active + không lưu trữ |
+| `POST /api/admin/handovers/:id/read` | `{observedVersion}`; không đánh dấu bản mới hơn đã đọc |
+| `GET /api/admin/handovers/:id/revisions` | `page,pageSize`; chỉ admin, snapshot đầy đủ theo thứ tự mới trước |
+| `POST /api/admin/handovers/:id/notifications/:notificationId/retry` | `{recipient?}`; giữ event cũ, không giành job còn lease |
+| `GET /api/feedback/:id` | `Authorization: Bearer TOKEN`; `{handover,contextVersion,schema,latestVersion,latestFeedback,contact}` tối thiểu |
+| `PUT /api/feedback/:id` | Cùng quyền; `name,message,improvement,ratings,formVersion,requestKey,expectedVersion,expectedContextVersion` (context chỉ bắt buộc lần đầu); snapshot latest + `acknowledgedVersion,changed,replayed` |
+
+Form version 1 / normalization version 1: Unicode NFC, CRLF/CR → LF, trim hai đầu, giữ xuống dòng bên trong. Giới hạn 150/3.000/1.500 ký tự theo chuỗi JavaScript; bốn key rating bắt buộc, giá trị null hoặc số nguyên 1–5. Schema/nhãn cũ giữ bất biến cho replay. Mỗi receipt giữ full request hash gồm expected versions; khách không đọc lịch sử qua replay. API không nhận nhãn hoặc quyền từ client.
+
+Lỗi `{error,code,fields?}`: `VALIDATION_ERROR` 422; `VERSION_CONFLICT`, `REQUEST_KEY_CONFLICT`, `CONTEXT_CHANGED`, `FORM_VERSION_UNSUPPORTED`, `ALBUM_ASSIGNED`, `INVALID_STATE` 409; `LINK_UNAVAILABLE` 403; `CONFIG_UNAVAILABLE`/`FEEDBACK_PAUSED` 503; `RATE_LIMITED` 429 có Retry-After. Admin và customer transport giữ snapshot retry khi chưa xác nhận, kể cả HTTP thành công nhưng thiếu cấu trúc ACK.
+
+Sáu bảng giữ nguyên tên trong thiết kế. Rating trên SQLite dùng INTEGER với CHECK; PostgreSQL dùng NUMERIC + CHECK nguyên/range để không làm tròn ngầm SQL literal trước constraint. DTO vẫn trả số/null. PostgreSQL bật RLS, không thêm policy cho anon. Liên kết gallery UNIQUE kể cả hồ sơ lưu trữ. Export metadata admin lên version 3, snapshot REPEATABLE READ trên PostgreSQL; công cụ backup có registry cố định v1/v2/v3.
+
+### 13.3. Cấu hình và gửi email
+
+Xem [.env.example](../.env.example). Cần `SITE_URL` là origin hợp lệ và `FEEDBACK_LINK_SECRET` là base64url không padding của ít nhất 32 byte ngẫu nhiên. Tạo khóa riêng ở terminal/môi trường bí mật; không dán vào tài liệu hoặc Git. Giữ nguyên khóa qua restart/deploy thường. Thiếu khóa không làm hỏng website/gallery hoặc admin đọc phản hồi, nhưng chưa thể cấp link hoặc mở form khách.
+
+`FEEDBACK_API_PAUSED=true` khóa toàn bộ API feedback admin/khách và export metadata. `FEEDBACK_NOTIFICATIONS_PAUSED=true` dừng dispatcher (startup/timer/wake). Cấu hình production áp dụng đồng nhất trên mọi instance; không dùng khóa media làm thay thế. Sau khi thay env, restart ứng dụng.
+
+Mailer dùng provider Resend/SMTP hiện có, recipient theo NOTIFICATION_EMAIL → STUDIO_EMAIL → settings.email hợp lệ, không fallback địa chỉ hardcode. Chỉ thông báo studio, không gửi thư khách. Mỗi event giữ người nhận và revision riêng. SMTP/HTTP có deadline thật 15 giây; SMTP giữ và hủy socket đang gửi khi hết thời gian. Lease mặc định 120 giây, retry tối đa sáu lần với backoff; trạng thái chỉ xác nhận dịch vụ đã nhận thư. Process startup khởi động dispatcher; shutdown dừng claim/drain trước đóng DB.
+
+### 13.4. Backup, restore, xóa và rollback
+
+[media-backup.mjs](../studio/tools/media-backup.mjs) sao lưu đủ sáu bảng cùng snapshot v3; vẫn đọc v1/v2 với feedback rỗng. Bản v3 thiếu bất kỳ bảng bắt buộc đều bị từ chối. Khóa ký nằm ngoài snapshot. Dùng công cụ v3 này kể cả khi rollback giao diện/app; không rollback database bằng DROP hoặc nạp snapshot cũ chỉ để hạ code.
+
+**Restore vào thư mục mới** tự thu hồi mọi thế hệ link đã cấp, đổi nonce, xóa receipt thao tác admin gần nhất, suppress mọi thông báo chưa có ACK chắc chắn (kể cả recipient null), giữ accepted_by_provider; giữ đầy đủ revision/receipt khách. Công cụ đặt setting `feedback_restore_pending=true`. `createApp` đọc cờ trước khi khởi tạo dispatcher và khóa API/admin/export feedback; web/gallery có thể kiểm độc lập. Không tự bỏ cờ khi đổi secret hoặc restart.
+
+**Restore trực tiếp từ SQL dump/PITR** không chạy các biến đổi trên. Trước bất kỳ startup nào, dừng/drain mọi web/dispatcher, giữ cả hai cờ pause ngoài DB và chạy `prepare-restored` trên DB đích tường minh. Lệnh lưu persistent gate và dấu chuẩn bị chưa hoàn tất trước, sau đó thu hồi link/đổi nonce/xóa receipt admin/suppress queue trong một transaction. Accepted events, revisions và receipts khách giữ nguyên. DB trước khi có feedback được bổ sung riêng schema feedback; không chạy khởi tạo ứng dụng hoặc worker. Nếu bước biến đổi lỗi, gate vẫn giữ và `reconcile` từ chối mở khóa cho tới khi chuẩn bị lại thành công. Lỗi tham số/đường dẫn/kết nối trước khi đặt gate không tạo được cờ trong DB; tiếp tục giữ process dừng và hai cờ pause ngoài DB. Chuẩn bị thành công cũng chưa bỏ gate.
+
+Sổ xóa là JSONL nằm **ngoài thư mục dữ liệu ứng dụng và backup được khôi phục**, quyền 0600, chỉ có mã hồ sơ/yêu cầu, thời điểm và trạng thái. Người vận hành phải backup riêng, giữ trong toàn bộ thời gian còn snapshot có thể khôi phục hồ sơ đã xóa. Công cụ [feedback-ops.mjs](../studio/tools/feedback-ops.mjs) không đọc `.env` mặc định, không khởi động worker và không tự chọn production DB.
+
+```sh
+# Khởi tạo một lần tại vị trí riêng được vận hành backup; không tạo mới khi mất sổ.
+node studio/tools/feedback-ops.mjs init-ledger --ledger /PRIVATE_OPERATIONS/feedback-deletions.jsonl
+
+# Dừng/drain mọi web/dispatcher trước, cấp env và DB đích tường minh.
+FEEDBACK_API_PAUSED=true FEEDBACK_NOTIFICATIONS_PAUSED=true node studio/tools/feedback-ops.mjs purge   --ledger /PRIVATE_OPERATIONS/feedback-deletions.jsonl   --data-dir /PRIVATE_DATA/STUDIO --handover HANDOVER_ID --processes-stopped yes
+
+# Riêng SQL dump/PITR: chuẩn bị DB đã phục hồi TRƯỚC khi khởi động app.
+# Với PostgreSQL, cấp DATABASE_URL của DB đích qua môi trường bí mật.
+FEEDBACK_API_PAUSED=true FEEDBACK_NOTIFICATIONS_PAUSED=true node studio/tools/feedback-ops.mjs prepare-restored --ledger /PRIVATE_OPERATIONS/feedback-deletions.jsonl --data-dir /PRIVATE_DATA/RESTORED --processes-stopped yes
+
+# Sau mọi loại restore: đối soát sổ riêng, triển khai secret MỚI trên mọi instance.
+# Chỉ xác nhận ledger-reviewed khi đã kiểm tính đầy đủ của sổ.
+FEEDBACK_API_PAUSED=true FEEDBACK_NOTIFICATIONS_PAUSED=true node studio/tools/feedback-ops.mjs reconcile   --ledger /PRIVATE_OPERATIONS/feedback-deletions.jsonl   --data-dir /PRIVATE_DATA/RESTORED --processes-stopped yes   --ledger-reviewed yes --secret-rotated yes
+```
+
+`purge` fsync ý định xóa trước transaction, cascade toàn bộ hồ sơ/liên kết/feedback/revisions/receipts/notifications, rồi ghi ACK. Không xóa gallery/inquiry thuộc nghiệp vụ khác. `reconcile` áp dụng lại cả ý định chưa có ACK và ý định đã hoàn tất, lặp an toàn; chỉ sau thành công mới bỏ persistent gate. Sổ thiếu/hỏng giữ gate. Sau đó restart với secret mới; kiểm dữ liệu, bật API/mail theo kế hoạch và cấp link mới cho hồ sơ cần dùng. Email suppressed không tự gửi; chọn lại từng event cần thử trong admin. Xóa không tuyên bố đã xóa các bản email/backup ngoài ứng dụng. Vị trí sổ, người vận hành và bản backup độc lập phải được cấu hình thực tế trước dùng production.
+
+### 13.5. Bằng chứng kiểm thử và phần còn cần môi trường thật
+
+[Bản ghi kết quả và SHA-256 mã nguồn](evidence/customer-feedback-2026-10-23.json) áp dụng cho working tree local của lượt này, không phải bằng chứng production.
+
+- Node 24.19.0, SQLite tạm: **428 pass, 50 skip, 0 fail** (478 ca). Skip là các ca cần PostgreSQL.
+- PostgreSQL 16 Docker riêng, schema/role tạm: **485 pass, 0 skip, 0 fail** toàn bộ bộ test hiện có; có concurrency, RLS và snapshot/restore. Không dùng Supabase/production.
+- Form/admin Chromium và WebKit: tạo không gallery, hoàn tất bàn giao/copy fallback, gửi/sửa/bỏ sao, lịch sử/unread/read, pause/resume/revoke/reissue, không request ngoài origin. 320/390/768/1440 px không overflow; axe không báo violation trong các state đã scan. Ảnh và báo cáo local trong `output/feedback-2026-10-23/` (ignored).
+- Hồi quy Chromium đạt cả 20 suite: lượt toàn bộ 19 suite và lượt riêng suite customer recovery mới qua cùng runner. Ba suite feedback cũng đạt trên WebKit. Không suy rộng kết quả WebKit cho các suite cũ chưa chạy engine này trong lượt này.
+- Suite bổ sung kiểm HTTP200 thiếu ACK sau commit giữ đúng request key; context thay đổi hiển thị đủ trước xác nhận; chuyển gallery atomic, conflict/retry. [Customer recovery](../studio/tests/feedback-customer-recovery.smoke.mjs) đạt trên Chrome/WebKit: giữ bản nháp mới khi replay, hai tab xung đột, context về muộn, thu hồi link giữa request, không ghi browser storage hoặc gửi request ra ngoài origin. Cả ba suite feedback đã được đăng ký trong browser runner (20 suite). Các test backend mới nằm tại [feedback-backend.test.mjs](../studio/tests/feedback-backend.test.mjs), [form tests](../studio/tests/feedback-form.test.mjs), [vận hành/SMTP/headers](../studio/tests/handover-operations.test.mjs).
+- Đã diễn tập snapshot → xóa → restore → gate → đối soát ledger; intent trước crash và ledger thiếu/hỏng; restore v2; kiểm export không chứa khóa/chữ ký. SMTP giả local giữ kết nối đang hoạt động để xác nhận deadline hủy socket; các email khác dùng transport giả.
+- Lượt đầu dùng Node 23.6 báo lỗi import `node:sqlite.backup` ở test Drive có sẵn; chạy lại bằng Node 24 đúng `engines` đạt toàn bộ. Không sửa/bỏ test Drive để che lỗi môi trường.
+
+**Chưa xác minh:** Zalo iOS/Android và chuyển trình duyệt trên thiết bị thật; proxy/Cloudflare production có tự chèn beacon không; dịch vụ SMTP/Resend và inbox thật; triển khai env/ledger/backup runner thực tế, staging qua hostname production và diễn tập rollback trên hạ tầng đích. WebKit local không thay thế Zalo/iPhone thật. Không gắn nhãn “FB01–FB40 đều đạt” vì nhiều ca chứa cả phần môi trường thật chưa chạy.
+
+Không có deploy, migration production, email/lời mời khách thật trong lượt này. Mọi thay đổi ngoài phạm vi đã có trước tiếp tục được giữ nguyên; chưa commit/push.
+
+### 13.6. Rà soát độc lập và kiểm thử lại ngày 23/10/2026
+
+Theo yêu cầu kiểm tra kỹ lần hai, đã rà độc lập backend, frontend và vận hành; tái hiện và sửa bảy lỗi dưới đây. Kết quả mục 13.5 là lượt triển khai ban đầu; [bằng chứng lượt kiểm lại](evidence/customer-feedback-verify-2026-10-23.json) giữ kết quả cuối và SHA-256 mã nguồn sau sửa.
+
+| Lỗi tái hiện | Sửa và kiểm hồi quy |
+| --- | --- |
+| Admin nhập thêm trong khi save đang chờ ACK; refresh thành công có thể làm mất phần vừa nhập | Khóa input/select/textarea trong lúc lưu hoặc kết quả chưa rõ, chỉ mở lại khi đã đối soát; kiểm ACK thật bị giữ lại trên hai engine |
+| Tên không có khoảng trắng làm tràn ngang màn hình 320px | Ngắt dòng tên đã lưu; kiểm tên tối đa, nội dung XSS vô hại và viewport nhỏ |
+| Bộ lọc state nhận `constructor`, `__proto__`, `toString` có thể tạo SQL sai | Chỉ lấy thuộc tính riêng trong danh sách state hợp lệ; tham số bất thường không trở thành mệnh đề SQL |
+| SQLite INTEGER affinity vẫn cho lưu version/counter thập phân | Trigger chặn INSERT/UPDATE cho các cột version/counter; kiểm cả DB mới và migration DB đã có |
+| Lease email hết hạn đã dùng hết lượt thử làm dispatcher dừng batch | Đánh dấu failed rồi tiếp tục các job còn lại trong giới hạn batch |
+| Resend HTTP200 thiếu receipt vẫn bị đánh dấu dịch vụ đã nhận | Kiểm receipt trước khi xác nhận; ACK thiếu/sai giữ trạng thái có thể thử lại |
+| Ledger nhìn như nằm ngoài data-dir nhưng symlink trỏ vào trong | CLI kiểm `realpath` trước purge/reconcile, từ chối vị trí không độc lập |
+
+Bổ sung 31 ca unit/integration ở [backend adversarial](../studio/tests/feedback-adversarial.test.mjs), [vận hành adversarial](../studio/tests/feedback-operations-adversarial.test.mjs), [HTTP/privacy integration](../studio/tests/feedback-security-integration.test.mjs) và [runtime subprocess](../studio/tests/feedback-runtime.test.mjs). Có 30 retry đồng thời chỉ tạo một revision/receipt/notification, chuyển gallery ngược chiều không deadlock, read/version race, signature sai hồ sơ, replay sau thu hồi, parser/origin/auth errors, public metadata, cache sau pause, sáu lượt retry và mọi trạng thái queue khi restore.
+
+Runtime subprocess khởi động đúng `start.mjs` với DB tạm và SMTP loopback: nhận lại job đã lưu, giữ process khi SIGTERM đang chờ SMTP ACK, drain trước thoát, không gửi lại event accepted sau restart; cờ restore chặn API và dispatcher ngay từ startup. Không dùng `.env` hoặc nhà cung cấp email thật.
+
+Một ca SMTP ở lượt SQLite đầu báo lỗi timing vì phép đo bao gồm cold import Nodemailer và vượt giới hạn hai giây khi chạy toàn bộ. Đã nạp dependency trước cửa sổ đo transport; giữ nguyên giới hạn thời gian và kiểm socket bị hủy, không bỏ hoặc nới assert. Cả hai lượt full suite cuối đều đạt: **SQLite 459 pass / 50 skip / 0 fail (509 ca)**; **PostgreSQL 514 pass / 2 skip / 0 fail (516 ca)**. Skip SQLite là các ca PostgreSQL; hai skip PostgreSQL là kiểm trigger đặc thù SQLite, đã chạy ở lượt SQLite.
+
+[Suite trình duyệt adversarial](../studio/tests/feedback-adversarial-browser.smoke.mjs) được đưa vào runner, nâng tổng số lên 21; lượt cuối toàn bộ 21 suite Chrome đạt. Bốn suite feedback chạy lại trên Chrome và WebKit; 16 lượt axe ở các state đã scan có 0 violation. Kiểm keyboard rating, giới hạn 3.000 ký tự, clipboard bị chặn, không storage/request ngoài origin, retry mất ACK, conflict hai tab, thay context và thu hồi quyền. Ảnh/log local trong `output/feedback-verify-2026-10-23/` (ignored).
+
+Phạm vi môi trường thật chưa xác minh ở cuối mục 13.5 vẫn giữ nguyên. Email dùng mô hình thử lại khi chưa có xác nhận chắc chắn; nếu dịch vụ đã nhận nhưng ACK bị mất, retry vẫn có thể tạo thư trùng. Không tuyên bố thư đã tới inbox chỉ dựa vào trạng thái accepted. Lượt này không deploy, commit/push hoặc gửi email thật.
+
+### 13.7. Khôi phục SQL, HTTPS và chuẩn bị release
+
+Lượt tiếp tục ngày 23/10 phát hiện SQL dump/PITR bỏ qua biến đổi của media snapshot restore. Đã bổ sung `prepare-restored` và gate khi chuẩn bị lỗi, như mục 13.4. [Bản ghi release và SHA-256](evidence/customer-feedback-release-check-2026-10-23.json) ghi nguồn và giới hạn từng môi trường.
+
+| Kiểm tra | Kết quả |
+| --- | --- |
+| Toàn bộ suite SQLite | 469 pass / 51 skip / 0 fail (520 ca) |
+| Toàn bộ suite PostgreSQL 16 riêng | 524 pass / 3 skip / 0 fail (527 ca) |
+| Raw restore, có trong hai suite trên | 7/7 SQLite và 7/7 PostgreSQL |
+| HTTPS proxy, production mode, PostgreSQL, Chrome/WebKit | 6/6, gồm test cha; không request ngoài origin, token không có trong URL/referrer |
+| Dump PostgreSQL → database thứ hai → prepare → startup gate → reconcile | 6/6, gồm test cha; 12 event ngưng, 2 accepted giữ nguyên, 14 revisions/receipts được bảo toàn trước purge |
+| Đóng gói release, chạy lại sau sửa metadata archive | 3/3; đủ module/asset feedback, loại secret/data/symlink và metadata mở rộng của file |
+| Gói release trên VPS Linux x64, Node 24.22.0 | health, shell riêng, gửi/replay bằng fixture, fake mailer, restore gate và Sharp native đạt |
+
+SQLite bỏ qua 50 ca cần PostgreSQL và 1 suite HTTPS opt-in. PostgreSQL bỏ qua 2 ca trigger SQLite và suite HTTPS opt-in đã chạy riêng. Test dump roundtrip được thêm sau lượt full suite, chạy riêng bằng `STUDIO_FEEDBACK_DUMP_RESTORE=1`; mặc định skip, không tự kết nối DB hoặc chạy Docker. Chỉnh readiness fixture sang TCP để không nhầm server tạm lúc initdb; lượt cuối vẫn đạt. Các kiểm tra trình duyệt/giao diện mục 13.6 vẫn áp dụng vì lượt này không đổi UI.
+
+Release `20261023T164629547Z-69ee7b6c` nằm riêng tại `/var/www/chicongphoto-releases/20261023T164629547Z-69ee7b6c`. Cài 153 dependency thành công; SHA-256 của 113 file source khớp local. Script stage không copy `.env`/data và không chạy startup/migration/restart. Smoke bổ sung dùng SQLite/media tạm, fake mailer, chỉ bind loopback; đã dọn fixture. Bản stage thử trước đã được thay thế và dọn. Không commit/push. Stage chứa toàn bộ source allowlist của working tree đã kiểm, bao gồm các thay đổi sẵn có ngoài feedback; không phải patch chỉ riêng feedback.
+
+Kiểm đọc qua hostname thật: `/api/health` trả 200 qua Cloudflare; code đang chạy chưa có module feedback, synthetic feedback path trả 404. Cấu hình live có Resend/recipient nhưng chưa có signing key feedback; chỉ ghi nhận sự hiện diện, không lưu giá trị bí mật. Những kết quả này xác nhận trạng thái trước phát hành, không chứng minh feedback qua Cloudflare đã đạt. PID, thời điểm khởi động và restart count của web không đổi qua staging.
+
+Trước kích hoạt còn cần baseline/rollback tương thích, signing key riêng và sổ xóa có backup độc lập, cập nhật các runner, migration dưới maintenance và nghiệm thu hostname thật theo [HOSTING.md](../HOSTING.md). Chưa gửi email thật hoặc thử Zalo/thiết bị thật; local TLS không thay Cloudflare thực tế, roundtrip application-schema PG16 không thay full Supabase/PITR.
+
+### 13.8. Cập nhật production ngày 28/10/2026
+
+Theo xác nhận của chủ dự án, bản feedback/handover và phần tính năng đi kèm đã được đưa lên production ngày 28/10. Mốc này **DEPLOYED-REPORTED**, không phải LIVE verification của lượt đọc tài liệu: chưa có revision đang chạy, log PM2/Caddy, kết quả `/api/health`, trạng thái env hoặc email recipient được đính kèm trong repo.
+
+Vì vậy, phần 13.7 được giữ nguyên như bằng chứng chuẩn bị trước release; không dùng câu “chưa deploy” ở phần lịch sử để phủ nhận mốc mới. Trước khi cấp link cho khách thật, hoàn tất [checklist sau release](handbook/08-production-release-2026-10-28.md#3-checklist-xác-minh-sau-release), ghi manifest DB + media và xác nhận `FEEDBACK_LINK_SECRET`/hai cờ pause trên mọi instance. Không ghi secret, token, link khách hoặc dump vào tài liệu.

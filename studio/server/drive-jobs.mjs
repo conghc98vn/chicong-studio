@@ -251,10 +251,12 @@ export function createDriveJobs(db, {now = Date.now, leaseMs = 60000, maxAttempt
     for (const entry of due) {
       const result = await db.transaction(async tx => {
         const identity = await tx.get('SELECT * FROM drive_album_links WHERE id = ?', [entry.id]);
-        await tx.get('SELECT id FROM albums WHERE id = ?' + lock(tx), [identity.album_id]);
+        const album = await tx.get('SELECT id,status FROM albums WHERE id = ?' + lock(tx), [identity.album_id]);
         const connection = await tx.get('SELECT * FROM drive_connections WHERE id = ?' + lock(tx), [identity.connection_id]);
         const mapping = await tx.get('SELECT * FROM drive_album_links WHERE id = ?' + lock(tx), [entry.id]);
-        if (!mapping.enabled || mapping.state !== 'attached' || connection.status !== 'active' || mapping.next_run_at == null || Number(mapping.next_run_at) > now()) return null;
+        // The due scan is only a hint: archiving can commit before these locks.
+        // Skip it here so enqueue cannot abort scheduling unrelated albums.
+        if (album.status === 'archived' || !mapping.enabled || mapping.state !== 'attached' || connection.status !== 'active' || mapping.next_run_at == null || Number(mapping.next_run_at) > now()) return null;
         const active = await tx.get("SELECT id FROM drive_sync_jobs WHERE mapping_id = ? AND status IN ('queued','running','retry_wait') LIMIT 1", [entry.id]);
         if (active) return null;
         const job = await enqueue({mappingId: entry.id, kind: 'apply', requestKey: `schedule:${entry.id}:${mapping.generation}:${mapping.next_run_at}`, payload: {scheduled: true}}, tx);

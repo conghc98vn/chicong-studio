@@ -36,9 +36,36 @@ export function driveRepository(env,{fetchImpl=fetch,check=async()=>{}}={}){
  };
  const createFolder=async()=>{await account();if(folder)throw Error('A backup folder is already configured');return request(base+'/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'ChiCong website backups',mimeType:'application/vnd.google-apps.folder',appProperties:{chicongBackup:'v1'}})});};
  const list=async()=>{
-  if(!folder)throw Error('Missing backup folder');const result=[];let pageToken;
-  do{const query=new URLSearchParams({q:`'${folder}' in parents and trashed = false`,fields:`nextPageToken,files(${fields})`,pageSize:'1000',...(pageToken?{pageToken}:{})});const page=await request(base+'/files?'+query);result.push(...page.files);pageToken=page.nextPageToken;}while(pageToken);
-  index=result.filter(f=>f.appProperties?.chicongBackup==='v1');return index;
+  if(!folder)throw Error('Missing backup folder');const result=[],tokens=new Set();let pageToken;
+  do{
+   const query=new URLSearchParams({q:`'${folder}' in parents and trashed = false`,fields:`nextPageToken,incompleteSearch,files(${fields})`,pageSize:'1000',...(pageToken?{pageToken}:{})});
+   const page=await request(base+'/files?'+query);
+   // Retention may delete blobs shared by multiple snapshots. A partial listing
+   // cannot establish which references remain and must never authorize deletion.
+   if(page?.incompleteSearch||!Array.isArray(page?.files)||page.files.length>1000)throw Error('Drive backup listing is incomplete');
+   result.push(...page.files);pageToken=page.nextPageToken;
+   if(pageToken!=null&&(typeof pageToken!=='string'||!pageToken||pageToken.length>2048))throw Error('Drive backup listing is incomplete');
+   if(pageToken&&tokens.has(pageToken))throw Error('Drive backup pagination cycle');
+   if(pageToken)tokens.add(pageToken);
+  }while(pageToken);
+  const managed=[],ids=new Set(),names=new Set();
+  for(const file of result){
+   if(!file||typeof file!=='object')throw Error('Invalid Drive backup metadata');
+   const properties=file.appProperties;
+   // A malformed snapshot must not disappear from the reference set used by
+   // retention. Reserved backup names also detect a lost ownership marker.
+   if(properties?.chicongBackup!=='v1'&&!/^(blob|snapshot)-/.test(file.name||''))continue;
+   const validName=properties?.kind==='blob'?file.name==='blob-'+properties.sha256:
+    properties?.kind==='snapshot'&&/^snapshot-[-a-zA-Z0-9_]+$/.test(file.name);
+   if(properties?.chicongBackup!=='v1'||!validName||!/^[a-f0-9]{64}$/.test(properties.sha256)||
+    typeof file.id!=='string'||!/^[-a-zA-Z0-9_]+$/.test(file.id)||file.trashed||
+    !Array.isArray(file.parents)||!file.parents.includes(folder)||
+    !/^\d+$/.test(String(file.size))||!Number.isSafeInteger(Number(file.size))||Number(file.size)<1)
+    throw Error('Invalid Drive backup metadata');
+   if(ids.has(file.id)||names.has(file.name))throw Error('Duplicate Drive backup file; reconcile before continuing');
+   ids.add(file.id);names.add(file.name);managed.push(file);
+  }
+  index=managed;return index;
  };
  const download=async file=>{
   const data=await request(base+'/files/'+safeId(file.id)+'?alt=media',{},'buffer');
@@ -59,7 +86,13 @@ export function driveRepository(env,{fetchImpl=fetch,check=async()=>{}}={}){
   await download(file);index.push(file);return file;
  };
  const manifests=async()=>{
-  const files=await list(),result=[];for(const file of files.filter(f=>f.appProperties.kind==='snapshot'))result.push({file,manifest:validateManifest(JSON.parse(await download(file)))});return result;
+  const files=await list(),result=[];
+  for(const file of files.filter(f=>f.appProperties.kind==='snapshot')){
+   const manifest=validateManifest(JSON.parse(await download(file)));
+   if(file.name!=='snapshot-'+manifest.runId)throw Error('Drive backup manifest/name mismatch');
+   result.push({file,manifest});
+  }
+  return result;
  };
  const publish=async(root,manifest)=>{
   validateManifest(manifest);const info=await initialize();await verifyBackup(root,manifest);await list();

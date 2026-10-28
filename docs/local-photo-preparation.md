@@ -52,7 +52,7 @@ Có thể đưa một tệp ảnh thay cho thư mục. Tham khảo `npm run phot
 
 ## Kết quả kiểm tra ngày 14/10/2026
 
-Biên bản lịch sử của công cụ; số test và trạng thái triển khai dưới đây chỉ thuộc ngày 14/10. Kết quả hiện hành nằm ở [review 21/10](review-2026-10-21.md).
+Biên bản lịch sử của công cụ; số test và trạng thái triển khai dưới đây chỉ thuộc ngày 14/10. Kết quả kiểm chứng mới nằm ở [review 23/10](review-2026-10-23.md).
 
 - Toàn project: **181/181 test pass**, có PostgreSQL 16, không bỏ qua test. Kiểm tra cú pháp JavaScript và Bash đều đạt.
 - Upload mới trên Chrome và WebKit: ảnh nguồn/gói chuẩn bị dùng chung một lượt, đúng section và tên ảnh, mất phản hồi rồi thử lại không nhân đôi, gói hỏng báo riêng, JPG khách tải đúng từng byte. Kiểm tra responsive 320/390/768/1440 px và axe không có vi phạm. Đã chạy thêm bằng hai ảnh Lightroom thực tế.

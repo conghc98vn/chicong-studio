@@ -865,3 +865,43 @@ body.public-view:has(.client-toolbar.has-sync-error) .back-to-top { bottom:calc(
  #lightbox .lightbox-actions { gap:6px; }
  #lightbox .lightbox-controls :is(button,a) { padding-inline:10px; font-size:15px; }
 }
+
+/* Proofing must stay usable without loading optional admin Drive resources. */
+[data-submission-status] {
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 380px;
+}
+@media (max-width:750px) {
+  .public-view .client-toolbar {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    flex-wrap: wrap;
+    border-radius: 20px;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .public-view .client-toolbar-main {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .public-view .client-toolbar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    padding-left: 0;
+    border-left: 0;
+  }
+  [data-submission-status] {
+    flex-basis: 100%;
+  }
+  body.public-view:has(.client-toolbar) #toast {
+    bottom: 170px;
+  }
+  body.public-view:has(.client-toolbar) .back-to-top {
+    bottom: calc(170px + env(safe-area-inset-bottom));
+  }
+  body.public-view:has(.client-toolbar) .public-footer {
+    padding-bottom: 190px;
+  }
+}

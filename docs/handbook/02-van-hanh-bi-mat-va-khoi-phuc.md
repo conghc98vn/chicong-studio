@@ -1,6 +1,8 @@
 # 02 — Vận hành, bí mật và khôi phục
 
-**Cập nhật 21/10/2026 · Phạm vi: source/config/report, không kiểm live mới.** Production: VPS iNET, database Supabase, media R2 private. Pilot Drive/no-op đã đạt; worker enabled và restart idle đạt, chưa reboot VPS. Backup ngoài VPS và restore ứng dụng offline đã đạt; chưa có lịch backup media hoặc full cloud restore. Danh mục Render dành cho hạ tầng cũ/staging.
+> **Cập nhật 28/10/2026:** feedback/handover đã được chủ dự án xác nhận đưa lên production. Snapshot local trước release, revision chưa ghi nhận và checklist LIVE nằm ở [biên bản production 28/10](08-production-release-2026-10-28.md); không coi test local hoặc working tree là bằng chứng live.
+
+**Cập nhật 28/10/2026 · Phạm vi:** production được ghi nhận theo xác nhận triển khai; chưa SSH/đọc live trong lượt tài liệu này. Production: VPS iNET, database Supabase, media R2 private. Pilot Drive/no-op đã đạt; worker enabled và restart idle đạt, chưa reboot VPS. Backup ngoài VPS và restore ứng dụng offline đã đạt; chưa có lịch backup media hoặc full cloud restore. Danh mục Render dành cho hạ tầng cũ/staging.
 
 ## 1. Bộ hồ sơ cần có để tự quản lý website
 
@@ -9,6 +11,7 @@
 | Tài khoản sở hữu | Chủ tài khoản iNET, Render lịch sử, Supabase, Cloudflare, registrar, GitHub, Resend, Google; 2FA và mã khôi phục | Key ứng dụng không giúp lấy lại quyền quản trị tài khoản |
 | Source | Repo, commit triển khai, lockfile, diff và file mới chưa commit nếu cần khôi phục bản local | Không tái dựng đúng phiên bản/schema |
 | Runtime/config | Build/start, Node version, domain, provider/bucket, CA, env không nhạy cảm và vị trí secret trong vault | Deploy chạy nhưng nối nhầm kho/DB hoặc không khởi động |
+| Sổ xóa feedback | JSONL tối thiểu ngoài DB/thư mục data và snapshot, bản sao độc lập, quyền 0600 | Dữ liệu đã xóa có thể sống lại khi restore backup cũ |
 | DB | Snapshot đủ bảng ứng dụng; thêm logical dump nếu cần cấu trúc DB/policy/index | Mất metadata, tài khoản, selections, đơn tư vấn |
 | Media | Đúng object hiện hành, gồm portrait và rendition download khi tồn tại | Khôi phục DB xong vẫn hỏng ảnh |
 | Manifest | Thời điểm, nguồn, app revision, key, bytes, checksum, mapping | Không biết DB và ảnh có thuộc cùng một mốc |
@@ -41,6 +44,8 @@ Mật khẩu/key nên nằm trong kho bí mật được mã hóa do bạn kiể
 | R2_ACCESS_KEY_ID | Identifier đi cùng secret | Danh tính API credential server | Cloudflare R2 token/access-key record |
 | R2_SECRET_ACCESS_KEY | **Secret** | Ký request S3; cấp quyền theo bucket cần dùng | Vault khi tạo token; mất secret thì tạo lại credential |
 | MEDIA_CLEANUP_ENABLED | Config | false để tắt worker khởi động của app trong môi trường restore/staging | app.mjs; không phải công tắc vô hiệu mọi lệnh CLI cleanup |
+| FEEDBACK_LINK_SECRET | **Secret** | Ký link feedback, base64url ít nhất 32 byte, ổn định qua restart và đồng nhất mọi instance; không có trong snapshot | Vault/env riêng từng môi trường; rotate sau restore |
+| FEEDBACK_API_PAUSED, FEEDBACK_NOTIFICATIONS_PAUSED | Config | Pause API/admin/export và dispatcher riêng; phải restart áp dụng, không thay bằng media lease | Env mọi web instance và runbook feedback |
 | SETUP_TOKEN | **Secret khởi tạo** | Thiết lập tài khoản admin đầu tiên theo điều kiện app | Vault/env VPS; không phải mật khẩu đăng nhập sau setup |
 | RESEND_API_KEY | **Secret** | Chọn provider Resend | Resend API keys/vault |
 | EMAIL_FROM | Config | Địa chỉ/tên gửi, cần phù hợp domain xác minh | Resend domains + env |
@@ -95,9 +100,9 @@ Quy trình rotate: kiểm kê consumer → tạo credential mới nếu dịch v
 
 | Loại | Có | Không có hoặc không được bảo đảm |
 |---|---|---|
-| Export JSON từ admin, GET /api/admin/export | 8 bảng: settings, albums, photos, selections, inquiries, blocked_dates, album_slugs, album_sections | Không có bytes media, admins, sessions, env, DNS; không phải snapshot transaction xuyên tất cả bảng |
+| Export JSON từ admin, GET /api/admin/export | Version 3: 8 bảng nghiệp vụ cũ + 6 bảng feedback; cùng transaction, PostgreSQL REPEATABLE READ READ ONLY | Không có bytes media, admins, sessions, bảng Drive đầy đủ, env, DNS hoặc sổ xóa; không phải full backup |
 | PostgreSQL logical dump | Cấu trúc/dữ liệu các schema đã chọn; phạm vi phụ thuộc options/quyền | Không có file Storage/R2, env, tài khoản nhà cung cấp; globals/role cần kế hoạch riêng |
-| Công cụ media backup mới | Snapshot schema v2 gồm 28 bảng lâu dài, manifest, media được tham chiếu, checksum, appRevision; reader nhận v1 | Không chứa drive_comparison_cache, drive_folder_preview_cache, key service account, source repo, env, DNS, JPEG nguồn/RAW; appRevision chưa mô tả dirty tree |
+| Công cụ media backup mới | Snapshot schema v3 gồm 34 bảng (28 bảng v2 + 6 bảng feedback), manifest, media được tham chiếu, checksum, appRevision; reader nhận v1/v2/v3 | Không chứa drive_comparison_cache, drive_folder_preview_cache, key service account, signing key feedback, sổ xóa độc lập, source repo, env, DNS, JPEG nguồn/RAW; appRevision chưa mô tả dirty tree |
 | Cron DB trên VPS iNET | Theo biên bản: SQL gzip lúc 03:00 giờ Việt Nam vào /var/backups/chicongphoto; script có retention -mtime +14 | Chỉ DB trên cùng máy; chưa phải backup media/offsite, chưa xác minh cron thực tế trong lượt này; script local mới loại dữ liệu cả hai cache tạm nhưng vẫn có thể giữ schema cache |
 | Bản offline export của công cụ | Manifest và toàn bộ blob mà snapshot chọn cần | Không tự chứa mọi lịch sử snapshot trong repository hoặc quyền truy cập cloud |
 | Ảnh gốc trên ổ cứng/Drive | RAW/JPEG nguồn theo cách studio lưu | Không có selections, inquiries, album layout, password, slug history |
@@ -117,9 +122,13 @@ Theo [media-backup.mjs](../../studio/tools/media-backup.mjs), [media-control.mjs
 5. Verify trước publish manifest complete. Chỉ manifest complete tương ứng toàn bộ blobs mới được dùng như bản tốt.
 6. Nếu dùng Drive, kiểm owner/folder, publish dữ liệu rồi manifest; retention bảo vệ blobs vẫn được snapshot giữ lại tham chiếu.
 
+Danh sách Drive phải đầy đủ trước khi quyết định retention. Nếu API báo `incompleteSearch`, trang sai cấu trúc hoặc lặp page token, công cụ dừng với lỗi và không xóa snapshot/blob từ kết quả đó. Kiểm lại dịch vụ/quyền rồi thử lại; không bỏ guard để tiếp tục dọn backup.
+
+Tên `blob-*` và `snapshot-*` được dành riêng trong folder backup. Metadata thiếu/sai marker, loại, checksum, kích thước, thư mục cha hoặc tên/ID trùng đều chặn xử lý; tên snapshot phải khớp `runId` trong manifest. Không bỏ qua snapshot hỏng vì nó có thể vẫn tham chiếu blob dùng chung. Khi gặp lỗi, giữ nguyên dữ liệu để đối chiếu bản offline đã verify trước khi sửa metadata hoặc chạy lại retention.
+
 Snapshot là dữ liệu ứng dụng theo schema version của công cụ, không phải bản sao vật lý toàn PostgreSQL. Restore local bỏ sessions, rate_limits, cleanup, locks/writers/journal cũ; backup_runs đang running được đánh dấu failed. Với Drive, restore tắt connection/lịch, pause mapping, hủy job chưa kết thúc, vô hiệu approval cũ và reset heartbeat; cần check/preview mới trước khi sync. Do đó “phục hồi chính xác” là khôi phục nghiệp vụ với state vận hành được reset có chủ đích, không phải mọi hàng nguyên xi.
 
-**Tính nhất quán:** khóa media giúp mapping và file không đổi trong giai đoạn cần bảo vệ; inquiry/selection có thể tiếp tục trước/sau thời điểm DB snapshot. Mốc dữ liệu phục hồi là capturedAt của snapshot, không phải lúc upload Drive cuối cùng hoàn tất.
+**Tính nhất quán:** khóa media giúp mapping và file không đổi trong giai đoạn cần bảo vệ; inquiry/selection/feedback có thể tiếp tục trước/sau thời điểm DB snapshot. Mốc dữ liệu phục hồi là capturedAt của snapshot, không phải lúc upload Drive cuối cùng hoàn tất.
 
 **Điều kiện trước khi chạy trên production:** bản app tương thích và schema media mới phải được triển khai, provider binding đúng, inventory/quota và cửa sổ khóa được kiểm tra. CLI mở DB với initialize:false; không dùng nó như lệnh tự migrate production cũ. Cloud test bằng ảnh giả không thay cổng này.
 
@@ -155,6 +164,18 @@ Snapshot `2026-10-21T02-19-52-867Z-83c5216a-aee7-4e92-b7e4-ed0ce9e716e8` gồm 3
 Runtime dùng token Object Read & Write giới hạn bucket `chicong-production`, lưu ngoài Git; token staging không được dùng thay. Giữ nguyên kho Supabase nguồn và bản env rollback. Không công khai manifest/private backup vì chứa dữ liệu khách và hash xác thực. Bucket private: r2.dev tắt, không custom media domain/CORS; quy tắc hủy multipart dở sau 7 ngày không phải TTL xóa ảnh.
 
 Cron SQL 03:00 vẫn không chứa bytes ảnh. Lịch backup media, kiểm tuổi snapshot và cảnh báo job không chạy còn phải hoàn thiện. Khôi phục ứng dụng offline đã đạt không có nghĩa một lệnh CLI dựng lại được PostgreSQL/Supabase, R2, DNS và quyền cloud.
+
+### 3.6. Feedback: snapshot v3 và phục hồi từ SQL dump
+
+Sáu bảng mới là `handovers`, `handover_albums`, `feedback`, `feedback_revisions`, `feedback_request_receipts`, `feedback_notifications`. Cập nhật mọi backup runner sau migration: bản v2 cũ từ chối bảng lạ; bản v3 cần đủ bảng mới nên baseline trước migration phải dùng runtime cũ tương thích. Khi hạ giao diện/app, vẫn giữ runtime backup đọc v3; không xóa bảng hoặc restore baseline cũ đè các cảm nhận mới đã nhận.
+
+`media-backup.mjs restore` hiện tạo **SQLite + media local ở đích mới**. Công cụ thu hồi link, đổi nonce, xóa receipt admin gần nhất, suppress mọi notification chưa accepted và đặt `feedback_restore_pending=true`. Đây là bảo đảm của đường restore này, không phải hook chạy tự động mỗi lần DB được nhập lại. Sổ xóa phải được giữ ngoài backup được khôi phục; đối soát lại cả các ý định đã thực hiện trước đó, rotate signing key mọi instance, rồi mới bỏ gate bằng [feedback-ops.mjs](../../studio/tools/feedback-ops.mjs). Lệnh và điều kiện cụ thể nằm ở [đặc tả feedback](../customer-feedback-spec.md#implementation).
+
+**SQL dump/PITR là đường khác:** `pg_dump` lưu nguyên các bảng feedback và pending mail, nhưng `psql`/khôi phục nhà cung cấp không gọi `restoreRow`, không tự đặt restore gate, revoke link hoặc suppress queue. Trước đưa bản SQL phục hồi cho web, giữ mọi process dừng và cả hai cờ pause; chỉ chạy DB ở môi trường cách ly. Chạy `feedback-ops.mjs prepare-restored` với DB đích tường minh, `--data-dir`, sổ xóa độc lập và `--processes-stopped yes`, theo lệnh trong [mục 13.4 đặc tả feedback](../customer-feedback-spec.md#implementation). Lệnh lưu gate bền vững trước, rồi thu hồi link và suppress queue trong transaction; giữ revisions, receipts khách và event accepted. Bản DB cũ chưa có feedback chỉ được bổ sung schema feedback, không khởi động ứng dụng hoặc dispatcher.
+
+Nếu chuẩn bị lỗi, gate và dấu `feedback_restore_preparation_incomplete` vẫn giữ; `reconcile` không được bỏ gate cho tới khi chạy lại `prepare-restored` thành công. Sau chuẩn bị vẫn phải đối soát sổ xóa, triển khai signing key mới trên mọi instance rồi chạy `reconcile` riêng. Chỉ reconcile hoặc chỉ rotate key không thay cho bước chuẩn bị. Quy trình này xử lý trạng thái feedback trong DB ứng dụng; không phải công cụ tự khôi phục toàn bộ Supabase/PITR, storage, role hoặc hạ tầng.
+
+Với mọi restore, giữ nguyên revision/receipt khách; dữ liệu bị yêu cầu xóa được purge lại theo sổ riêng. Không tự tạo sổ trống khi thiếu sổ cũ. Email accepted chỉ chứng minh provider đã nhận, không chứng minh inbox; event suppressed chỉ được thử lại sau review người nhận. Xóa dữ liệu trong DB không xóa thư đã gửi hoặc snapshot ngoài hệ thống.
 
 ## 4. Diễn tập phục hồi từ bộ offline
 
@@ -285,7 +306,7 @@ Các mức bên dưới là **đề xuất ban đầu**, chưa phải monitor/SL
 | Inquiry | Tỉ lệ lưu thành công, lỗi 409/422/429/5xx theo nguyên nhân | Tách business rejection khỏi sự cố server |
 | Upload | X-Upload-Id, stage, thời gian, RSS, trạng thái ack | Cảnh báo tăng timeout/unknown write/OOM; heartbeat 15 giây chỉ là log, không phải alert |
 | Cleanup | Số job, tuổi job cũ nhất, tốc độ drain | Queue tồn lâu sau khi service đã ổn cần điều tra |
-| Email | Provider accept/reject và phản hồi delivery nếu có | Hiện chưa có dashboard/outbox tự theo dõi tất cả trạng thái này |
+| Email | Provider accept/reject và phản hồi delivery nếu có | Feedback có queue bền vững và trạng thái provider trong admin; inquiry chưa có outbox. Chưa có monitor delivery/inbox chung |
 | Backup | Tuổi snapshot complete đã verify | Nếu chọn daily, có thể bắt đầu thảo luận ngưỡng 30 giờ; cần monitor độc lập phát hiện job không chạy |
 | Quota/cost | DB, storage, egress, operations, mail, Drive | Theo dõi xu hướng và cảnh báo trước hết; không suy diễn từ số ảnh thành số GB |
 
@@ -315,7 +336,7 @@ Khi bàn giao hoặc một người rời dự án: thu hồi quyền cá nhân,
 
 ### 10.2. Retention, xóa và yêu cầu dữ liệu khách
 
-Album, ảnh, selections, inquiry, email thông báo, snapshot Drive và evidence QA có thể chứa dữ liệu cá nhân. Trước khi thu thập hoặc lưu dài hạn, chủ studio cần phê duyệt bằng văn bản: mục đích, người được truy cập, thời hạn của từng loại dữ liệu, thời điểm xóa gallery/ảnh gốc/snapshot và cách xử lý yêu cầu xem-xóa-sửa dữ liệu.
+Album, ảnh, selections, inquiry, feedback và lịch sử, email thông báo, snapshot Drive và evidence QA có thể chứa dữ liệu cá nhân. Trước khi thu thập hoặc lưu dài hạn, chủ studio cần phê duyệt bằng văn bản: mục đích, người được truy cập, thời hạn của từng loại dữ liệu, thời điểm xóa gallery/ảnh gốc/snapshot và cách xử lý yêu cầu xem-xóa-sửa dữ liệu.
 
 Xóa album trong app không chứng minh dữ liệu đã biến mất khỏi backup, Drive, log hoặc máy xuất ảnh. Khi xử lý một yêu cầu xóa, lập phiếu gồm định danh tối thiểu, nguồn cần kiểm, ngày yêu cầu, hành động đã thực hiện, bản backup còn giữ theo retention hợp lệ và ngày sẽ hết hạn. Không đưa tên, email, ảnh hoặc private URL của khách vào report chia sẻ.
 

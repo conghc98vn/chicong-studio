@@ -1,8 +1,10 @@
 # ChiCong Studio · v2.2.1
 
-Ứng dụng nhiếp ảnh cho **chicongphoto.vn**: portfolio công khai, quản trị album, gallery riêng để khách chọn/tải ảnh, nhận yêu cầu tư vấn và nhập ảnh từ Google Drive.
+Ứng dụng nhiếp ảnh cho **chicongphoto.vn**: portfolio công khai, quản trị album, gallery riêng để khách chọn/tải ảnh, nhận yêu cầu tư vấn, cảm nhận sau bàn giao và nhập ảnh từ Google Drive.
 
-Theo biên bản ngày **21/10/2026**, production chạy **VPS iNET → PostgreSQL Supabase + R2 private**. Nhập Drive thủ công bật, scheduler tắt. Thay đổi trong working tree không đồng nghĩa đã triển khai. [Trạng thái và giới hạn xác minh](docs/handbook/README.md).
+Hồ sơ đối tác **freelancer.chicongphoto.vn** chạy chung service ở host riêng: giới thiệu năng lực chụp truyền thống/phóng sự, portfolio, thiết bị, quy trình, lịch theo ngày và liên hệ Messenger/Zalo. Phần báo giá chỉ mở bằng `FREELANCER_PRICE_CODE`; hồ sơ trả `noindex` và không được dẫn từ web chính. Xem [brief](docs/archive/freelancer-website-brief.md) và [hướng dẫn hosting](HOSTING.md#hồ-sơ-đối-tác-freelancerchicongphotovn). Khi chạy local, mở `http://localhost:4173/freelancer`.
+
+Theo biên bản ngày **21/10/2026**, production chạy **VPS iNET → PostgreSQL Supabase + R2 private**. Nhập Drive thủ công bật, scheduler tắt. Theo xác nhận ngày **28/10/2026**, bản tính năng feedback/handover mới đã được đưa lên PROD; revision và live smoke còn phải ghi bổ sung trong [biên bản release production](docs/handbook/08-production-release-2026-10-28.md). [Trạng thái và giới hạn xác minh](docs/handbook/README.md).
 
 ## Chạy local
 
@@ -38,7 +40,7 @@ STUDIO_TEST_POSTGRES_URL=postgresql://USER:PASSWORD@127.0.0.1:PORT/TEST_DB npm t
 STUDIO_PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs npm run test:browser
 ```
 
-Browser runner chạy các suite với fixture riêng, cần Playwright và Google Chrome đã cài; `npm ci` chưa cài hai công cụ này. [Hướng dẫn QA và phạm vi từng suite](docs/handbook/03-phong-lab-qa.md). [Báo cáo rà soát hiện tại](docs/review-2026-10-21.md) lưu kết quả thực chạy, số đo và phần chưa xác minh.
+Browser runner chạy 21 suite với fixture riêng, cần Playwright và Google Chrome đã cài, hoặc `CHROME_BIN` trỏ tới Chromium tương thích; `npm ci` chưa cài các công cụ browser. CI có job browser riêng dùng Playwright/axe được pin và Chromium đi kèm. Runner giới hạn thời gian từng suite, tách thư mục evidence và không truyền credential hay ảnh khách từ shell vào fixture. `npm run check` chỉ kiểm cú pháp JavaScript/config/Bash, gồm cả tests và scripts vận hành; không thực thi deploy hoặc smoke live. [Hướng dẫn QA và phạm vi từng suite](docs/handbook/03-phong-lab-qa.md). [Báo cáo rà soát 23/10](docs/review-2026-10-23.md) lưu kết quả thực chạy và phần chưa xác minh; [report 21/10](docs/review-2026-10-21.md) giữ số đo lịch sử.
 
 ## Tài liệu theo nhu cầu
 
@@ -49,7 +51,9 @@ Browser runner chạy các suite với fixture riêng, cần Playwright và Goog
 | Hiểu kiến trúc, credential, backup/restore và học QA | [Handbook](docs/handbook/README.md) |
 | Nhập ảnh Drive, xem trước/duyệt, xử lý job lỗi | [Runbook Drive](docs/google-drive-sync-operations.md) |
 | Chuẩn bị gói `.ccphoto` trên Mac | [Chuẩn bị ảnh](docs/local-photo-preparation.md) |
+| Mời khách gửi cảm nhận, cấu hình và khôi phục dữ liệu feedback | [Đặc tả và triển khai feedback](docs/customer-feedback-spec.md#implementation) |
 | Danh mục đầy đủ và báo cáo lịch sử | [Mục lục tài liệu](docs/README.md) |
+| Thực hiện lại audit đúng phạm vi của project | [Prompt rà soát ChiCong Studio](docs/project-audit-prompt.md) |
 
 ## Bản đồ mã nguồn
 
@@ -60,4 +64,4 @@ Browser runner chạy các suite với fixture riêng, cần Playwright và Goog
 - `scripts/`, `ecosystem.config.cjs`: chuẩn bị release VPS, systemd worker và dump DB.
 - `.env.example`: tên biến và ví dụ; không phải cấu hình đang chạy. `render.yaml` là cấu hình tham chiếu nếu sử dụng Render lại.
 
-Git không lưu `.env`, ảnh khách, database, backup hoặc `output/`. JSON xuất từ admin chỉ là metadata, không thay bản backup DB + media. Hệ thống không giao RAW, không tự xác nhận booking/thanh toán; [feedback sau bàn giao](docs/customer-feedback-spec.md) vẫn là thiết kế chưa triển khai.
+Git không lưu `.env`, ảnh khách, database, backup hoặc `output/`. JSON xuất từ admin chỉ là metadata, không thay bản backup DB + media. Hệ thống không giao RAW, không tự xác nhận booking/thanh toán. [Feedback sau bàn giao](docs/customer-feedback-spec.md#implementation) đã được xác nhận đưa lên production ngày 28/10; cần kiểm secret, queue, recipient và live smoke trước khi cấp link khách thật.

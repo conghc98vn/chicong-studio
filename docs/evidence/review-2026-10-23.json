@@ -1,0 +1,376 @@
+{
+  "date": "2026-10-23",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "project": "ChiCong Studio",
+  "source_head": "e4dcefc56ca8587b056ac92616cb8cb98dbea9e9",
+  "working_tree": "dirty; local changes only; no commit, push or deploy",
+  "runtime": {
+    "node": "24.19.0",
+    "postgresql": "16.15",
+    "chrome": "155.0.8059.85",
+    "playwright": "1.62.1",
+    "platform": "macOS"
+  },
+  "initial_changes": {
+    "tracked": [
+      "HOSTING.md",
+      "scripts/backup-db.sh",
+      "studio/server/drive-jobs.mjs",
+      "studio/server/mailer.mjs",
+      "studio/tests/drive-folder-preview.test.mjs",
+      "studio/tests/drive-jobs.test.mjs",
+      "studio/tests/mailer.test.mjs",
+      "studio/tests/run-browser-smoke.mjs",
+      "studio/tools/media-ops.mjs",
+      "studio/web/main.js"
+    ],
+    "untracked": [
+      "studio/tests/album-password-form.smoke.mjs",
+      "studio/tests/backup-db.test.mjs"
+    ],
+    "preservation": "Tracked baseline diff unchanged except browser runner; its preexisting album-password-form registration retained. Original untracked tests were not edited."
+  },
+  "audit_code_test_config_changes": [
+    "studio/server/app.mjs",
+    "studio/server/drive-client.mjs",
+    "studio/tools/drive-backup.mjs",
+    "studio/web/drive-panel.mjs",
+    "studio/web/drive-sync.css",
+    "studio/web/public.css",
+    "studio/web/style.css",
+    "studio/tests/check-syntax.mjs",
+    "studio/tests/drive-backup.test.mjs",
+    "studio/tests/drive-client.test.mjs",
+    "studio/tests/drive-panel-pagination.smoke.mjs",
+    "studio/tests/gallery-layout-isolation.smoke.mjs",
+    "studio/tests/inquiry-concurrency.test.mjs",
+    "studio/tests/run-browser-smoke.mjs",
+    ".env.example"
+  ],
+  "checks": {
+    "baseline_sqlite": {
+      "log": "output/audit-2026-10-23/baseline-tests.log",
+      "tests": 425,
+      "pass": 381,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 44,
+      "todo": 0
+    },
+    "final_postgres": {
+      "log": "output/audit-2026-10-23/final-postgres-tests.log",
+      "tests": 439,
+      "pass": 439,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "final_sqlite": {
+      "log": "output/audit-2026-10-23/final-sqlite-tests.log",
+      "tests": 432,
+      "pass": 386,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 46,
+      "todo": 0
+    },
+    "browser": {
+      "passed": 16,
+      "failed": 0,
+      "suites": [
+        "admin-drive-loading",
+        "gallery-password-flow",
+        "album-password-form",
+        "gallery-layout-isolation",
+        "gallery-sync-browser",
+        "gallery-download-browser",
+        "photo-management-browser",
+        "prepared-upload-browser",
+        "admin-proofing-regression",
+        "proofing-concurrency",
+        "photo-management-recovery",
+        "album-drive-entry-browser",
+        "drive-folder-browser",
+        "drive-panel-polling",
+        "drive-panel-pagination",
+        "album-slug-browser"
+      ],
+      "log": "output/audit-2026-10-23/final-browser-tests.log",
+      "axe_enabled": false,
+      "manually_viewed_screenshots": [
+        "output/audit-2026-10-23/browser/gallery-layout-320.png",
+        "output/audit-2026-10-23/browser/gallery-layout-1280.png"
+      ]
+    },
+    "syntax": {
+      "passed": true,
+      "files": 191,
+      "log": "output/audit-2026-10-23/final-syntax.log"
+    },
+    "dependency_audit": {
+      "command": "npm audit --omit=dev --json",
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "log": "output/audit-2026-10-23/npm-audit.json"
+    },
+    "clean_install": {
+      "passed": true,
+      "scope": "Source snapshot copied during audit into an isolated temporary directory without .env, data or node_modules. Dependencies unchanged during audit. npm ci, syntax/docs checks, npm run dev, health/home/admin 200, protected dashboard 401 before auth, setup 201, authenticated dashboard 200. Existing macOS Node/Bash prerequisites.",
+      "log": "output/audit-2026-10-23/clean-install.log"
+    },
+    "regressions": {
+      "red_then_green": [
+        "two inquiry races on SQLite",
+        "invalid Retry-After backoff",
+        "incomplete Drive listing before retention",
+        "repeated Drive pagination cursor before retention",
+        "Drive panel page rollback and atomic load",
+        "public gallery layout without admin CSS"
+      ],
+      "additional_green_coverage": [
+        "two inquiry races on PostgreSQL"
+      ]
+    },
+    "documentation": {
+      "passed": true,
+      "markdown_files": 63,
+      "local_links": 442,
+      "log": "output/audit-2026-10-23/final-docs.log",
+      "scope": "Target-file existence; excludes external URLs and heading anchors."
+    },
+    "diff_whitespace": {
+      "passed": true,
+      "command": "git diff --check"
+    }
+  },
+  "reproduction": {
+    "unit_integration": "npm test; set STUDIO_TEST_POSTGRES_URL only to a disposable test database for PostgreSQL coverage",
+    "syntax": "npm run check",
+    "docs": "npm run check:docs",
+    "browser": "STUDIO_PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs npm run test:browser; Chrome installed separately",
+    "diff": "git diff --check"
+  },
+  "limits": [
+    "No live cloud or production verification, real customer data, email send, calendar update or Drive import/retention.",
+    "No new performance benchmark, axe/WCAG certification, Safari/Firefox/Zalo device coverage or full penetration test.",
+    "Archive inventoried and link-checked; historical claims not reverified.",
+    "Inquiry guard checks changes during request processing; it is not a version token for every stale form.",
+    "Logs/screenshots in ignored output directory are local artifacts, not guaranteed in another checkout."
+  ],
+  "file_sha256": {
+    ".env.example": "2684fda551f384d85add5d2c506d180eecc273ee7665da23527d481dc60c7517",
+    "HOSTING.md": "652de24648d8b51e7e0ee7612d754c88a53da6231ec2eed72c7d78b83b26a49e",
+    "package-lock.json": "105c58fb209680b823a7bcfc83c8773607f47f343bf61860d5c9718971ecbae8",
+    "package.json": "01c2b8cc1320f3469895b1b2da350394155b12fcaa59a9a3689a09d7caf91a56",
+    "scripts/backup-db.sh": "0b7ffe99085bdb00223e6d36d607463a313f7492f241e0f85eb8bdc21246deef",
+    "studio/server/app.mjs": "a31dd35a550b0d7eb0db4f552a893b61a6c8a493cbfa6cd22e4dca6da34955cf",
+    "studio/server/drive-client.mjs": "cf658d5f974193250080043591fc1ff3b70b5bc6f9efbc563119c1baf961ff13",
+    "studio/server/drive-jobs.mjs": "ad6a56fdda690730088f8a3f4b70b86a3b011ba3d3e0bc1f80b0bcdd1bf04d6e",
+    "studio/server/mailer.mjs": "44a8fb005c36f794a77f376aa3c95c17729dcf81cbfb566006e5d53085213a29",
+    "studio/tests/album-password-form.smoke.mjs": "3accb66fdb519a9f1e81ced607ea71f0d9ae089cfdacd978928947a92db18256",
+    "studio/tests/backup-db.test.mjs": "af09648a762b78aab6c5e6bab1f86868000f32978007521cad6be83ff9f1d0f1",
+    "studio/tests/check-syntax.mjs": "8790f2b3153a2c51c0e01b4ae0c9dcc914fb58bd7c7f49f4571d3633113b3e91",
+    "studio/tests/drive-backup.test.mjs": "f768ce4a81a20ccdcea44b0b267d9d4cd1f6d55d06150616851e72e8bb867db2",
+    "studio/tests/drive-client.test.mjs": "d4863873c5392f03c9854f98f9f5c0ecad5bfad9f16075fc179aa63a7cdb040f",
+    "studio/tests/drive-folder-preview.test.mjs": "970e1740dde574c6750436d22bca16618c9bca3bd573e2afe417eafe0950b357",
+    "studio/tests/drive-jobs.test.mjs": "989b03e3bcb3f0a269d6318f2e0fe4a76a619ac2b6c3d684c0174fe68488ea1e",
+    "studio/tests/drive-panel-pagination.smoke.mjs": "33ca378022f1868d5d318ac91492eb8e28629af07f88c4c5337ff8d62b31917d",
+    "studio/tests/gallery-layout-isolation.smoke.mjs": "6a763cd58c7578850f6144ad7f360ed3c701e065c914c452bfb284a8e769052e",
+    "studio/tests/inquiry-concurrency.test.mjs": "af69a449ad96a96eba0431d03a3885cfef128b01a67d4aa66988ea659957ce2f",
+    "studio/tests/mailer.test.mjs": "bd72630aca304c090557a742d58044c44fb060dbd0ff8183901bcbf9316b2a5a",
+    "studio/tests/run-browser-smoke.mjs": "269824791100c30a6d96e0eae48910d35483d1f52281339aa471ab2cdf008a09",
+    "studio/tools/drive-backup.mjs": "77857fc8bf3eb5d4f4cbecdabb93df1ab8ae4fb8ac46438c811529ded45787b2",
+    "studio/tools/media-ops.mjs": "b7ba686d53ae9a3a4e002ecd24aef0c00ca77ecf13233781cfcb706b5b456860",
+    "studio/web/drive-panel.mjs": "1ac410d90e76c9ec30291ae7355024b330ce8f6a92031a632ed28de868e98d01",
+    "studio/web/drive-sync.css": "e3b3fdc5e13ade7d52382522c31b91886f7d17459887b502dce6f10ea0878a9b",
+    "studio/web/main.js": "b2774f2ac36dcfaac6275a85bd956748e59a7318d27c97366cdc624017e40e1f",
+    "studio/web/public.css": "281f05a89d4d3da4a8cfa192dbebb92bf6684e8439a944ed564efbebd018b36a",
+    "studio/web/style.css": "7d26d3408a2876d021815f998b824fa1393ab4bb6d3dc6e15ff8493f3ee40ddf"
+  },
+  "stage": "Initial audit; see continuation for the latest tested working tree.",
+  "continuation": {
+    "date": "2026-10-23",
+    "timezone": "Asia/Ho_Chi_Minh",
+    "source_head": "e4dcefc56ca8587b056ac92616cb8cb98dbea9e9",
+    "runtime": {
+      "node": "24.19.0",
+      "postgresql": "16.15",
+      "playwright": "1.62.1",
+      "chrome": "155.0.8059.85",
+      "axe_playwright": "4.14.0",
+      "axe_core": "4.14.0",
+      "platform": "macOS"
+    },
+    "changes": [
+      "Inquiry snapshot comparison and atomic note/status/date guard, draft preservation and explicit reload recovery.",
+      "Fail-closed backup metadata validation before retention deletes.",
+      "Browser CI with pinned external tooling; environment allowlist, per-suite timeout and evidence directories.",
+      "17 isolated browser suites including two-tab inquiry recovery; explicit accessibility evidence."
+    ],
+    "checks": {
+      "postgres": {
+        "log": "output/audit-2026-10-23/continuation/final-postgres-tests.log",
+        "tests": 446,
+        "pass": 446,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "sqlite": {
+        "log": "output/audit-2026-10-23/continuation/final-sqlite-tests.log",
+        "tests": 439,
+        "pass": 390,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 49,
+        "todo": 0
+      },
+      "browser": {
+        "passed": 17,
+        "failed": 0,
+        "suites": [
+          "admin-drive-loading",
+          "gallery-password-flow",
+          "album-password-form",
+          "gallery-layout-isolation",
+          "gallery-sync-browser",
+          "gallery-download-browser",
+          "photo-management-browser",
+          "prepared-upload-browser",
+          "admin-proofing-regression",
+          "proofing-concurrency",
+          "photo-management-recovery",
+          "album-drive-entry-browser",
+          "drive-folder-browser",
+          "drive-panel-polling",
+          "drive-panel-pagination",
+          "album-slug-browser",
+          "inquiry-editor"
+        ],
+        "log": "output/audit-2026-10-23/continuation/final-browser-tests.log",
+        "launch": "Explicit macOS Chrome executable through CHROME_BIN."
+      },
+      "axe": {
+        "scans": 10,
+        "violations": 0,
+        "incomplete_rule_results": 9,
+        "incomplete_rules": [
+          "color-contrast"
+        ],
+        "artifacts": [
+          {
+            "artifact": "output/audit-2026-10-23/continuation/final-browser/gallery-layout-isolation/gallery-layout-accessibility.json",
+            "scans": 3,
+            "violations": 0,
+            "incomplete_rule_results": 3
+          },
+          {
+            "artifact": "output/audit-2026-10-23/continuation/final-browser/gallery-download-browser/accessibility.json",
+            "scans": 4,
+            "violations": 0,
+            "incomplete_rule_results": 3
+          },
+          {
+            "artifact": "output/audit-2026-10-23/continuation/final-browser/prepared-upload-browser/prepared-upload/chromium/accessibility.json",
+            "scans": 1,
+            "violations": 0,
+            "incomplete_rule_results": 1
+          },
+          {
+            "artifact": "output/audit-2026-10-23/continuation/final-browser/inquiry-editor/inquiry-accessibility.json",
+            "scans": 2,
+            "violations": 0,
+            "incomplete_rule_results": 2
+          }
+        ]
+      },
+      "syntax": {
+        "files": 192,
+        "passed": true,
+        "log": "output/audit-2026-10-23/continuation/final-syntax.log"
+      },
+      "docs": {
+        "markdown_files": 63,
+        "local_links": 450,
+        "passed": true,
+        "log": "output/audit-2026-10-23/continuation/final-docs.log"
+      },
+      "workflow": {
+        "yaml": true,
+        "shell_syntax": true,
+        "agent_actionlint": "1.7.7 passed before parent added explicit axe-core pin; YAML and shell revalidated after pin.",
+        "github_executed": false,
+        "linux_executed": false
+      },
+      "runner_negative_tests": {
+        "passed": true,
+        "covers": [
+          "timeout exits 124",
+          "database/sample environment variables excluded",
+          "import failure stops later suites"
+        ],
+        "log": "output/audit-2026-10-23/continuation/browser-runner-negative-tests.log"
+      },
+      "diff_whitespace": true
+    },
+    "preservation": "Original 8 tracked file diffs unchanged byte-for-byte; original main.js password additions and runner registration retained alongside new changes. Original 2 untracked tests match their initial hashes. package.json/package-lock.json unchanged.",
+    "limits": [
+      "No production/cloud, real images, real email/calendar/Drive mutations, deployment, push or commit.",
+      "Actual GitHub Linux/Chromium run and branch protection remain unverified; configured Chromium revision is 1234.",
+      "Axe has 9 incomplete color-contrast rule results; zero violations is not WCAG certification.",
+      "Full cloud restore, media backup schedule/alerting, host worker crash/reboot, large workloads and durable mail outbox remain outside this local verification.",
+      "Legacy API callers without expected cannot detect an editor stale before request processing.",
+      "Some existing smoke screenshots use fixed output paths and are outside the shared CI artifact."
+    ],
+    "changed_files": [
+      ".github/workflows/check.yml",
+      "OPERATIONS.md",
+      "README.md",
+      "docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md",
+      "docs/handbook/03-phong-lab-qa.md",
+      "docs/handbook/README.md",
+      "docs/review-2026-10-23.md",
+      "studio/server/app.mjs",
+      "studio/tests/drive-backup.test.mjs",
+      "studio/tests/gallery-download-browser.smoke.mjs",
+      "studio/tests/gallery-layout-isolation.smoke.mjs",
+      "studio/tests/inquiry-concurrency.test.mjs",
+      "studio/tests/inquiry-editor.smoke.mjs",
+      "studio/tests/prepared-upload-browser.smoke.mjs",
+      "studio/tests/run-browser-smoke.mjs",
+      "studio/tools/drive-backup.mjs",
+      "studio/web/main.js"
+    ],
+    "file_sha256": {
+      ".github/workflows/check.yml": "58476d5e38884119500f71bd5fbced4960e2481e41816782de9a02b94392b5a6",
+      "OPERATIONS.md": "38dc9a224c260ebf11883dc582b40219ec3889ba92cb2d195cf914df81ec21d8",
+      "README.md": "90c22967a09ff55c2c2107ffe9c656499eeafb8eda2bd678a9e82e8e7ce28fcc",
+      "docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md": "693641bd436c61d44499a9d621ebd0aa8681de36f9d91e3639a22f4757737705",
+      "docs/handbook/03-phong-lab-qa.md": "268dbb9a4d91b087209064ac87a9ebfe7448759a89bbd3696395b3bdf690116d",
+      "docs/handbook/README.md": "48407c504221b9a92b97f8b8feacbc1ffbde4f574d61b7cac5ce6fe0021982cf",
+      "docs/review-2026-10-23.md": "de0a9018d748b8375dea20b8ca8e700879941df80e3c340373fdfa1a5f3230d5",
+      "studio/server/app.mjs": "c0ffe11b5e5ad561ddfbeafbfdfa6fb6e363bf301da45372b537277cda5a0aa3",
+      "studio/tests/drive-backup.test.mjs": "67fec9bb4b0aa62d37c0b004a9434d238581c8c78a5bfb26a289ecc47c36f68c",
+      "studio/tests/gallery-download-browser.smoke.mjs": "b6ab019f3dde1ef32b2eb9abe4ce788f1695a2283e7daa7274bbd0a57d2e8b96",
+      "studio/tests/gallery-layout-isolation.smoke.mjs": "13cf352de1510ce4e8e9412478410d9992d22b2257fde96011b3c911ff121691",
+      "studio/tests/inquiry-concurrency.test.mjs": "30608c5bda2b30914a5dbae7499e2014ba5888f9f0fdf7fdc87c5db940db00da",
+      "studio/tests/inquiry-editor.smoke.mjs": "0401504781ea8e15c35ddb939189f42711f11d6de35b0ba0d4aa7948d725aa6e",
+      "studio/tests/prepared-upload-browser.smoke.mjs": "c16e23c2c0936728168f4f5d44e768bb2848854386cc9ca9e0445b9cce3f038d",
+      "studio/tests/run-browser-smoke.mjs": "a5d7cac0ca864a958fcc77188e78094de4320e50ea1db6055b3afe4ab36971f9",
+      "studio/tools/drive-backup.mjs": "03cdf99ca5fcf7d1182be7d0661cb9ccd5ac5e4f6522d7e6bf2bf55fb3191cd6",
+      "studio/web/main.js": "7f2a899c456f72beefbb90943e0b2388b952aa1c916e0782827c7f27a9cd9c7d"
+    },
+    "package_sha256": {
+      "package.json": "01c2b8cc1320f3469895b1b2da350394155b12fcaa59a9a3689a09d7caf91a56",
+      "package-lock.json": "105c58fb209680b823a7bcfc83c8773607f47f343bf61860d5c9718971ecbae8"
+    }
+  }
+}

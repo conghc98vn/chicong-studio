@@ -50,6 +50,28 @@ test('Email templates format, escape and include essential consultation details'
   assert.match(special.html,/A &amp; B/);
 });
 
+test('Email templates escape configured URLs and references in HTML while preserving plain text', () => {
+  const facebook = 'https://facebook.com/"><img/src=x/onerror=alert(1)>';
+  // This URL passes the settings route's current Facebook validation.
+  assert.match(facebook, /^https:\/\/(www\.)?facebook\.com\/[^\s]+$/);
+  const siteUrl = 'https://studio.example/?a=1&b="quoted"';
+  const reference = '<reference&">';
+  const inquiry = {name: 'Test', email: 'test@example.com'};
+  const settings = {facebook, zalo: 'https://zalo.me/123?ref="value"&a=1'};
+  const studio = buildStudioEmail({inquiry, reference, settings, siteUrl});
+  const client = buildClientEmail({inquiry, reference, settings, siteUrl});
+  for (const mail of [studio, client]) {
+    assert.doesNotMatch(mail.html, /<img\/|<reference/);
+    assert.match(mail.html, /&lt;reference&amp;&quot;&gt;/);
+    assert.match(mail.html, /href="https:\/\/studio\.example\/\?a=1&amp;b=&quot;quoted&quot;/);
+    assert.ok(mail.text.includes(reference));
+    assert.ok(mail.text.includes(siteUrl));
+  }
+  assert.match(client.html, /href="https:\/\/facebook\.com\/&quot;&gt;&lt;img\/src=x\/onerror=alert\(1\)&gt;"/);
+  assert.match(client.html, /href="https:\/\/zalo\.me\/123\?ref=&quot;value&quot;&amp;a=1"/);
+  assert.ok(client.text.includes(settings.zalo));
+});
+
 test('createMailer detects configuration and supports mock transports', async () => {
   // Disabled when no keys provided
   const disabledMailer = createMailer({});

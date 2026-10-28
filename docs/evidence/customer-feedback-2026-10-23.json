@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-23",
+  "scope": "Local working tree only; synthetic fixtures; no deployment or real email.",
+  "runtime": "Node 24.19.0",
+  "databaseSuites": {
+    "sqlite": {
+      "tests": 478,
+      "pass": 428,
+      "skip": 50,
+      "fail": 0
+    },
+    "postgresql16Disposable": {
+      "tests": 485,
+      "pass": 485,
+      "skip": 0,
+      "fail": 0
+    }
+  },
+  "browser": {
+    "chromium": {
+      "existingAndFeedbackSuites": 19,
+      "additionalCustomerRecoverySuiteViaRunner": 1,
+      "allPassed": true
+    },
+    "feedbackWebKit": [
+      "customer-feedback-browser",
+      "feedback-recovery-browser",
+      "feedback-customer-recovery"
+    ],
+    "screenshotsAndAxe": "output/feedback-2026-10-23/ (ignored, local only)"
+  },
+  "finalOperationsRetest": {
+    "database": "PostgreSQL",
+    "pass": 6,
+    "fail": 0
+  },
+  "syntax": {
+    "files": 206,
+    "passed": true
+  },
+  "unverified": [
+    "Real Zalo iOS/Android and browser transfer",
+    "Production proxy or injected analytics",
+    "Real SMTP/Resend/inbox",
+    "Production configuration, deletion ledger, backup and rollback rollout"
+  ],
+  "sha256": {
+    "studio/server/app.mjs": "741b0540b9f2e99d760dae5546efca2c75219a36a610d9f0d52ba3f0a628dc03",
+    "studio/server/db.mjs": "32cf0a36cd2baee256fed2f3124a074774ec94c3f09e4531a9934ae0aa9175c5",
+    "studio/server/feedback-notifications.mjs": "e0b65c288ef6237d2a49dbff3d23317930165c5ea6f50e9f58fd566607cc3856",
+    "studio/server/feedback-schema.mjs": "8df906376e1e5fb1df7bfbc2870fa4b2738d2a100d61f9e7172633b5fa817c6c",
+    "studio/server/feedback.mjs": "a34090e0e18ff65e08c9cd3dc1773175dd11c11e016588daaa9d1ae049f1c4b5",
+    "studio/server/handover-privacy.mjs": "967f9b362ab5e028d751651e537383e03041c81c16cc13c79e6923977f24d433",
+    "studio/server/mailer.mjs": "4f9c2d44c8ac23f02112856da3689f974d99fe9f60f6b25c9170c5466312513a",
+    "studio/server/private-feedback-shell.mjs": "11c977db61a0988ab66048e8590e8812f8608aacf958dee8559b1586d2e8683c",
+    "studio/server/start.mjs": "68fa9699e930f91ce378ea424da28ccff24d1bd6fc605ef0c5b9bd9f107d1ed6",
+    "studio/tests/customer-feedback-browser.smoke.mjs": "2648a2c7e67c8beb59a0dc7696816678394444941f1773d0f94211498b616d0b",
+    "studio/tests/feedback-backend.test.mjs": "08dcf59ef5eddb62bd9d058f894aa260da90a5789ddfb9040eb6ede8dd64bb97",
+    "studio/tests/feedback-customer-recovery.smoke.mjs": "a7138edb3579f430d37f8f59eb5c8a191328e8a969c75b21445ee54420facb31",
+    "studio/tests/feedback-form.test.mjs": "66418fe7eb68918992809827ae8b075fadf2d1cb40aff45e9af551f67973de11",
+    "studio/tests/feedback-recovery-browser.smoke.mjs": "1a590253331377f185c72aab7a3d9ad26e1acdf9743927f9acf16ea4111fcdda",
+    "studio/tests/handover-operations.test.mjs": "71f8862ac0848214366cd7cdf97d7eccd3da326e356f99e3dd733876b06b4bf2",
+    "studio/tests/run-browser-smoke.mjs": "2ce8ffc89de08e42fe6984231ef318c16e55f1dc28700fe95af6455f9b3665b4",
+    "studio/tools/feedback-ops.mjs": "c616860fbeaac83edb1b8f4fd5d81774e7bae242911f3768050efdb2faddb892",
+    "studio/tools/media-backup.mjs": "a600c92b936c72975da257014c40198f2d8f3c678a267e315058289ef6cb98c2",
+    "studio/web/feedback-admin.css": "60b2ac6e1220cb2c342ecc1db8bd5b061b5f51c5a4a99b20514b55ebef65f3d8",
+    "studio/web/feedback-admin.mjs": "abe328018f66f58e139d5df86424a627b6e84c353213b10c8114abeb7406c950",
+    "studio/web/feedback-page.mjs": "2577fd13af61c0dcaf564bac8df7f122982301eb35265940792bc3432bb52de9",
+    "studio/web/feedback.css": "ada29cf3c7e4fdbe122a711e64cd210789ec584a6fe88e67eaba4d0b675bc315",
+    "studio/web/main.js": "708a3ec199d27ca5fdbed598f52b939003957fb1c6146ca6c47ed0d0741319c4"
+  }
+}

@@ -1,6 +1,6 @@
 # Vận hành ChiCong Studio
 
-Cập nhật 21/10/2026. Hướng dẫn thao tác hằng ngày; cấu hình máy chủ ở [HOSTING](HOSTING.md), credential và khôi phục ở [handbook vận hành](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md).
+Cập nhật 23/10/2026. Hướng dẫn thao tác hằng ngày; cấu hình máy chủ ở [HOSTING](HOSTING.md), credential và khôi phục ở [handbook vận hành](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md).
 
 ## 1. Thiết lập nội dung
 
@@ -44,9 +44,19 @@ Theo báo cáo triển khai gần nhất, nhập thủ công bật, worker enabl
 
 Biểu mẫu nhận email hoặc điện thoại, ngân sách tùy chọn. Gửi yêu cầu chưa giữ chỗ, chưa xác nhận lịch hoặc thu tiền. Trong quản trị, cập nhật trạng thái, ngày chụp và ghi chú nội bộ; một ngày chỉ có một lịch **Đã xác nhận**.
 
+Nếu trạng thái/ngày/ghi chú đã được cập nhật ở tab khác kể từ khi mở form, lượt lưu cũ báo “Yêu cầu tư vấn đã thay đổi” và giữ bản nháp trên form. Đối chiếu hoặc sao chép phần cần giữ, rồi chọn **Tải lại yêu cầu (bỏ thay đổi chưa lưu)** để lấy dữ liệu mới. Tải lại lỗi vẫn giữ bản nháp và cho thử lại. API hỗ trợ snapshot `expected` để đối chiếu form; caller cũ không gửi snapshot vẫn được bảo vệ khỏi cập nhật cạnh tranh trong lúc request xử lý. Thao tác API không gửi trường ghi chú sẽ giữ ghi chú hiện có.
+
 Lịch kết hợp ngày studio chặn, booking đã xác nhận và Google Calendar nếu cấu hình. Khi nguồn Google lỗi, ứng dụng không coi ngày đó là trống; khách có thể bỏ ngày để gửi tư vấn. [Hướng dẫn Calendar](docs/google-calendar.md).
 
-Email chỉ gửi khi có cấu hình Resend/SMTP; luôn kiểm tra yêu cầu đã lưu trong quản trị. Lỗi email không làm mất inquiry; hiện chưa có outbox/retry bền vững qua restart. Cấu hình email nằm trong [danh mục biến](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md#21-web-runtime).
+Email chỉ gửi khi có cấu hình Resend/SMTP; luôn kiểm tra yêu cầu đã lưu trong quản trị. Lỗi email không làm mất inquiry; email inquiry hiện chưa có outbox/retry bền vững qua restart. Cấu hình email nằm trong [danh mục biến](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md#21-web-runtime).
+
+### Cảm nhận sau bàn giao
+
+Theo xác nhận ngày 28/10/2026, tính năng đã được đưa lên production. Trước khi cấp link thật vẫn phải kiểm `SITE_URL`, `FEEDBACK_LINK_SECRET`, trạng thái pause và người nhận email trên mọi instance. Mở **Cảm nhận → Tạo hồ sơ bàn giao**, hoặc **Bàn giao & cảm nhận** ở bộ ảnh. Một hồ sơ ứng với một khách/buổi chụp, có thể gắn nhiều bộ ảnh hoặc không gắn bộ nào. Chỉ chọn **Đã bàn giao đầy đủ & mở nhận** khi studio đã giao đủ; copy link/lời mời rồi tự gửi khách. Revision và checklist LIVE xem ở [biên bản production 28/10](docs/handbook/08-production-release-2026-10-28.md).
+
+Khách có thể gửi và sửa cảm nhận qua link riêng không hết hạn. Studio xem bản mới nhất, toàn bộ lịch sử và đánh dấu bản đã đọc trong admin. Pause chặn khách đọc/gửi; thu hồi hoặc cấp mới vô hiệu link cũ. Hồ sơ đã cấp link không dùng lại cho khách/buổi khác. Cảm nhận chỉ dùng nội bộ, không tự công khai trên portfolio.
+
+Email feedback có hàng đợi lưu trong DB, thử lại qua restart và ghi trạng thái từng revision; chỉ gửi studio. Gửi email lỗi không làm mất cảm nhận. Sau restore, API bị khóa cho đến khi đối soát sổ xóa; link cũ và email đang chờ không tự hoạt động lại. Vì chưa có log recipient/live smoke trong lượt cập nhật này, hãy kiểm queue và một hồ sơ thử được phép trước khi gửi lời mời khách thật. Xem [contract, cấu hình và runbook khôi phục/xóa](docs/customer-feedback-spec.md#implementation) trước khi vận hành.
 
 ## 6. Sự cố và sao lưu
 

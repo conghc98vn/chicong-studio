@@ -109,7 +109,7 @@ Trước production: backup baseline → dừng worker/runner cũ → migration 
 
 ## 8. Kiểm thử và dùng thử
 
-Chạy `npm run check`, `npm test`; cấp PostgreSQL disposable để không bỏ các ca cần DB thật. `npm run test:browser` chọn các suite fixture cách ly; module Playwright/Chrome cần có sẵn. [Hướng dẫn QA](handbook/03-phong-lab-qa.md), [kết quả audit mới](review-2026-10-21.md).
+Chạy `npm run check`, `npm test`; cấp PostgreSQL disposable để không bỏ các ca cần DB thật. `npm run test:browser` chọn các suite fixture cách ly; module Playwright/Chrome cần có sẵn. [Hướng dẫn QA](handbook/03-phong-lab-qa.md), [kết quả audit mới](review-2026-10-23.md).
 
 Để dùng thử Drive thật, chọn folder riêng chứa bản sao vài ảnh và một album draft. Check → preview → approve → kiểm rendition/quyền → sync no-op; kiểm thay tên/nội dung/missing, ảnh manual cùng tên, submission hold và detach. Không sửa folder studio đang dùng chỉ để làm test. Sau restore phải check và preview mới.
 

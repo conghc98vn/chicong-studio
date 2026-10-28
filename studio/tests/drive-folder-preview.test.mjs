@@ -175,12 +175,14 @@ test('browse publishes navigation and thumbnails before slow overview, merging p
 test('overview publication cannot cross cancellation or connection generation change',async t=>{
   const f=await fixture(t);
   for(const change of ['cancel','generation']) {
-    let releaseCount;
-    f.drive.listFolderOverview=()=>new Promise(resolve=>{releaseCount=()=>resolve({files:[{id:'photo001',mimeType:'image/jpeg',parents:['folder']}]});});
+    let releaseCount,markStarted;
+    const started=new Promise(resolve=>{markStarted=resolve;});
+    f.drive.listFolderOverview=()=>new Promise(resolve=>{releaseCount=()=>resolve({files:[{id:'photo001',mimeType:'image/jpeg',parents:['folder']}]});markStarted();});
     const job=await f.jobs.enqueue({connectionId:'studio',kind:'check',requestKey:'overview-fence-'+change,payload:{operation:'browse-folders',folderId:'folder'}});
     const running=f.worker.runOnce();
     try {
-      for(let i=0;i<100&&!releaseCount;i++) await new Promise(resolve=>setTimeout(resolve,10));
+      // Synchronize with the held request, not a machine-speed-dependent poll.
+      await Promise.race([started,running.then(()=>{throw Error('Worker finished before requesting the overview');})]);
       assert.ok(releaseCount);
       if(change==='cancel') await f.jobs.cancel(job.id);
       else await f.db.run("UPDATE drive_connections SET generation=generation+1 WHERE id='studio'");
@@ -238,12 +240,13 @@ test('enrichment deadline includes permission rechecks and prevents late publica
 });
 
 test('canceling abandoned browse interrupts enrichment and frees the worker for the next folder',async t=>{
-  const f=await fixture(t);let releaseOverview;
-  f.drive.listFolderOverview=()=>new Promise(resolve=>{releaseOverview=()=>resolve({files:[]});});
+  const f=await fixture(t);let releaseOverview,markStarted;
+  const started=new Promise(resolve=>{markStarted=resolve;});
+  f.drive.listFolderOverview=()=>new Promise(resolve=>{releaseOverview=()=>resolve({files:[]});markStarted();});
   const job=await f.jobs.enqueue({connectionId:'studio',kind:'check',requestKey:'abandoned-folder',payload:{operation:'browse-folders',folderId:'folder'}});
   const running=f.worker.runOnce();let watchdog;
   try {
-    for(let i=0;i<100&&!releaseOverview;i++)await new Promise(resolve=>setTimeout(resolve,10));
+    await Promise.race([started,running.then(()=>{throw Error('Worker finished before requesting the overview');})]);
     assert.ok(releaseOverview);assert.equal((await f.jobs.get(job.id)).progress.ready,true);
     await f.jobs.cancel(job.id);
     await Promise.race([running,new Promise((_,reject)=>{watchdog=setTimeout(()=>reject(Error('Canceled folder still occupies worker')),2500);})]);

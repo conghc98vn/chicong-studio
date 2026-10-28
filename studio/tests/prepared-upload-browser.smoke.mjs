@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {createHash} from 'node:crypto';
-import {mkdtemp,rm,mkdir,readFile} from 'node:fs/promises';
+import {mkdtemp,rm,mkdir,readFile,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
@@ -25,7 +25,10 @@ const server=createServer((req,res)=>{
 await new Promise(resolve=>server.once('listening',resolve));
 const base='http://127.0.0.1:'+server.address().port;
 const browserName=process.env.STUDIO_BROWSER||'chromium';
-const evidence=path.resolve('output/prepared-upload-review',browserName);await mkdir(evidence,{recursive:true});
+const evidence=process.env.STUDIO_BROWSER_EVIDENCE_DIR
+ ?path.resolve(process.env.STUDIO_BROWSER_EVIDENCE_DIR,'prepared-upload',browserName)
+ :path.resolve('output/prepared-upload-review',browserName);
+await mkdir(evidence,{recursive:true});
 let browser;
 try{
  const provided=process.env.STUDIO_PREPARED_SAMPLE_FILES?JSON.parse(process.env.STUDIO_PREPARED_SAMPLE_FILES):null;
@@ -71,7 +74,14 @@ try{
  await upload.locator('[name=section_id]').selectOption(sections[0].id);await upload.locator('[type=file]').setInputFiles([{name:'broken <img>.ccphoto',mimeType:'',buffer:Buffer.from('not a prepared photo')},{...original,name:'after-invalid.jpg'}]);
  await upload.getByRole('button',{name:'Tải ảnh lên',exact:true}).click();await upload.locator('.form-error').filter({hasText:'Đã lưu 1/2'}).waitFor();assert.equal(await page.locator('.upload-file-error').count(),1);assert.equal(await page.locator('.upload-file-error img').count(),0);assert.equal(await upload.locator('button').isDisabled(),true);assert.equal((await instance.db.all('SELECT id FROM photos WHERE album_id=?',[albumId])).length,4);
  for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Admin overflow at '+width);await page.locator('.upload-report').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(evidence,`upload-${width}.png`)});}
- if(process.env.STUDIO_AXE_MODULE){const {default:AxeBuilder}=await import(process.env.STUDIO_AXE_MODULE);const scan=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();assert.deepEqual(scan.violations.map(item=>({id:item.id,nodes:item.nodes.map(node=>node.target)})),[]);}
+ if(process.env.STUDIO_AXE_MODULE){
+  const {default:AxeBuilder}=await import(process.env.STUDIO_AXE_MODULE);
+  const scan=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
+  await writeFile(path.join(evidence,'accessibility.json'),JSON.stringify({enabled:true,scans:1,viewport:page.viewportSize(),violations:scan.violations,incomplete:scan.incomplete},null,2));
+  assert.deepEqual(scan.violations.map(item=>({id:item.id,nodes:item.nodes.map(node=>node.target)})),[]);
+ }else{
+  await writeFile(path.join(evidence,'accessibility.json'),JSON.stringify({enabled:false,scans:0},null,2));
+ }
  console.log('PASS: Corrupt package does not block original upload, escaped filename, retry state, responsive layout and optional accessibility scan');
 
  const customer=await browser.newContext({viewport:{width:390,height:844},acceptDownloads:true}),gallery=await customer.newPage();gallery.setDefaultTimeout(30000);gallery.on('pageerror',error=>errors.push(error.message));

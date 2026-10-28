@@ -44,8 +44,7 @@
   color: var(--muted, #5f6a60);
   font-size: 13px;
 }
-.drive-actions,
-.photo-pagination {
+.drive-actions {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -141,11 +140,6 @@
   border-bottom: 1px solid #e4dfd6;
   overflow-wrap: anywhere;
 }
-[data-submission-status] {
-  font-size: 12px;
-  line-height: 1.5;
-  max-width: 380px;
-}
 @media (max-width: 750px) {
   .drive-filters,
   .drive-comparison-images {
@@ -179,46 +173,6 @@
     color: var(--muted, #5f6a60);
     font-size: 11px;
     margin-bottom: 3px;
-  }
-  .public-view .client-toolbar {
-    width: calc(100vw - 24px);
-    max-width: calc(100vw - 24px);
-    flex-wrap: wrap;
-    border-radius: 20px;
-    gap: 8px;
-    padding: 10px 14px;
-  }
-  .photo-pagination {
-    gap: 10px;
-    font-size: 12px;
-  }
-  .photo-pagination span {
-    order: -1;
-    flex-basis: 100%;
-    text-align: center;
-  }
-  .public-view .client-toolbar-main {
-    width: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-  .public-view .client-toolbar-actions {
-    width: 100%;
-    flex-wrap: wrap;
-    padding-left: 0;
-    border-left: 0;
-  }
-  [data-submission-status] {
-    flex-basis: 100%;
-  }
-  body.public-view:has(.client-toolbar) #toast {
-    bottom: 170px;
-  }
-  body.public-view:has(.client-toolbar) .back-to-top {
-    bottom: calc(170px + env(safe-area-inset-bottom));
-  }
-  body.public-view:has(.client-toolbar) .public-footer {
-    padding-bottom: 190px;
   }
 }
 

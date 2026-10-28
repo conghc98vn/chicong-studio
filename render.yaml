@@ -15,6 +15,12 @@ services:
         value: ./certs/supabase-root-2021.crt
       - key: SITE_URL
         value: https://chicongphoto.vn
+      - key: FREELANCER_HOST
+        value: freelancer.chicongphoto.vn
+      - key: FREELANCER_PRICE_CODE
+        sync: false
+      - key: FREELANCER_PRICE_SECRET
+        sync: false
       # Production media moved to private R2 on 2026-10-21; database remains Supabase.
       - key: MEDIA_STORAGE_PROVIDER
         value: r2

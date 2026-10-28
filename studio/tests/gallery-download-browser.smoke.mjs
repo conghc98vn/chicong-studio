@@ -79,7 +79,13 @@ try{
   await resize(width);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Page overflow at '+width);
   assert.ok(await page.locator('#gallery-download').evaluate(element=>element.scrollWidth<=element.clientWidth),'Dialog overflow at '+width);
   await page.screenshot({path:path.join(evidence,`download-dialog-${width}.png`)});
-  if(process.env.STUDIO_AXE_MODULE){const {default:AxeBuilder}=await import(process.env.STUDIO_AXE_MODULE);const scan=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();accessibility.push({width,violations:scan.violations,incomplete:scan.incomplete});assert.deepEqual(scan.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);}
+  if(process.env.STUDIO_AXE_MODULE){
+   const {default:AxeBuilder}=await import(process.env.STUDIO_AXE_MODULE);
+   const scan=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
+   accessibility.push({width,violations:scan.violations,incomplete:scan.incomplete});
+   await writeFile(path.join(evidence,'accessibility.json'),JSON.stringify(accessibility,null,2));
+   assert.deepEqual(scan.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
+  }
  }
  await writeFile(path.join(evidence,'accessibility.json'),JSON.stringify(accessibility,null,2));
  await page.keyboard.press('Escape');await page.locator('#gallery-download').waitFor({state:'hidden'});
@@ -117,5 +123,5 @@ try{
  const first=await download(0);assert.equal(zipEntries(first.buffer).length,50);assert.equal(downloadPayloads.at(-1).photos.length,50);assert.equal(downloadCount,2);
  await resize(320);assert.ok(await page.locator('#gallery-download').evaluate(el=>el.scrollWidth<=el.clientWidth));await page.screenshot({path:path.join(evidence,'download-packages-320.png')});
  assert.deepEqual(errors,[]);console.log('PASS: 51 selected photos split into manual 50-photo ZIP and one-photo JPG packages; no accidental additional downloads and no runtime errors');
- await writeFile(path.join(evidence,'browser-summary.json'),JSON.stringify({passed:true,sampleNames:samples.map(sample=>sample.name),zipBytes:zipped.buffer.length,singleJpegBytes:single.buffer.length,packages:[50,1],viewports:[320,390,768,1440],axeViolations:accessibility.reduce((n,r)=>n+r.violations.length,0),browserErrors:errors},null,2));
+ await writeFile(path.join(evidence,'browser-summary.json'),JSON.stringify({passed:true,sampleNames:samples.map(sample=>sample.name),zipBytes:zipped.buffer.length,singleJpegBytes:single.buffer.length,packages:[50,1],viewports:[320,390,768,1440],axeEnabled:!!process.env.STUDIO_AXE_MODULE,axeScans:accessibility.length,axeViolations:accessibility.reduce((n,r)=>n+r.violations.length,0),browserErrors:errors},null,2));
 }finally{await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await instance.db.close();await rm(dir,{recursive:true,force:true});}

@@ -23,7 +23,16 @@ const editorialDefaults={
 export const siteDefaults={
  ...editorialDefaults,
  about:'Mình chụp ảnh cưới bằng film và máy số, từ những phút chuẩn bị đến lúc hai bạn ở bên gia đình và bạn bè.\n\nMình thích những cảm xúc tự nhiên và chi tiết nhỏ trong ngày. Hai bạn cứ thoải mái tận hưởng, mình sẽ ghi lại những điều ấy.',
- bookingNote:'Hai bạn cứ chia sẻ dự định hoặc điều còn băn khoăn. Mình cùng trao đổi nhé.'
+ bookingNote:'Hai bạn cứ chia sẻ dự định hoặc điều còn băn khoăn. Mình cùng trao đổi nhé.',
+ freelancerSelection:'',freelancerGear:'',freelancerPricing:'',freelancerSurcharges:'',freelancerCommitments:'',freelancerRoles:'',freelancerServiceArea:'',freelancerResponseTime:'',freelancerUpdatedAt:'',freelancerBookingPolicy:'',
+ freelancerHeadline:'Chụp truyền thống.\nChụp phóng sự.',
+ freelancerLead:'Công nhận book máy chính hoặc máy phụ theo từng job, phối hợp trực tiếp với studio và bàn giao đúng phạm vi đã thống nhất.',
+ freelancerAbout:'Công tập trung vào chụp truyền thống và phóng sự, phối hợp cùng ekip của studio để ghi lại những phần việc đã thống nhất trước buổi chụp.',
+ freelancerWorkIntro:'Chỉ những bộ ảnh đã chọn cho đối tác mới xuất hiện ở đây. Mỗi bộ sẽ ghi rõ vai trò, hình thức chụp và phạm vi bàn giao.',
+ freelancerGearIntro:'Thiết bị được sắp theo từng kiểu job để đối tác biết cấu hình thường dùng, phương án dự phòng và phần cần trao đổi thêm.',
+ freelancerProcessIntro:'Cách phối hợp được ghi rõ từ lúc nhận brief, trong buổi chụp đến khi bàn giao file.',
+ freelancerCalendarIntro:'Ngày được đánh dấu bận sau khi Công xác nhận nhận job. Ngày chưa đánh dấu chỉ có nghĩa là chưa có lịch đã xác nhận; xem lịch chưa giữ chỗ.',
+ freelancerBookingIntro:'Chọn một ngày chưa có lịch xác nhận để tạo mẫu tin nhắn, sau đó gửi qua Messenger hoặc Zalo.'
 };
 const earlierCopy={
  about:[

@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-23",
+  "scope": "Independent local verification and fixes; synthetic fixtures only. No deployment, real email, commit or push.",
+  "runtime": "Node 24.19.0; PostgreSQL 16 disposable Docker; Playwright 1.62.1; axe 4.14.0",
+  "baseCommit": "e4dcefc56ca8587b056ac92616cb8cb98dbea9e9",
+  "sourceState": "Uncommitted working tree; unrelated preexisting edits preserved. File hashes below identify verified source.",
+  "findingsFixed": [
+    "Admin keystrokes lost during pending save refresh",
+    "Unbroken saved name overflow at 320px",
+    "Inherited admin state names causing invalid SQL",
+    "Fractional SQLite version and retry counters",
+    "Exhausted expired notification lease prematurely stopping batch",
+    "Resend success without valid acceptance receipt",
+    "Deletion ledger symlink resolving inside data directory"
+  ],
+  "addedUnitIntegrationCases": 31,
+  "results": {
+    "sqlite": {
+      "tests": 509,
+      "pass": 459,
+      "fail": 0,
+      "skipped": 50,
+      "cancelled": 0,
+      "log": "output/feedback-verify-2026-10-23/sqlite-final.log"
+    },
+    "postgresqlEnabled": {
+      "tests": 516,
+      "pass": 514,
+      "fail": 0,
+      "skipped": 2,
+      "cancelled": 0,
+      "log": "output/feedback-verify-2026-10-23/postgres-final.log"
+    },
+    "runtimeSubprocess": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "output/feedback-verify-2026-10-23/runtime.log"
+    },
+    "httpSecurity": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "output/feedback-verify-2026-10-23/security-integration.log"
+    }
+  },
+  "browser": {
+    "fullChromiumSuites": 21,
+    "allPassed": true,
+    "log": "output/feedback-verify-2026-10-23/browser-final.log",
+    "feedbackSuitesOnBothChromeAndWebKit": [
+      "customer-feedback-browser",
+      "feedback-recovery-browser",
+      "feedback-customer-recovery",
+      "feedback-adversarial-browser"
+    ],
+    "axe": [
+      {
+        "report": "output/feedback-verify-2026-10-23/browser/chromium-accessibility.json",
+        "scans": 4,
+        "violations": 0
+      },
+      {
+        "report": "output/feedback-verify-2026-10-23/browser/chromium-adversarial-accessibility.json",
+        "scans": 4,
+        "violations": 0
+      },
+      {
+        "report": "output/feedback-verify-2026-10-23/browser/webkit-accessibility.json",
+        "scans": 4,
+        "violations": 0
+      },
+      {
+        "report": "output/feedback-verify-2026-10-23/browser/webkit-adversarial-accessibility.json",
+        "scans": 4,
+        "violations": 0
+      }
+    ]
+  },
+  "initialFailure": {
+    "log": "output/feedback-verify-2026-10-23/sqlite-baseline.log",
+    "case": "SMTP total deadline",
+    "reason": "The elapsed measurement included a cold Nodemailer import; 2044ms exceeded the 2000ms bound during full-suite load.",
+    "correction": "Warm the dependency before measuring transport; original time bound and active-socket destruction assertions retained. Final full suites both passed."
+  },
+  "syntax": {
+    "files": 211,
+    "passed": true
+  },
+  "remainingUnverified": [
+    "Real Zalo iOS/Android and handoff to external browser",
+    "Production proxy/analytics injection",
+    "Real provider and inbox delivery",
+    "Production environment, independent ledger backups and rollback deployment"
+  ],
+  "emailSemantics": "At least once when provider acknowledgement is uncertain; accepted_by_provider does not establish inbox delivery.",
+  "sha256": {
+    "docs/customer-feedback-spec.md": "1ddb2b1ae66bf6bdc118f6c54cfa6170e69ce8f20d21b461a29ec68ddfb464f0",
+    "studio/server/app.mjs": "741b0540b9f2e99d760dae5546efca2c75219a36a610d9f0d52ba3f0a628dc03",
+    "studio/server/db.mjs": "32cf0a36cd2baee256fed2f3124a074774ec94c3f09e4531a9934ae0aa9175c5",
+    "studio/server/feedback-notifications.mjs": "e369e9b4493a1735a2e1c37bcc79a7fb6c32b1e4deb9893b988c9ea9c5e197df",
+    "studio/server/feedback-schema.mjs": "cf58c0f6a9199959aa4a9cd13b9242a7a1aedc3a0032df8d6cb9924e9be58da1",
+    "studio/server/feedback.mjs": "292811317e88d6a6b22116a7a3ab6e38162a1e835833065b72535ab7c469ba59",
+    "studio/server/handover-privacy.mjs": "967f9b362ab5e028d751651e537383e03041c81c16cc13c79e6923977f24d433",
+    "studio/server/mailer.mjs": "18c5356eb793d0cffdd2b12ecff20980a8d94164a5bd89db71264e3dc2796fb6",
+    "studio/server/private-feedback-shell.mjs": "11c977db61a0988ab66048e8590e8812f8608aacf958dee8559b1586d2e8683c",
+    "studio/server/start.mjs": "68fa9699e930f91ce378ea424da28ccff24d1bd6fc605ef0c5b9bd9f107d1ed6",
+    "studio/tests/customer-feedback-browser.smoke.mjs": "2648a2c7e67c8beb59a0dc7696816678394444941f1773d0f94211498b616d0b",
+    "studio/tests/feedback-adversarial-browser.smoke.mjs": "4522e4b6bfbc9bd6a0e8425218715ae7b0b41f2d593df182d2c3546a55f4a9e4",
+    "studio/tests/feedback-adversarial.test.mjs": "20b7d9578b62b70efebcc9d382f8e23664ee9b162f8ff455380dbfbd069333fb",
+    "studio/tests/feedback-backend.test.mjs": "08dcf59ef5eddb62bd9d058f894aa260da90a5789ddfb9040eb6ede8dd64bb97",
+    "studio/tests/feedback-customer-recovery.smoke.mjs": "a7138edb3579f430d37f8f59eb5c8a191328e8a969c75b21445ee54420facb31",
+    "studio/tests/feedback-form.test.mjs": "66418fe7eb68918992809827ae8b075fadf2d1cb40aff45e9af551f67973de11",
+    "studio/tests/feedback-operations-adversarial.test.mjs": "2c6425f603f7ac72fed4d3edb4cce88a3dbbdc07a449c74739892c5123e84151",
+    "studio/tests/feedback-recovery-browser.smoke.mjs": "1a590253331377f185c72aab7a3d9ad26e1acdf9743927f9acf16ea4111fcdda",
+    "studio/tests/feedback-runtime.test.mjs": "733460ef6fc86459d57bc56cc95cf2dc834c244b9521fb68c0a43650bbc7c9d4",
+    "studio/tests/feedback-security-integration.test.mjs": "62e20419fe3eb49947c5dee816acde7a274bedcd063aff895dd073b898c7d0a2",
+    "studio/tests/handover-operations.test.mjs": "ab9e92603d3e29fcb2d1e637da422c6ab0fb701799545094f0e0ad19c69c7142",
+    "studio/tests/run-browser-smoke.mjs": "81057463f9c1cedd6a7cff83f961a93f9cfd74b4fb614c880babdfc40b494eb6",
+    "studio/tools/feedback-ops.mjs": "a63b6e7df079adc6c303d3513c6d92a2cfa5d69c23b6f78cdd8b13f5e99f366e",
+    "studio/tools/media-backup.mjs": "a600c92b936c72975da257014c40198f2d8f3c678a267e315058289ef6cb98c2",
+    "studio/web/feedback-admin.css": "60b2ac6e1220cb2c342ecc1db8bd5b061b5f51c5a4a99b20514b55ebef65f3d8",
+    "studio/web/feedback-admin.mjs": "df62da24af2da4f9590dcf9ef6aef1aefd9aedc68a9e672cf4d8c1216221d56f",
+    "studio/web/feedback-page.mjs": "2577fd13af61c0dcaf564bac8df7f122982301eb35265940792bc3432bb52de9",
+    "studio/web/feedback.css": "fcbf65240a5c82b67958f7463050fe991e464df0b4642536c6f0d51c060899f1",
+    "studio/web/main.js": "708a3ec199d27ca5fdbed598f52b939003957fb1c6146ca6c47ed0d0741319c4"
+  }
+}

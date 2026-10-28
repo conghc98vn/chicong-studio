@@ -99,7 +99,9 @@ try {
   temporary = mkdtempSync(path.join(tmpdir(), 'chicong-release-'));
   const archive = path.join(temporary, 'source.tar.gz');
   const manifest = path.join(temporary, 'release-manifest.json');
-  run('tar', ['-czf', archive, '--', ...files], {
+  // macOS provenance/download metadata is not application source. Exclude it
+  // explicitly as COPYFILE_DISABLE alone does not strip all extended headers.
+  run('tar', ['--no-xattrs', '-czf', archive, '--', ...files], {
     env: { ...process.env, COPYFILE_DISABLE: '1' },
   });
   const sha256 = createHash('sha256').update(readFileSync(archive)).digest('hex');

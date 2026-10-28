@@ -1,6 +1,6 @@
 // Shared labels keep the website, admin, metadata and emails in sync.
 // Keys are stored API values; changing a label must not change saved data.
-export const categoryLabels={wedding:'Ngày cưới',prewedding:'Ảnh trước ngày cưới',portrait:'Chân dung',lifestyle:'Đời thường'};
+export const categoryLabels={wedding:'Ngày cưới',prewedding:'Ảnh trước ngày cưới',portrait:'Chân dung',lifestyle:'Đời thường',event:'Event',birthday:'Sinh nhật',teambuilding:'Teambuilding'};
 export const albumStatusLabels={draft:'Bản nháp',published:'Công khai',private:'Bộ ảnh riêng',archived:'Đã lưu trữ'};
 export const inquiryStatusLabels={new:'Mới nhận',contacted:'Đã liên hệ',confirmed:'Đã xác nhận lịch',completed:'Hoàn thành',cancelled:'Đã hủy'};
 export const selectionStatusLabels={draft:'Đang chọn ảnh',submitted:'Đã gửi lựa chọn'};

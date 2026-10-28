@@ -87,6 +87,22 @@ test('Drive client refreshes one 401, differentiates quota from permissions and 
     await assert.rejects(createDriveClient(env,{authClient}),{code:'drive_credentials_file_permissions'});
   });
 });
+test('Malformed Retry-After falls back to queue backoff instead of producing a NaN delay',async () => {
+  await credentialFixture(async ({env}) => {
+    for (const [value,expected] of [['not-a-date',undefined],['Infinity',undefined],['3',3000],['7200',3600000]]) {
+      const client = await createDriveClient(env,{
+        authClient:{getRequestHeaders:async () => new Headers()},
+        fetchImpl:async () => Response.json({error:{}},{status:429,headers:{'Retry-After':value}}),
+      });
+      await assert.rejects(client.getFile('file_id'),error => {
+        assert.equal(error.code,'drive_rate_limited');
+        assert.equal(error.retryable,true);
+        assert.equal(error.retryAfterMs,expected);
+        return true;
+      });
+    }
+  });
+});
 test('Folder ancestry denies outside root, shortcuts, cycles and Shared Drives',async () => {
   const rows = new Map([
     ['root',{id:'root',mimeType:DRIVE_FOLDER,parents:[]}],

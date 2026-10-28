@@ -157,3 +157,28 @@ test('A gallery change between approval and enqueue cannot be authorized by the 
     await fixture.close();
   }
 });
+
+test('Scheduler skips an album archived after its due scan and schedules the next album', async () => {
+  const fixture = await driveFixture();
+  try {
+    const {db} = fixture;
+    await db.run("INSERT INTO albums(id,title,category) VALUES('second','Second','wedding')");
+    await db.run("INSERT INTO drive_album_links(id,connection_id,album_id,folder_id,next_run_at) VALUES('second-map','connection','second','second-folder',2)");
+    await db.run("UPDATE drive_album_links SET next_run_at=1 WHERE id='mapping'");
+    const jobs = createDriveJobs({...db, all: async (sql, params) => {
+      const rows = await db.all(sql, params);
+      if (sql.startsWith('SELECT mapping.id FROM drive_album_links mapping')) {
+        // Commit the admin action after the due snapshot, before its locks.
+        await db.run("UPDATE albums SET status='archived' WHERE id='album'");
+      }
+      return rows;
+    }}, {now: () => 1000000});
+    const scheduled = await jobs.schedule({enabled: true});
+    assert.deepEqual(scheduled.map(job => job.mapping_id), ['second-map']);
+    assert.equal((await jobs.claim('worker')).id, scheduled[0].id);
+    assert.equal(Number((await db.get('SELECT COUNT(*) AS count FROM drive_sync_jobs')).count), 1);
+    assert.equal(Number((await db.get("SELECT next_run_at FROM drive_album_links WHERE id='mapping'")).next_run_at), 1);
+  } finally {
+    await fixture.close();
+  }
+});

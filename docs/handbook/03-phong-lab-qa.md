@@ -1,6 +1,8 @@
 # 03 — Dùng ChiCong Studio làm phòng lab QA
 
-**Dành cho chủ website đang làm QA · Cập nhật 21/10/2026.** Mục tiêu là giải thích được vì sao hệ thống đúng, thiết kế cách làm nó sai có kiểm soát, và thu thập bằng chứng. Không cần biến mọi bài tập thành một framework automation mới.
+> **Cập nhật 28/10/2026:** bản feedback/handover đã được chủ dự án xác nhận đưa lên production. Audit local 23/10, test fixture và CI browser/axe vẫn là TEST/REPORT; các bước kiểm LIVE sau release nằm trong [biên bản production 28/10](08-production-release-2026-10-28.md).
+
+**Dành cho chủ website đang làm QA · Cập nhật 23/10/2026.** Mục tiêu là giải thích được vì sao hệ thống đúng, thiết kế cách làm nó sai có kiểm soát, và thu thập bằng chứng. Không cần biến mọi bài tập thành một framework automation mới.
 
 ## 1. Chiến lược kiểm thử theo rủi ro
 
@@ -19,7 +21,7 @@ Chọn test oracle độc lập với cách code đang viết. Ví dụ, kiểm 
 
 ## 2. Kết quả hiện hành và cách chạy
 
-Lượt review bổ sung 21/10 chạy **Node 24.19.0**, SQLite và PostgreSQL 16 cách ly: nhánh PostgreSQL đạt **427/427, 0 fail/skip**; lượt không cấp URL DB đạt **376 pass, 44 skip, 0 fail**. Skips ở lượt SQLite là test cần PostgreSQL, không phải lỗi bị bỏ qua. [Report hiện hành](../review-2026-10-21.md) giữ kết quả browser/benchmark và giới hạn xác minh; các số 421/373 của lượt đầu thuộc baseline trước sáu test hồi quy mới.
+[Report 23/10](../review-2026-10-23.md) là kết quả kiểm chứng mới nhất. [Report 21/10](../review-2026-10-21.md) giữ mốc lịch sử **427/427 PostgreSQL**, **376 pass/44 skip SQLite** và benchmark của lượt đó; không dùng các số cũ làm kết quả checkout hôm nay. Các ca skip khi không cấp URL PostgreSQL không được tính là pass.
 
 ```sh
 nvm use
@@ -33,11 +35,15 @@ STUDIO_PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs npm run test:bro
 
 `npm test` không nạp `.env`. Cấp URL DB disposable, các suite có quyền CREATE/DROP schema; test `database-recovery` ngắt duy nhất PID từ pool riêng để kiểm idle, transaction giữa các query, query đang chạy và rollback thất bại. `environment-isolation` dùng TCP trap local để xác nhận fixture không kết nối tới `DATABASE_URL` kế thừa. `openDatabase` mặc định SQLite; caller muốn PostgreSQL phải truyền URL rõ ràng. Kiểm tra fixture không gọi mail/Drive/cloud thật trước khi chọn một smoke script riêng.
 
-`test:browser` chạy tuần tự 13 suite được chọn trong [runner](../../studio/tests/run-browser-smoke.mjs): public/login không tải Drive, admin phục hồi CSS lỗi/treo, quyền gallery, đồng bộ giữa tab, JPEG/ZIP, quản lý/thay/xóa ảnh, prepared upload, proofing, tạo album Drive, folder browser, polling và slug. Hai suite bổ sung là `proofing-concurrency` (response/export về muộn và điều hướng) và `photo-management-recovery` (xóa thành công nhưng refresh lỗi, retry). Nó không chạy các script `*-live`, `render-*` hay benchmark đọc `data/live`.
+`test:browser` chạy tuần tự 21 suite được chọn trong [runner](../../studio/tests/run-browser-smoke.mjs): public/login không tải Drive, admin phục hồi CSS lỗi/treo, quyền gallery, đồng bộ giữa tab, JPEG/ZIP, quản lý/thay/xóa ảnh, prepared upload, proofing, tạo album Drive, folder browser, polling và slug. Có kiểm response/export về muộn, xóa thành công nhưng refresh lỗi, validation mật khẩu album ẩn/hiện (`album-password-form`), CSS gallery khi không tải Drive (`gallery-layout-isolation`), phân trang nguồn Drive sau lỗi (`drive-panel-pagination`) và form tư vấn cũ/giữ bản nháp/tải lại lỗi (`inquiry-editor`). Bốn suite feedback kiểm luồng form/admin, mất ACK sau commit, context thay đổi, chuyển gallery atomic, hai tab, giữ bản nháp và thu hồi quyền giữa request. Runner không chạy các script `*-live`, `render-*` hay benchmark đọc `data/live`.
 
-Playwright/axe hiện là dependency ngoài, không tự được cài bởi `npm ci`. Browser runner cần Playwright import được và Google Chrome; các suite hỗ trợ WebKit có thể chạy riêng với `STUDIO_BROWSER=webkit` khi engine đã cài. `STUDIO_AXE_MODULE` là opt-in ở suite có hỗ trợ; không cấp thì không được ghi “axe đã chạy”.
+Runner chỉ truyền danh sách biến cần cho browser; loại URL database, credential, `NODE_OPTIONS` và biến chọn ảnh khách khỏi process con. Mỗi suite có timeout mặc định 180 giây, có thể đặt `STUDIO_BROWSER_SUITE_TIMEOUT_MS` (100–3.600.000 ms); timeout trả exit 124 và dừng runner. `STUDIO_BROWSER_EVIDENCE_DIR` được chia thành thư mục con theo suite. Local mặc định dùng Chrome đã cài; khi đặt `CHROME_BIN` là đường dẫn tuyệt đối, runner dùng executable đó cho các suite Chromium.
 
-CI [check.yml](../../.github/workflows/check.yml) dùng Node 24/PostgreSQL 16: `npm ci`, syntax, link tài liệu và `npm test`. Browser runner hiện chạy local, chưa là CI gate. Không dùng CI xanh thay kiểm cloud/backup/rollback.
+`npm run check` kiểm cú pháp đệ quy JavaScript trong `studio/`, scripts JavaScript/Bash/`.command` và `ecosystem.config.cjs`; chỉ parse, không chạy các tác vụ trong file. Cần Bash cho bước kiểm shell (macOS/Linux hoặc môi trường tương đương). `check:docs` kiểm file đích của link Markdown, chưa kiểm anchor hoặc URL ngoài. Project không có bước build frontend hay lệnh lint/typecheck riêng.
+
+Playwright/axe là dependency ngoài, không tự được cài bởi `npm ci`. Các suite hỗ trợ WebKit có thể chạy riêng với `STUDIO_BROWSER=webkit` khi engine đã cài. `STUDIO_AXE_MODULE` là opt-in local ở suite có hỗ trợ; không cấp thì không được ghi “axe đã chạy”. Gallery layout, download, prepared upload và form tư vấn lưu kết quả scan trước assertion để còn chẩn đoán khi lỗi. Scan tự động không thay kiểm screen reader/keyboard và không chứng nhận WCAG.
+
+CI [check.yml](../../.github/workflows/check.yml) dùng Node 24/PostgreSQL 16 cho `npm ci`, syntax, link tài liệu và `npm test`. Job `browser-smoke` riêng trên Ubuntu 24.04 cài Playwright **1.62.1**, axe **4.14.0** ngoài project, cài Chromium đi kèm và cấp cả hai module cho runner. Job không nhận secret cloud; log/ảnh fixture được upload kể cả khi lỗi và giữ 7 ngày. Cấu hình này chưa được chạy trên GitHub trong đợt local; branch protection bắt buộc job phải được cấu hình riêng ở repository. Không dùng CI xanh thay kiểm cloud/backup/rollback.
 
 ## 3. Chuẩn bị lab tách khỏi dữ liệu studio
 
@@ -52,7 +58,7 @@ Terminal in ra URL admin, URL gallery và ảnh thử trong thư mục tạm. T�
 
 Với automation, dùng Node 24 để khớp CI khi có runtime đó. Trước khi chạy các script có STUDIO_TEST_POSTGRES_URL, kiểm DB thật sự là DB disposable. Isolation schema vẫn dùng quyền CREATE/DROP trên server được cấp URL; không trỏ URL production để “test cho thật”.
 
-**Browser dependencies:** repo hiện chưa khai báo Playwright/axe. Để chuẩn hóa sau này, thêm chúng vào devDependencies trên nhánh QA, pin qua lockfile, cài browser phù hợp và review thay đổi. Đây là bài tập/đề xuất, chưa được áp dụng vào package.json bởi bộ tài liệu này. Nhiều script Chromium chọn channel chrome, nên cài bundled chromium một mình chưa chắc đáp ứng; có thể dùng script hỗ trợ STUDIO_BROWSER=webkit cùng WebKit đã cài. Tham khảo [Playwright browser setup](https://playwright.dev/docs/browsers).
+**Browser dependencies:** dùng phiên bản pin trong workflow khi muốn khớp CI; cài vào thư mục QA riêng bằng `npm install --prefix /absolute/path/to/qa-tools --no-package-lock --no-save playwright@1.62.1 @axe-core/playwright@4.14.0 axe-core@4.14.0`. Cài browser bằng CLI Playwright của thư mục đó, rồi cấp đường dẫn `STUDIO_PLAYWRIGHT_MODULE`, `STUDIO_AXE_MODULE` và `CHROME_BIN` cho runner như workflow. Không cần thay package.json/lockfile của ứng dụng. Khi chạy trực tiếp một smoke file ngoài runner, các script Chromium vẫn chọn Chrome channel; `CHROME_BIN` chỉ được runner áp dụng. Tham khảo [Playwright browser setup](https://playwright.dev/docs/browsers).
 
 ~~~sh
 # Chỉ chạy sau khi module và browser đã được chuẩn bị trong môi trường QA.
@@ -277,7 +283,7 @@ Open risks: <tác động + workaround + người xử lý>
 Decision: <có thể release trong phạm vi nào / điều kiện còn thiếu>
 ~~~
 
-Ghi kết quả theo [report hiện hành](../review-2026-10-21.md), tách rõ SQLite, PostgreSQL, browser và cloud. Không cộng các suite có ca trùng thành phần trăm coverage; câu “toàn bộ production pass” vượt quá bằng chứng local.
+Ghi kết quả theo [report hiện hành](../review-2026-10-23.md), tách rõ SQLite, PostgreSQL, browser và cloud. Không cộng các suite có ca trùng thành phần trăm coverage; câu “toàn bộ production pass” vượt quá bằng chứng local.
 
 ## 8. Lộ trình bốn tuần và portfolio
 
@@ -296,7 +302,7 @@ Ghi kết quả theo [report hiện hành](../review-2026-10-21.md), tách rõ S
 
 | Ưu tiên | Khoảng trống | Điều kiện gọi là hoàn thành |
 |---|---|---|
-| Cao | Browser/axe chưa là CI gate | Dependency pin, browser install, job bắt buộc, scan không được bỏ qua im lặng, evidence có retention |
+| Cao | Nghiệm thu job browser/axe mới trên GitHub | Workflow đã có pin/browser install/scan/evidence; cần lần chạy Linux thật và branch protection bắt buộc job trước merge |
 | Cao | Email thiếu durable retry | Thiết kế outbox/idempotency, test crash sau commit và lỗi provider; quyết định delivery semantics |
 | Cao | Backup DB + media lên Drive chưa có lịch/monitor được xác nhận | Job chạy thật trên dữ liệu được phép, tuổi snapshot được cảnh báo độc lập, restore drill đạt; phân biệt cron SQL 03:00 trên cùng VPS đã được báo cáo |
 | Cao | Duy trì kiểm kê credential sau mỗi lần thay khóa | Khóa Drive thử cũ đã thu hồi 19/10; giữ bằng chứng consumer dùng key mới, key cũ vô hiệu và nơi lưu được cập nhật cho các lần rotate tiếp theo |

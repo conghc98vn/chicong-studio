@@ -1,5 +1,6 @@
 import {migrateAlbumSlugs} from './album-slugs.mjs';
 import {migrateDriveSchema} from './drive-schema.mjs';
+import {migrateFeedbackSchema} from './feedback-schema.mjs';
 import {siteDefaults} from '../web/site-copy.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync} from 'node:fs';
@@ -97,6 +98,7 @@ export async function openDatabase(dir,{url=null,initialize=true}={}){
  CREATE INDEX IF NOT EXISTS inquiries_status_created ON inquiries(status,created);`);
  await migrateAlbumSlugs(db);
  await migrateDriveSchema(db);
+ await migrateFeedbackSchema(db);
  const defaults=siteDefaults;
  const entries=Object.entries(defaults);
  await db.run('INSERT INTO settings(key,value) VALUES '+entries.map(()=>'(?,?)').join(',')+' ON CONFLICT(key) DO NOTHING',entries.flat());

@@ -12,7 +12,7 @@ import {maxUploadBytes} from '../web/upload-policy.mjs';
 import {randomUUID} from 'node:crypto';
 import {photoDeletion,drainPhotoCleanup} from '../server/photo-deletion.mjs';
 import {reconcileMedia} from '../server/media-recovery.mjs';
-import {inventory,createBackup,readBackup,verifyBackup,exportBackup,restoreBackup,copyToStorage,atomicFile,jsonBytes,sha256,databaseSnapshot,mappingHash,waitForWriters} from './media-backup.mjs';
+import {inventory,createBackup,readBackup,verifyBackup,exportBackup,restoreBackup,copyToStorage,atomicFile,jsonBytes,databaseSnapshot,mappingHash,waitForWriters} from './media-backup.mjs';
 import {driveRepository} from './drive-backup.mjs';
 
 const [command,...args]=process.argv.slice(2),options={};

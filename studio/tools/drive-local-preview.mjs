@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Local UAT only. Never load .env, reuse cloud settings or alter live-test evidence.
-import {backup, DatabaseSync} from 'node:sqlite';
+import * as sqlite from 'node:sqlite';
 import {copyFile, lstat, mkdir, readFile, readdir, realpath, writeFile} from 'node:fs/promises';
 import {randomBytes} from 'node:crypto';
 import path from 'node:path';
@@ -12,6 +12,17 @@ const markerName = 'local-preview.json';
 const fail = code => Object.assign(new Error(code), {code});
 const check = (condition, code) => { if (!condition) throw fail(code); };
 const usage = 'node studio/tools/drive-local-preview.mjs [--source output/drive-live-2026-10-16-r7] [--output output/drive-local-preview] [--port 4175] [--service-account-file /absolute/key.json] [--prepare-only]';
+
+async function backupDatabase(source, destination) {
+  if (typeof sqlite.backup === 'function') {
+    await sqlite.backup(source, destination);
+    return;
+  }
+  // Node releases without sqlite.backup still provide a consistent, read-only
+  // snapshot through SQLite itself. The destination is newly created by INTO.
+  const escaped = destination.replaceAll("'", "''");
+  source.exec(`VACUUM INTO '${escaped}'`);
+}
 
 export function parsePreviewArguments(argv) {
   const flags = {};
@@ -64,7 +75,7 @@ export function previewEnvironment(options) {
 }
 
 function migrateCopy(database, output) {
-  const db = new DatabaseSync(database);
+  const db = new sqlite.DatabaseSync(database);
   try {
     db.exec('PRAGMA foreign_keys=ON; BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON;');
     // Triggers are restored in this same transaction. The original database is
@@ -133,7 +144,7 @@ export async function preparePreview(options) {
   check(report.passed === true && report.originals_retained === 0, 'preview_source_validation_not_passed');
   await regularFile(path.join(options.source, 'studio.sqlite'));
   await realDirectory(path.join(options.source, 'renditions'));
-  const source = new DatabaseSync(path.join(options.source, 'studio.sqlite'), {readOnly: true});
+  const source = new sqlite.DatabaseSync(path.join(options.source, 'studio.sqlite'), {readOnly: true});
   try {
     const count = table => Number(source.prepare('SELECT COUNT(*) AS n FROM ' + table).get().n);
     check(count('admins') === 0 && count('media_writers') === 0 && count('photo_cleanup') === 0, 'preview_source_not_isolated_idle');
@@ -150,7 +161,7 @@ export async function preparePreview(options) {
     }
     await mkdir(options.output, {mode: 0o700});
     await mkdir(path.join(options.output, 'uploads'), {mode: 0o700});
-    await backup(source, path.join(options.output, 'studio.sqlite'));
+    await backupDatabase(source, path.join(options.output, 'studio.sqlite'));
     for (const file of files) await copyFile(path.join(options.source, 'renditions', file), path.join(options.output, 'uploads', file));
     const albums = migrateCopy(path.join(options.output, 'studio.sqlite'), options.output);
     const marker = {version: 1, source: options.source, created_at: new Date().toISOString(), initial_photos: photos, albums};

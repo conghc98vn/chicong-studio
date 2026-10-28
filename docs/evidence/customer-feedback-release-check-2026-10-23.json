@@ -1,0 +1,399 @@
+{
+  "date": "2026-10-23",
+  "recordedAt": "2026-10-23T16:50:02.187229+00:00",
+  "scope": "Release readiness, isolated VPS stage and synthetic verification; no production activation/database mutation, real email, commit or push.",
+  "sourceState": "Uncommitted working tree, including preserved preexisting changes beyond feedback. Full runtime allowlist staged; not a feedback-only release.",
+  "fixes": [
+    "Raw SQL/PITR restores now have offline prepare-restored: persistent gate before transactional revoke/nonce rotation/admin receipt clearing/nonaccepted mail suppression; incomplete preparation cannot be released by reconcile.",
+    "Release archives omit extended filesystem metadata in addition to excluding credentials and data."
+  ],
+  "results": {
+    "sqlite": {
+      "tests": 520,
+      "pass": 469,
+      "skip": 51,
+      "fail": 0,
+      "log": "output/feedback-release-check-2026-10-23/sqlite-final.log",
+      "skipScope": "50 PostgreSQL-only cases, one explicitly opted-in HTTPS suite"
+    },
+    "postgresql": {
+      "tests": 527,
+      "pass": 524,
+      "skip": 3,
+      "fail": 0,
+      "log": "output/feedback-release-check-2026-10-23/postgres-final.log",
+      "skipScope": "Two SQLite-only constraint cases, one explicitly opted-in HTTPS suite"
+    },
+    "rawRestore": {
+      "sqlitePass": 7,
+      "postgresqlPass": 7,
+      "includedInFullSuites": true
+    },
+    "httpsProxy": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "includesParentTest": true,
+      "details": {
+        "runtime": "v24.19.0",
+        "production": true,
+        "database": "disposable local PostgreSQL, isolated schema",
+        "tls": "temporary self-signed local certificate",
+        "trustedProxy": "loopback",
+        "syntheticStorage": true,
+        "realEmailSent": false,
+        "browserEvidence": [
+          {
+            "engine": "chromium",
+            "requests": 7,
+            "externalRequests": 0,
+            "pageErrors": 0
+          },
+          {
+            "engine": "webkit",
+            "requests": 6,
+            "externalRequests": 0,
+            "pageErrors": 0
+          }
+        ],
+        "requestCount": 40,
+        "fragmentAbsentFromNetworkUrlsAndReferrers": true,
+        "restoreStartupGate": true,
+        "boundaries": [
+          "No real Zalo or physical device",
+          "No production ingress/CDN",
+          "No real storage or email provider",
+          "Restore startup flag tested; backup byte restoration covered separately"
+        ]
+      }
+    },
+    "pgDumpRoundtrip": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "includesParentTest": true,
+      "addedAfterFullSuite": true,
+      "log": "output/feedback-release-check-2026-10-23/pg-dump-final.log",
+      "details": {
+        "scope": "Local disposable PostgreSQL 16 application-schema pg_dump/psql roundtrip; not full Supabase or PITR",
+        "startedAt": "2026-10-23T16:45:01.303Z",
+        "checks": [
+          {
+            "name": "real pg_dump restores every feedback table unchanged into a second database",
+            "result": "pass"
+          },
+          {
+            "name": "actual prepare-restored CLI persists gate and revokes every restored token generation",
+            "result": "pass"
+          },
+          {
+            "name": "accepted events and immutable revisions/receipts survive byte-for-byte while all other claims are suppressed",
+            "result": "pass"
+          },
+          {
+            "name": "app startup without runtime pauses blocks HTTP read/write and sends zero email",
+            "result": "pass"
+          },
+          {
+            "name": "separate CLI reconciliation applies post-backup deletion ledger without altering retained history",
+            "result": "pass"
+          }
+        ],
+        "realEmailCalls": 0,
+        "dumpBytes": 75667,
+        "dumpSha256": "205e15471601561fa760d01ecbeb6f2d464f3005567c3a953c52cd08979b3033",
+        "preparation": {
+          "prepared": true,
+          "handovers": 2,
+          "suppressed": 12,
+          "released": false
+        },
+        "reconciliation": {
+          "reconciled": 1,
+          "released": true
+        },
+        "completedAt": "2026-10-23T16:45:05.477Z",
+        "passed": 5
+      },
+      "finalFixtureCorrection": "TCP readiness avoids the temporary socket-only initdb server; rerun passed."
+    },
+    "packaging": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "rerunAfterMetadataFix": true,
+      "log": "output/feedback-release-check-2026-10-23/packaging-final.log"
+    },
+    "linuxFixture": {
+      "releaseId": "20261023T164629547Z-69ee7b6c",
+      "node": "v24.22.0",
+      "platform": "linux",
+      "arch": "x64",
+      "health": true,
+      "privateShell": true,
+      "syntheticSubmitAndReplay": true,
+      "fakeProviderCalls": 1,
+      "realEmailSent": false,
+      "restoreGate": true,
+      "sharpNative": true,
+      "publicPortOpened": false,
+      "productionDatabaseUsed": false
+    }
+  },
+  "liveReadOnly": {
+    "edge": {
+      "at": "2026-10-23T16:37:43.124882+00:00",
+      "scope": "Unauthenticated read-only requests to synthetic paths; no live feedback or customer data used.",
+      "checks": [
+        {
+          "route": "/api/health",
+          "curlExit": 0,
+          "httpAndSeconds": "200 1.721563",
+          "error": null,
+          "headers": {
+            "server": "cloudflare",
+            "cache-control": "no-store",
+            "referrer-policy": "same-origin",
+            "x-robots-tag": null,
+            "content-security-policy": "default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+            "cf-cache-status": "DYNAMIC"
+          },
+          "feedbackModule": false,
+          "publicBootstrap": false,
+          "analytics": false
+        },
+        {
+          "route": "/feedback/verification-no-real-customer",
+          "curlExit": 0,
+          "httpAndSeconds": "404 1.201723",
+          "error": null,
+          "headers": {
+            "server": "cloudflare",
+            "cache-control": null,
+            "referrer-policy": "same-origin",
+            "x-robots-tag": null,
+            "content-security-policy": "default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+            "cf-cache-status": "DYNAMIC"
+          },
+          "feedbackModule": false,
+          "publicBootstrap": true,
+          "analytics": false
+        },
+        {
+          "route": "/api/feedback/verification-no-real-customer",
+          "curlExit": 0,
+          "httpAndSeconds": "404 1.707008",
+          "error": null,
+          "headers": {
+            "server": "cloudflare",
+            "cache-control": "no-store",
+            "referrer-policy": "same-origin",
+            "x-robots-tag": null,
+            "content-security-policy": "default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+            "cf-cache-status": "DYNAMIC"
+          },
+          "feedbackModule": false,
+          "publicBootstrap": false,
+          "analytics": false
+        },
+        {
+          "route": "/api/admin/handovers",
+          "curlExit": 0,
+          "httpAndSeconds": "401 2.558643",
+          "error": null,
+          "headers": {
+            "server": "cloudflare",
+            "cache-control": "no-store",
+            "referrer-policy": "same-origin",
+            "x-robots-tag": null,
+            "content-security-policy": "default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+            "cf-cache-status": "DYNAMIC"
+          },
+          "feedbackModule": false,
+          "publicBootstrap": false,
+          "analytics": false
+        }
+      ]
+    },
+    "configurationPresenceOnly": {
+      "SITE_URL": true,
+      "FEEDBACK_LINK_SECRET": false,
+      "RESEND_API_KEY": true,
+      "SMTP_HOST": false,
+      "NOTIFICATION_EMAIL": true,
+      "STUDIO_EMAIL": false,
+      "DATABASE_URL": true,
+      "FEEDBACK_API_PAUSED": "unset",
+      "FEEDBACK_NOTIFICATIONS_PAUSED": "unset"
+    },
+    "feedbackModulesPresent": false,
+    "liveProcessUnchangedThroughStage": true
+  },
+  "stage": {
+    "releaseId": "20261023T164629547Z-69ee7b6c",
+    "path": "/var/www/chicongphoto-releases/20261023T164629547Z-69ee7b6c",
+    "archiveSha256": "3b98acc944619dcdb2c8f269648f5f5c054af94f767ee84fe6e5d735a6d372bf",
+    "activated": false,
+    "dependencyInstall": "npm ci --omit=dev --no-audit --no-fund, 153 packages",
+    "sourceFiles": 113,
+    "allSourceHashesMatchLocal": true,
+    "supersededStageRemoved": "20261023T164412723Z-cd5a7442",
+    "log": "output/feedback-release-check-2026-10-23/stage-final.log"
+  },
+  "remainingUnverified": [
+    "Feature through actual Cloudflare/Caddy after activation",
+    "Real Zalo iOS/Android and browser handoff",
+    "Real provider and inbox delivery",
+    "Production signing key/deletion ledger ownership and independent backup",
+    "Production activation/migration/rollback and full Supabase/PITR restoration"
+  ],
+  "priorBrowserEvidence": "docs/evidence/customer-feedback-verify-2026-10-23.json; no UI changes in this release-readiness pass",
+  "sha256": {
+    "scripts/deploy-vps.mjs": "40d734bebdfe81e022400f31180e1d6d0fef4f509f717f45768c744353a59ccd",
+    "HOSTING.md": "dc3aa297ee8d045c2dcd3a1d4f9eb69032ee7aad074ab4b0b5caa721b6b1edb1",
+    "docs/customer-feedback-spec.md": "583855c08d14d9af72a773f78456f858dc03ff25131fa1549eee7e10b8bd5736",
+    "docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md": "e53aabf702985d2438395fc6a82cb593903cf885339c338ed415ca78eaef3f16",
+    "studio/server/handover-privacy.mjs": "74919f1648cf8a496e56f7afac0ad1df4a6991c44535919df7faae981a403a07",
+    "studio/tools/feedback-ops.mjs": "8ecb7017b9ce4b52e8af0a51feb8fc0784ec3cd7d67d671eb342f2863ed01ea8",
+    "studio/tests/feedback-raw-restore.test.mjs": "a92c7533f020a7e080da8d1e11c98fd0d746f0fafd4ac4c5dbe35a95c685f815",
+    "studio/tests/feedback-dump-restore.test.mjs": "924f7559e88c73afae2a07ce39a75352f80f1c200488cc9cb649fdb960905afa",
+    "studio/tests/feedback-https-proxy.test.mjs": "eac22c3df94b6e64966af720a5ec131f6f767c51bfba3be756a55fdf9c1fa474",
+    "studio/tests/feedback-release-packaging.test.mjs": "2bf01b3fb6591152762bfff0162eac8e5566e65190e7e202ebec3e15bd533e67"
+  },
+  "stagedSourceSha256": {
+    "certs/supabase-root-2021.crt": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+    "ecosystem.config.cjs": "ac3e7a0bcba4274e6029269f5be96de24ecd3a2dca2945e89d0b2cc8c6705616",
+    "package-lock.json": "105c58fb209680b823a7bcfc83c8773607f47f343bf61860d5c9718971ecbae8",
+    "package.json": "01c2b8cc1320f3469895b1b2da350394155b12fcaa59a9a3689a09d7caf91a56",
+    "scripts/backup-db.sh": "0b7ffe99085bdb00223e6d36d607463a313f7492f241e0f85eb8bdc21246deef",
+    "scripts/deploy-vps.mjs": "40d734bebdfe81e022400f31180e1d6d0fef4f509f717f45768c744353a59ccd",
+    "scripts/prepare-photos.command": "2101d61d6c86e666e7bf6619eb3230cc1915bb16dc840fb7407d9d227878b72d",
+    "scripts/systemd/chicong-drive.service": "bf0dd49b1bb3e0d580f24a55c41667159898b3aee703ef7276aee85dff7a0f0c",
+    "studio/server/album-sections.mjs": "0dd9d1bf227faa1dcff3129b5ebfa5de15d8fdfaa2aaec185bcfd3be88d870ed",
+    "studio/server/album-slugs.mjs": "bca66dce5b970b845afae89ec94e9e702f2173b45f510fe4db2ab3a2e2a1b34b",
+    "studio/server/app.mjs": "741b0540b9f2e99d760dae5546efca2c75219a36a610d9f0d52ba3f0a628dc03",
+    "studio/server/catalog-response.mjs": "bbc519d986065009b616aea9bab15e8df2fb61f98678d3a1a3afa3374999c847",
+    "studio/server/db.mjs": "32cf0a36cd2baee256fed2f3124a074774ec94c3f09e4531a9934ae0aa9175c5",
+    "studio/server/drive-album-create.mjs": "5faad81a0a5013a1f5ac7648f36eb0ffde8080be82a8ebc4b061b7a9ef7a49d0",
+    "studio/server/drive-client.mjs": "cf658d5f974193250080043591fc1ff3b70b5bc6f9efbc563119c1baf961ff13",
+    "studio/server/drive-comparisons.mjs": "fd477ff1f802999a76c7039f044eeb10fbe2400ebf97007e6fd04634fb63920b",
+    "studio/server/drive-folder-overview.mjs": "8ff5db75d1e24eb653af47d0e23d174d38f6c526b45a72abfa46fb22c49df38b",
+    "studio/server/drive-folder-preview.mjs": "e663db92d2da97217734befac4bbbec3e094ae0a934af6e3a8641654c9c5d3de",
+    "studio/server/drive-folder-scope.mjs": "3e65fbdbece4a510d1e1b871fe6b131089d4dfbe6fd7e51a26de4f738c6de6b9",
+    "studio/server/drive-image-child.mjs": "cf6131e7d6a4ee3cd9e84e39b2cb08fe29bc31ebee79866e659331975d6682bd",
+    "studio/server/drive-image-encoder.mjs": "db0a2359e3c9a4e517fa1938a843ad94bc46a65d16e5583e5a0a59080a05dbd2",
+    "studio/server/drive-inventory.mjs": "405e9e2302831359364f529f7e31ea0d6443505f89d323d161e276891001e597",
+    "studio/server/drive-jobs.mjs": "ad6a56fdda690730088f8a3f4b70b86a3b011ba3d3e0bc1f80b0bcdd1bf04d6e",
+    "studio/server/drive-revisions.mjs": "6af85f874a50858a3d1da566b120659e97c243de6d147532cc4e07bc51365eac",
+    "studio/server/drive-routes.mjs": "1a104b7ed7ceaf7ddd026a7c36dfc7314160c9dd11eaac0d55fb9f765977a4f4",
+    "studio/server/drive-schema.mjs": "d3f1dd46fb1eee5db946f28475725e0ccb83fa012d70c4d19d095b9ceb95314e",
+    "studio/server/drive-sync.mjs": "7015863e937a24d3ff03cfca15008c05428cc4cf74ddbf4378702872fed394f4",
+    "studio/server/drive-temporary.mjs": "2ea0ea51d9e0ba527f2b09865384799fdf4a85c61cbc4ab6d799d5f6c4bcbdb4",
+    "studio/server/drive-worker.mjs": "26fc1ef447dfb9a4fbfcead5e970c5b2c39be1228e676d9ac04c9e2adff3db41",
+    "studio/server/drive-workflow.mjs": "ca951e349aeb900835e06c53140f1485fd67b913e83042fbca46a14fbfd73e3b",
+    "studio/server/feedback-notifications.mjs": "e369e9b4493a1735a2e1c37bcc79a7fb6c32b1e4deb9893b988c9ea9c5e197df",
+    "studio/server/feedback-schema.mjs": "cf58c0f6a9199959aa4a9cd13b9242a7a1aedc3a0032df8d6cb9924e9be58da1",
+    "studio/server/feedback.mjs": "292811317e88d6a6b22116a7a3ab6e38162a1e835833065b72535ab7c469ba59",
+    "studio/server/gallery-download.mjs": "f550ed6741ce29c75f04664b5c05e8757cbceab8f0112208815fc9f633b86f6e",
+    "studio/server/gallery-selection.mjs": "a54d52b5f5cc28d51741df4d0767e22e6911e655df0fb00e5bb2ca319799dbbc",
+    "studio/server/google-calendar.mjs": "6ac8af83e5d467a1502c3c59ab7ca13528b3abe41bf49d70cdd355b59eb1f571",
+    "studio/server/handover-privacy.mjs": "74919f1648cf8a496e56f7afac0ad1df4a6991c44535919df7faae981a403a07",
+    "studio/server/image-optimizer.mjs": "d7d755724ebc90e2202405e3543b223c9fee3cf191e38aa1e71e27ad934d08d6",
+    "studio/server/mailer.mjs": "18c5356eb793d0cffdd2b12ecff20980a8d94164a5bd89db71264e3dc2796fb6",
+    "studio/server/media-control.mjs": "2f204b0c9539b8943f1662a9c4a5164c7ae5f193c118ed61e869baa88e8ca0e6",
+    "studio/server/media-recovery.mjs": "a67826aca5435c9bd67c6e87a8eb8117a325865d3d1f13a11b985d1edc19c82d",
+    "studio/server/photo-catalog-routes.mjs": "0fc6708ca214f01765429aaa471a694ac1546ecbbd1a65ba05985bb2ac3cdbfb",
+    "studio/server/photo-deletion.mjs": "ee03a76aa0a931eb375b51ca68a9af50e3dcf27c83deb19c0c1ff9b55c24216b",
+    "studio/server/photo-ingest.mjs": "15f117389d0a1cf9d283fa335823aa7c0c489bd632d0a7e3889f59f5467d00c8",
+    "studio/server/photo-upload.mjs": "7fee48a379991d14255f442fff025f381ee2822edfeea766d141e13b76b24f63",
+    "studio/server/prepared-photo.mjs": "a854ca286375aab25a35375185b8d52b2b9812faac0b1b0673c0ea45b17672d9",
+    "studio/server/private-feedback-shell.mjs": "11c977db61a0988ab66048e8590e8812f8608aacf958dee8559b1586d2e8683c",
+    "studio/server/r2-storage.mjs": "2414ca2fd20e5cd3e7ae69b3a3113799aa71b935e6e0fc21fa0eb5f4db282af9",
+    "studio/server/request-security.mjs": "5d52e65b59716f72bab5ecf7fbad431847560b27ea8e8ef055bb79ec226c43cb",
+    "studio/server/reset-admin.mjs": "930bb8f8026a5d034512b8f0bb0a8022adb7aa16c92130ab254d2c11dd7634ef",
+    "studio/server/schema-org.mjs": "701bc42502570250846ce1d9eec3bcb9add385133f1972003b7913587df6a5da",
+    "studio/server/selection-submission.mjs": "89013579d5d40f9027a9ffb8ffe10813a7d35d979bc1a209c83ce23192b56b81",
+    "studio/server/start.mjs": "68fa9699e930f91ce378ea424da28ccff24d1bd6fc605ef0c5b9bd9f107d1ed6",
+    "studio/server/storage.mjs": "893453afc77bb9541c163d13bf48886086819e74973dbfa6fb67c67fb308173e",
+    "studio/server/upload-trace.mjs": "0c789c6c466414b333780909185d3a9e1cdaced06687093d4c02079f6745699c",
+    "studio/tools/drive-authorize.mjs": "e477ca7711943457ca97c40bac0313feacebeb2d8494b7518206516c9d78b6a3",
+    "studio/tools/drive-backup.mjs": "03cdf99ca5fcf7d1182be7d0661cb9ccd5ac5e4f6522d7e6bf2bf55fb3191cd6",
+    "studio/tools/drive-local-preview.mjs": "3e12c11e850db28276849ba6ee7a72c96bb137e0e0281a600440aa53c8835a64",
+    "studio/tools/drive-sync.mjs": "580a2613e0c85d85ffc5d4027762f9a1a7fdaa24607a94224d7c12096f50eb59",
+    "studio/tools/feedback-ops.mjs": "8ecb7017b9ce4b52e8af0a51feb8fc0784ec3cd7d67d671eb342f2863ed01ea8",
+    "studio/tools/media-backup.mjs": "a600c92b936c72975da257014c40198f2d8f3c678a267e315058289ef6cb98c2",
+    "studio/tools/media-ops.mjs": "b7ba686d53ae9a3a4e002ecd24aef0c00ca77ecf13233781cfcb706b5b456860",
+    "studio/tools/prepare-photos.mjs": "5c1a6b228942d96a78762f1763071426a0490324e4d8174e4f4740daec84d6f2",
+    "studio/web/admin-drive-loader.mjs": "451da1aba9d0f8af66ab290e4a8ecf11c17651bdd6a673d564fa2d4efab32f99",
+    "studio/web/admin-proofing.mjs": "13bb450db3fd0c258f29cfe6f25220044ba08370645bb9347c5b9eb84e39c125",
+    "studio/web/album-editorial.mjs": "02e249acc51f4163ebb7e0cf91826c240f04e426f26425c769872a71502fe09c",
+    "studio/web/album-layout.mjs": "be8d394d925639e2a5c934c3b65ca315071eb1316e26513c33a09d8f3dbd6ca4",
+    "studio/web/album-sections.mjs": "b68c93c807e585492bda48a4709aa69ae73a8781f86eed00b541aede2da9b237",
+    "studio/web/album-slug.mjs": "04fe5add2bf589c02e05f03b26561a4c738ca0b6ca29fba73e7291c5f8117ace",
+    "studio/web/api-request.mjs": "a4fcee05b2bee0d8a165844d6bf3ea09b2ddda3832fcfb6570813d9c07b622c8",
+    "studio/web/back-to-top.mjs": "92b9565897197e8c3c38f682a008229ac9203715394192a83c1be28649bdcbcb",
+    "studio/web/bootstrap.js": "3a70fc69a67663527836a386519f48df7badb63bd780f08c4aa76f310182ba8c",
+    "studio/web/drive-album-entry.mjs": "099cc92939e2e8adaf556ccd7e870ccaef36d99fafbad4bb1d4f5ddb579f851a",
+    "studio/web/drive-album-status.mjs": "502522ec4b6997771282ae43a36759f144239b04f0034661e72e1faf4b7e4c2a",
+    "studio/web/drive-folder-browser.mjs": "9c7e42f5c652842ecd5a495b9808a206d3ad0bd76e14147e5dc5ea186a8beed8",
+    "studio/web/drive-panel.mjs": "1ac410d90e76c9ec30291ae7355024b330ce8f6a92031a632ed28de868e98d01",
+    "studio/web/drive-sync.css": "e3b3fdc5e13ade7d52382522c31b91886f7d17459887b502dce6f10ea0878a9b",
+    "studio/web/favicon.svg": "1a80bf726869ff3ce47306f9416ae08780bdcb8d6909ecbfc7fd7916829ff8a2",
+    "studio/web/feedback-admin.css": "60b2ac6e1220cb2c342ecc1db8bd5b061b5f51c5a4a99b20514b55ebef65f3d8",
+    "studio/web/feedback-admin.mjs": "df62da24af2da4f9590dcf9ef6aef1aefd9aedc68a9e672cf4d8c1216221d56f",
+    "studio/web/feedback-page.mjs": "2577fd13af61c0dcaf564bac8df7f122982301eb35265940792bc3432bb52de9",
+    "studio/web/feedback.css": "fcbf65240a5c82b67958f7463050fe991e464df0b4642536c6f0d51c060899f1",
+    "studio/web/fonts/OFL.txt": "60700d351cac4650c51f3f9db318d2a420f8b45052dba2715eb5fec41f0f6956",
+    "studio/web/fonts/cormorant-italic-latin-ext.woff2": "550e19a8a021b89c7c279d1bf33aec3d30f254f3bf59cb9d913696841d689942",
+    "studio/web/fonts/cormorant-italic-latin.woff2": "c80b489f34b4bb27a716682b8f8a5c3efec50fb8156e1088a43ed206003b6951",
+    "studio/web/fonts/cormorant-italic-vietnamese.woff2": "c2cb6a2a94fe18decdeb820164a6fcafb6a4e8fb865325360107f4a7328a1f3b",
+    "studio/web/fonts/cormorant-normal-latin-ext.woff2": "d665c6081f3cded5179106c811bc18c4d7108379e7973ae62459362be75058fe",
+    "studio/web/fonts/cormorant-normal-latin.woff2": "982538ce965491bddd0cd96f81c7c694ce19a3f4af7efbc9316ead7820b34c14",
+    "studio/web/fonts/cormorant-normal-vietnamese.woff2": "56fb7f131c519aebd2a171e6042b09fb982607e8d58222c8990a0099a6bb73b6",
+    "studio/web/fonts/fonts.css": "58427676bf28fc31e467df04d7d329c80f453cffdbf1aa14d9960227ebbcdd08",
+    "studio/web/gallery-download.mjs": "cae5c841f6e3dee4353d0808c72304c0228929cb25da7c8b96d3a27e31bdfecd",
+    "studio/web/hero-slides.mjs": "4461612a95713cef86dd05ea6d86762288f620b77eda93bd80d26ed1d860bf43",
+    "studio/web/hero-slideshow.mjs": "f5183c3f737793e325945346233ef4117eb92546186fc16b42b10ac3748df34d",
+    "studio/web/home-curation.mjs": "8fb1c6fddb077c5b107adce5b7b917d819b1ec0d1dfce28ce1437ffde35afcea",
+    "studio/web/icons.mjs": "0b476e0890dd72fa547c0333c0ddd07eacfdb7bfdbe9422052ebe22c33387edf",
+    "studio/web/index.html": "b5a7ed5cfbab9f44bf3295d7b1e3d5236a169b3be00412644cc776db49f7a31d",
+    "studio/web/inquiry-form.mjs": "92885961bee79891a53fe8845aa90a80a424aa6fb0c6f80d51a835f29e43a38e",
+    "studio/web/inquiry-validation.mjs": "83228047d84de8aa7a360c1e125c943ed8a1658a3737ebe621305442ceaa8ada",
+    "studio/web/main.js": "708a3ec199d27ca5fdbed598f52b939003957fb1c6146ca6c47ed0d0741319c4",
+    "studio/web/page-data.mjs": "aef24a3977b771d9060a2f109eb0e70e87f411bd73aca76834e97c25ccc2207f",
+    "studio/web/photo-download.mjs": "cc2b7e12d6eaa6f153d32d321fb9764ba746bfae17b9cb4fb39e698beeeb27e5",
+    "studio/web/photo-pagination.mjs": "67342d50977bbc59805fa848b41e05a5e44d055b302327d1c841177d61ba5d4e",
+    "studio/web/portfolio-motion.mjs": "496b04b2478a3b50a1071bd81c647b54d498349defea5ec36ec59600becbfe3c",
+    "studio/web/public.css": "281f05a89d4d3da4a8cfa192dbebb92bf6684e8439a944ed564efbebd018b36a",
+    "studio/web/responsive-image.mjs": "0cce41e030b0ea38acc2e83148c89b1eba544c5b6785d9ab9baa4b9512faf56e",
+    "studio/web/services.mjs": "404e351400b817832a1b192249392dd2be4cc2c90a2929548cdbbfcff9d878b5",
+    "studio/web/site-copy.mjs": "18e280a24d550765c74f5e606d802148b3167a01ebbaa3884a60ea7455545b8e",
+    "studio/web/style.css": "7d26d3408a2876d021815f998b824fa1393ab4bb6d3dc6e15ff8493f3ee40ddf",
+    "studio/web/ui-copy.mjs": "007631f8ef2f3a008a513177931ce40db3a22995ee95bc3fd44f9d7d33929919",
+    "studio/web/upload-policy.mjs": "9b018e3cf250673c57e50c108a296925d63f1c29a4670a1104fe62348155867d",
+    "studio/web/upload-queue.mjs": "d0c340871c7bbd475e6f22fe1fd14261de23b08093bef335d3d582acd35db5f2",
+    "studio/web/upload-report.mjs": "5e5fda523859aad34010af56d0b812fa626d83af95fc545498b03228ab4fa50e",
+    "studio/web/upload-request.mjs": "72e278ca7a504f0a44793acbccc41861daec487a4e6ff5c6ac099770bc7d5249"
+  },
+  "logSha256": {
+    "sqlite-final.log": "18924060ae155479f166391beb0a7defc6ac39e132a231760e956626d18b4c91",
+    "postgres-final.log": "8fbf9896e2c5063f5048ea0decc32445b96b32c3533b8a1659c628698d0d9f15",
+    "pg-dump-final.log": "7ae410f81a58e4a850fe9d4679521baf368bb7014736d5f38b6a95323e00598e",
+    "packaging-final.log": "885f1f78f389fec4f76bb571468568de304c3ab1a3c703e4f5b772b59d9d6bc6",
+    "stage-final.log": "a8500526aba95b0e9d8b9dd52c33bffe96aee4e2db46bcd847a788168749fbba",
+    "vps-fixture-smoke.mjs": "1bc80efe82c7c25896f9d91eb20a45f9b0f00886d79dfe47b660a51623ff98c6"
+  },
+  "syntax": {
+    "files": 215,
+    "pass": true
+  },
+  "docs": {
+    "markdownFiles": 64,
+    "localLinks": 480,
+    "pass": true,
+    "limitation": "Checks file targets, not external URLs or heading anchors"
+  },
+  "diffCheck": {
+    "pass": true
+  }
+}

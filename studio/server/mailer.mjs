@@ -1,4 +1,5 @@
 import { inquiryNotice, budgetLabel } from '../web/ui-copy.mjs';
+import {connect as connectSocket} from 'node:net';
 
 /**
  * ChiCong Studio Email Notification Service
@@ -43,7 +44,7 @@ export function buildStudioEmail({ inquiry, reference, settings, siteUrl = 'http
           <tr>
             <td style="padding:28px 32px;background:#1c1917;color:#faf8f5;">
               <h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:0.02em;">${brand} · Yêu cầu tư vấn mới</h1>
-              <p style="margin:6px 0 0;font-size:13px;color:#a8a29e;">Mã yêu cầu: #${reference}</p>
+              <p style="margin:6px 0 0;font-size:13px;color:#a8a29e;">Mã yêu cầu: #${escapeHtml(reference)}</p>
             </td>
           </tr>
           <!-- Body -->
@@ -87,14 +88,14 @@ export function buildStudioEmail({ inquiry, reference, settings, siteUrl = 'http
               </table>
 
               <div style="margin:28px 0 12px;text-align:center;">
-                <a href="${adminUrl}" style="display:inline-block;padding:12px 28px;background:#1c1917;color:#faf8f5;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500;">Mở trang quản trị</a>
+                <a href="${escapeHtml(adminUrl)}" style="display:inline-block;padding:12px 28px;background:#1c1917;color:#faf8f5;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500;">Mở trang quản trị</a>
               </div>
             </td>
           </tr>
           <!-- Footer -->
           <tr>
             <td style="padding:16px 32px;background:#faf8f5;border-top:1px solid #e7e5e4;font-size:12px;color:#a8a29e;text-align:center;">
-              Email này được tạo tự động khi khách gửi biểu mẫu tại <a href="${siteUrl}" style="color:#78716c;">${siteUrl}</a>.
+              Email này được tạo tự động khi khách gửi biểu mẫu tại <a href="${escapeHtml(siteUrl)}" style="color:#78716c;">${escapeHtml(siteUrl)}</a>.
             </td>
           </tr>
         </table>
@@ -166,7 +167,7 @@ export function buildClientEmail({ inquiry, reference, settings, siteUrl = 'http
               </p>
 
               <div style="background:#faf8f5;border-radius:8px;padding:16px 20px;margin-bottom:20px;border-left:3px solid #1c1917;">
-                <p style="margin:0 0 8px;font-size:13px;color:#78716c;">Mã yêu cầu: <strong style="color:#1c1917;">#${reference}</strong></p>
+                <p style="margin:0 0 8px;font-size:13px;color:#78716c;">Mã yêu cầu: <strong style="color:#1c1917;">#${escapeHtml(reference)}</strong></p>
                 <p style="margin:0 0 8px;font-size:13px;color:#78716c;">Dịch vụ quan tâm: <strong style="color:#1c1917;">${service}</strong></p>
                 <p style="margin:0;font-size:13px;color:#78716c;">Ngày dự kiến: <strong style="color:#1c1917;">${date}</strong></p>
               </div>
@@ -184,7 +185,7 @@ export function buildClientEmail({ inquiry, reference, settings, siteUrl = 'http
               </p>
 
               <div style="text-align:center;margin-bottom:12px;">
-                <a href="${zalo}" style="display:inline-block;padding:10px 24px;background:#1c1917;color:#faf8f5;text-decoration:none;border-radius:6px;font-size:13px;font-weight:500;margin-right:8px;">Nhắn tin qua Zalo</a>
+                <a href="${escapeHtml(zalo)}" style="display:inline-block;padding:10px 24px;background:#1c1917;color:#faf8f5;text-decoration:none;border-radius:6px;font-size:13px;font-weight:500;margin-right:8px;">Nhắn tin qua Zalo</a>
                 <a href="tel:${phone}" style="display:inline-block;padding:10px 20px;background:#f5f4f0;color:#1c1917;text-decoration:none;border-radius:6px;font-size:13px;font-weight:500;">Gọi ${phone}</a>
               </div>
             </td>
@@ -193,8 +194,8 @@ export function buildClientEmail({ inquiry, reference, settings, siteUrl = 'http
           <tr>
             <td style="padding:24px 32px;background:#faf8f5;border-top:1px solid #e7e5e4;font-size:12px;color:#78716c;text-align:center;line-height:1.7;">
               <p style="margin:0;"><strong>${brand} · Chụp ảnh cưới</strong></p>
-              <p style="margin:4px 0 0;">Điện thoại: ${phone} · <a href="${siteUrl}" style="color:#1c1917;text-decoration:none;">${siteUrl}</a></p>
-              <p style="margin:4px 0 0;"><a href="${facebook}" style="color:#78716c;">Trang Facebook</a></p>
+              <p style="margin:4px 0 0;">Điện thoại: ${phone} · <a href="${escapeHtml(siteUrl)}" style="color:#1c1917;text-decoration:none;">${escapeHtml(siteUrl)}</a></p>
+              <p style="margin:4px 0 0;"><a href="${escapeHtml(facebook)}" style="color:#78716c;">Trang Facebook</a></p>
             </td>
           </tr>
         </table>
@@ -245,6 +246,8 @@ export function createMailer(env = process.env, options = {}) {
   }
 
   const isEnabled = provider !== 'none';
+  const timeoutMs = options.timeoutMs ?? 15000;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000) throw Error('Mail timeout must be between 1 and 30000ms');
 
   async function sendEmail({ to, subject, html, text, from = emailFrom, replyTo }) {
     if (!isEnabled) {
@@ -272,40 +275,67 @@ export function createMailer(env = process.env, options = {}) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(15000)
+        signal: AbortSignal.timeout(timeoutMs)
       });
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`Resend API error (${res.status}): ${errorText}`);
+        throw Object.assign(new Error(`Resend API error (${res.status}): ${errorText}`), {status:res.status});
       }
 
       const data = await res.json();
-      return { success: true, provider: 'resend', id: data?.id };
+      // An HTTP success without the provider's receipt is an ambiguous ACK.
+      // Keep durable notifications retryable rather than marking them accepted.
+      if (typeof data?.id !== 'string' || !data.id.trim() || data.id.length > 300 || /[\u0000-\u001f\u007f]/.test(data.id)) {
+        throw Object.assign(new Error('Resend acceptance identifier is missing or invalid'), {code:'PROVIDER_ACK_INVALID'});
+      }
+      return { success: true, provider: 'resend', id: data.id };
     }
 
     if (provider === 'smtp') {
       const nodemailer = (await import('nodemailer')).default;
+      let smtpSocket,transportClosed=false;
       const transporter = nodemailer.createTransport({
         host: smtpHost,
         port: Number(env.SMTP_PORT || 587),
         secure: env.SMTP_SECURE === 'true' || Number(env.SMTP_PORT) === 465,
+        connectionTimeout: timeoutMs,
+        greetingTimeout: timeoutMs,
+        socketTimeout: timeoutMs,
+        // Own the underlying TCP socket so the total deadline can terminate an
+        // active send too. SMTPTransport.close() alone only releases resources.
+        // Nodemailer performs implicit TLS/STARTTLS over this socket as usual.
+        getSocket(socketOptions, callback) {
+          if(transportClosed)return callback(Object.assign(new Error('Mail transport timed out'),{code:'ETIMEDOUT'}));
+          smtpSocket = connectSocket({host:smtpHost,port:Number(env.SMTP_PORT || 587)});
+          const onError = error => callback(error);
+          smtpSocket.once('error', onError);
+          smtpSocket.once('connect', () => {
+            smtpSocket.removeListener('error', onError);
+            callback(null, {connection:smtpSocket});
+          });
+        },
         auth: env.SMTP_USER && env.SMTP_PASS ? {
           user: env.SMTP_USER,
           pass: env.SMTP_PASS
         } : undefined
       });
 
-      const info = await transporter.sendMail({
-        from,
-        to,
-        subject,
-        html,
-        text,
-        ...(replyTo ? { replyTo } : {})
-      });
-
-      return { success: true, provider: 'smtp', messageId: info.messageId };
+      // A total deadline also closes the SMTP connection. Merely racing the
+      // promise would leave the previous sender alive after its DB lease ends.
+      let timer;
+      try {
+        const info = await Promise.race([
+          transporter.sendMail({from,to,subject,html,text,...(replyTo ? {replyTo} : {})}),
+          new Promise((resolve,reject) => { timer = setTimeout(() => {
+            transportClosed=true;
+            smtpSocket?.destroy();
+            transporter.close();
+            reject(Object.assign(new Error('Mail transport timed out'), {code:'ETIMEDOUT'}));
+          }, timeoutMs); })
+        ]);
+        return { success: true, provider: 'smtp', messageId: info.messageId };
+      } finally { transportClosed=true;clearTimeout(timer); smtpSocket?.destroy(); transporter.close(); }
     }
 
     return { success: false, skipped: true };
