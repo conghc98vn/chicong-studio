@@ -13,7 +13,7 @@ export function downloadFilename(disposition,type){
  let name='';
  const extended=/filename\*=UTF-8''([^;]+)/i.exec(disposition||'');
  if(extended){try{name=decodeURIComponent(extended[1].trim());}catch{}}
- if(!name)name=/filename="([^"]+)"/i.exec(disposition||'')?.[1]||'';
+ if(!name)name=/(?:^|;)\s*filename="?([^";]+)"?/i.exec(disposition||'')?.[1]||'';
  const extension=type==='image/jpeg'?'.jpg':'.zip';
  name=name.replace(/[\u0000-\u001f\u007f/\\:*?"<>|]/g,'-').replace(/^\.+/,'').trim();
  if(!name)return `anh-da-chon${extension}`;
