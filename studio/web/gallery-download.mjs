@@ -17,6 +17,7 @@ export function downloadFilename(disposition,type){
  const extension=type==='image/jpeg'?'.jpg':'.zip';
  name=name.replace(/[\u0000-\u001f\u007f/\\:*?"<>|]/g,'-').replace(/^\.+/,'').trim();
  if(!name)return `anh-da-chon${extension}`;
+ if(type==='application/zip')name=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'d').replace(/[^\x20-\x7e]/g,'-');
  return name.replace(/\.[^.]*$/,'').slice(0,180)+extension;
 }
 
