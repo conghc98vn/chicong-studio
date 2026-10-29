@@ -36,7 +36,7 @@ Release `30ce096` đã được đưa lên production và kiểm trực tiếp n
 | Pilot Drive | 33 ảnh và no-op 33 unchanged; fingerprint 1.190 ảnh cũ giữ nguyên | Pilot trước cutover R2; chưa chứng minh import mới sau cutover hoặc tải 500/5.000 JPEG thật |
 | Backup | 3.386 object ngoài VPS, restore SQLite + media offline đạt, 0 lỗi FK | Không phải full Supabase/cloud restore; chưa có lịch backup media/cảnh báo tuổi snapshot |
 | Cron SQL | Theo report chạy 03:00, ghi SQL gzip trên VPS | Không chứa bytes ảnh, không thay backup offsite; chưa kiểm cron mới trong lượt này |
-| Email/Calendar | Tích hợp qua Resend/SMTP và private ICS; inquiry có outbox bền vững, retry và trạng thái trong admin | Chưa kiểm lại deliverability/config thật; chưa gửi hồ sơ thử tới recipient thật |
+| Email/Calendar | Tích hợp qua Resend/SMTP và private ICS; inquiry có outbox bền vững, retry, thử lại thủ công và trạng thái trong admin | Chưa kiểm lại deliverability/config thật; chưa gửi hồ sơ thử tới recipient thật |
 | Feedback khách | Đã chạy trong release `30ce096`; [cách dùng và contract](../customer-feedback-spec.md#implementation) | Route guard/link sai đã smoke; email recipient thật và queue nghiệp vụ chưa thử bằng dữ liệu khách |
 
 Nguồn: [nghiệm thu Drive 20/10](../archive/google-drive-sync-production-release-2026-10-20.md), [cutover R2 21/10](../archive/r2-production-cutover-2026-10-21.md), [review R2](../archive/r2-performance-review-2026-10-21.md). Snapshot [bàn giao 21/10](../archive/handbook/06-cap-nhat-du-an-2026-10-21.md) giữ chi tiết runtime manifest, backup ID và phạm vi cũ.
