@@ -350,7 +350,7 @@ Nếu app nghi bị ghi hoặc xóa media sai: giữ backup/log/bằng chứng, 
 
 Mỗi release nên có một record ngắn: commit/PR, người thực hiện và người review, môi trường, migration/config thay đổi, rollback point, kết quả `npm run check`/`npm test`, smoke public/admin/gallery/upload/inquiry, trạng thái browser/a11y nếu có chạy, và link evidence đã che dữ liệu. Với thay đổi DB/storage, thêm manifest hoặc snapshot trước thay đổi, kết quả backup/verify và cổng rollback cụ thể.
 
-Không deploy chỉ vì CI xanh: workflow hiện không chạy browser smoke, axe, backup, hay xác minh dashboard/provider production. Ngược lại, một smoke thủ công không thay thế test regression. Quyết định release cần ghi rõ phần nào đã chạy, phần nào chưa chạy và người chấp nhận rủi ro còn lại.
+Không deploy chỉ vì CI xanh: workflow hiện chạy test và browser smoke, nhưng không chạy backup hoặc xác minh dashboard/provider production. Ngược lại, một smoke thủ công không thay thế test regression. Quyết định release cần ghi rõ phần nào đã chạy, phần nào chưa chạy và người chấp nhận rủi ro còn lại.
 
 Đánh dấu chỉ khi có bằng chứng; bảng này được để trống vì phiên lập tài liệu chưa kiểm toàn bộ các mục.
 

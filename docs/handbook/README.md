@@ -2,17 +2,22 @@
 
 **Phiên bản 2.0 · 29/10/2026 · giờ Việt Nam (UTC+7).** Tài liệu chính cho kiến trúc, vận hành kỹ thuật và QA. Các bản cập nhật nối tiếp trước đây đã chuyển thành snapshot lịch sử; trang này là đầu mối trạng thái hiện hành.
 
-## 1. Đọc theo công việc
+## 1. Luồng đọc chuẩn
 
-| Công việc | Hướng dẫn chính |
+Đọc theo thứ tự này khi cần nắm toàn bộ dự án: **trang này → biên bản production 29/10 → kiến trúc → vận hành/khôi phục → QA**. Các runbook chuyên đề chỉ đọc sau khi đã hiểu phần vận hành và giới hạn của môi trường thật.
+
+| Bước / công việc | Hướng dẫn chính |
 |---|---|
-| Hiểu công nghệ, dữ liệu và đường đi request | [01 — Kiến trúc](01-kien-truc-va-cong-nghe.md) |
-| Kiểm kê key, backup, phục hồi và xử lý sự cố | [02 — Vận hành và khôi phục](02-van-hanh-bi-mat-va-khoi-phuc.md) |
-| Chạy test, thiết kế case và thực hành QA | [03 — Phòng lab QA](03-phong-lab-qa.md) |
-| Đăng portfolio, giao gallery và nhận tư vấn | [Vận hành studio](../../OPERATIONS.md) |
-| Cấu hình host, stage/activate và rollback | [Hosting](../../HOSTING.md) |
-| Drive import và job recovery | [Runbook Drive](../google-drive-sync-operations.md) |
-| Đọc kết quả audit mới | [Review 23/10](../review-2026-10-23.md), [snapshot trước release](07-cap-nhat-du-an-2026-10-28.md) và [biên bản production 29/10](09-production-release-2026-10-29.md) |
+| 0. Trạng thái, phạm vi và nguồn bằng chứng | Trang handbook này |
+| 1. Release đang chạy và LIVE smoke | [09 — Production 29/10](09-production-release-2026-10-29.md) |
+| 2. Hiểu công nghệ, dữ liệu và đường đi request | [01 — Kiến trúc](01-kien-truc-va-cong-nghe.md) |
+| 3. Kiểm kê key, backup, phục hồi và xử lý sự cố | [02 — Vận hành và khôi phục](02-van-hanh-bi-mat-va-khoi-phuc.md) |
+| 4. Chạy test, thiết kế case và thực hành QA | [03 — Phòng lab QA](03-phong-lab-qa.md) |
+| Hằng ngày: đăng portfolio, giao gallery và nhận tư vấn | [Vận hành studio](../../OPERATIONS.md) |
+| Hạ tầng: cấu hình host, stage/activate và rollback | [Hosting](../../HOSTING.md) |
+| Chuyên đề: Drive import và job recovery | [Runbook Drive](../google-drive-sync-operations.md) |
+| Chuyên đề: feedback sau bàn giao | [Đặc tả feedback](../customer-feedback-spec.md) |
+| Audit và snapshot trước release | [Review 23/10](../review-2026-10-23.md), [snapshot 28/10](07-cap-nhat-du-an-2026-10-28.md) |
 
 ## 2. Cách hiểu bằng chứng
 
@@ -55,6 +60,8 @@ Kết quả audit và giới hạn lịch sử nằm ở [review 23/10](../revie
 
 ## 6. Lưu trữ và duy trì
 
-[Snapshot 17/10](../archive/handbook/04-cap-nhat-du-an-2026-10-17.md), [snapshot 20/10](../archive/handbook/05-cap-nhat-du-an-2026-10-20.md), [snapshot 21/10 trước audit](../archive/handbook/06-cap-nhat-du-an-2026-10-21.md) và các file [evidence ban đầu](evidence.json), [17/10](evidence-2026-10-17.json), [20/10](evidence-2026-10-20.json), [21/10](evidence-2026-10-21.json) giữ phạm vi riêng. Hash cũ không đại diện working tree sau audit.
+Tài liệu hiện hành chỉ gồm trang này, [01](01-kien-truc-va-cong-nghe.md), [02](02-van-hanh-bi-mat-va-khoi-phuc.md), [03](03-phong-lab-qa.md) và [09](09-production-release-2026-10-29.md). [07](07-cap-nhat-du-an-2026-10-28.md) là snapshot trước release; [08](08-production-release-2026-10-28.md) là biên bản release cũ. Hai file này giữ nguyên để truy vết, không dùng thay trạng thái hiện hành.
+
+Các JSON lịch sử đã gom vào [thư mục evidence](evidence/README.md): [evidence nền](evidence/evidence.json), [17/10](evidence/evidence-2026-10-17.json), [20/10](evidence/evidence-2026-10-20.json) và [21/10](evidence/evidence-2026-10-21.json). Hash cũ không đại diện working tree sau audit.
 
 Mỗi thay đổi cập nhật hướng dẫn chính, rồi thêm record có ngày và nguồn khi có nghiệm thu mới. [Mục lục và quy tắc tài liệu](../README.md) chỉ rõ nơi sửa; tránh thêm nhiều trang “hiện tại” cạnh nhau.

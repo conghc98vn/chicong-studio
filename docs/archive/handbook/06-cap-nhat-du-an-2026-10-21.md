@@ -16,7 +16,7 @@
 | Drive | Shared scope, nhập thủ công bật; worker enabled, restart idle đạt, heartbeat R2 mới | Scheduler tắt; chưa reboot VPS hoặc kill giữa import |
 | Feedback | [Spec hợp nhất](../../customer-feedback-spec.md) đã vào Git | Vẫn là yêu cầu/thiết kế, chưa triển khai tính năng |
 
-Nguồn: [nghiệm thu Drive](../google-drive-sync-production-release-2026-10-20.md), [cutover R2](../r2-production-cutover-2026-10-21.md), [review hiệu năng](../r2-performance-review-2026-10-21.md). [Evidence 21/10](../../handbook/evidence-2026-10-21.json) lưu fingerprint, commit và phạm vi đối chiếu; evidence các ngày trước được giữ nguyên.
+Nguồn: [nghiệm thu Drive](../google-drive-sync-production-release-2026-10-20.md), [cutover R2](../r2-production-cutover-2026-10-21.md), [review hiệu năng](../r2-performance-review-2026-10-21.md). [Evidence 21/10](../../handbook/evidence/evidence-2026-10-21.json) lưu fingerprint, commit và phạm vi đối chiếu; evidence các ngày trước được giữ nguyên.
 
 ## 2. Nghiệm thu Drive đã đóng phần nào?
 

@@ -22,7 +22,7 @@
 
 Nguồn: [release 20/10](../google-drive-sync-production-release-2026-10-20.md), [runbook hiện tại](../../google-drive-sync-operations.md), [kế hoạch mục 17.8](../google-drive-sync-implementation-plan.md#178-phát-hành-production-ngày-20102026), [rollout 17/10](../google-drive-sync-production-release-2026-10-17.md), [follow-up 19/10](../google-drive-sync-followup-2026-10-19.md), [folder browser](../google-drive-folder-browser-2026-10-20.md), [perf 20/10](../google-drive-perf-pass-2026-10-20.md).
 
-Manifest deploy 19/10 ghi 96/96 file khớp tại lần kiểm đó. Lần đối chiếu này thấy **13/96 file trong manifest khác source local hiện tại**; ngoài ra có module mới không thuộc manifest cũ. Đây là so sánh với manifest đã lưu, không phải đọc lại VPS. Không dùng hash local để khẳng định bản đang chạy. Danh sách/hash nằm trong [evidence 20/10](../../handbook/evidence-2026-10-20.json).
+Manifest deploy 19/10 ghi 96/96 file khớp tại lần kiểm đó. Lần đối chiếu này thấy **13/96 file trong manifest khác source local hiện tại**; ngoài ra có module mới không thuộc manifest cũ. Đây là so sánh với manifest đã lưu, không phải đọc lại VPS. Không dùng hash local để khẳng định bản đang chạy. Danh sách/hash nằm trong [evidence 20/10](../../handbook/evidence/evidence-2026-10-20.json).
 
 Manifest release 20/10 vừa được bổ sung có **102/102 hash khớp source local**. Báo cáo rollout xác nhận runtime tương ứng; lần handbook này chỉ đối chiếu manifest đã lưu, không tự kiểm lại runtime trên VPS. Manifest 19/10 trở thành mốc lịch sử.
 
