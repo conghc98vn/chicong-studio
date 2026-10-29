@@ -29,4 +29,5 @@ Cập nhật 29/10/2026. Mỗi chủ đề có một hướng dẫn chính; biê
 - Giữ nguyên snapshot/evidence lịch sử; không sửa hash cũ thành bằng chứng của code mới. Link file `output/` chỉ có trên máy thực hiện, không phải artifact bảo đảm có trong checkout sạch.
 - Mẫu config không chứng minh cấu hình live. Kết quả đọc report phải ghi REPORT, chạy thử cách ly ghi TEST, xác nhận của chủ dự án ghi DEPLOYED-REPORTED, kiểm production trực tiếp mới ghi LIVE.
 - Không đưa credential, ảnh khách, cookie, private ICS URL hay dump DB vào Git. Release production đang chạy `7a6c039`; revision, baseline, log và live smoke được ghi ở [biên bản release](handbook/09-production-release-2026-10-29.md), còn secret không ghi vào tài liệu.
+- Cleanup local ngày 29/10/2026 đã chuyển `output/` và `data/backups/` ra `../_chicong-local-archive/` ngoài checkout; đây là artifact backup/review bị ignore, không phải runtime. `data/live/` và `data/imports/` vẫn giữ để chạy local và chuẩn bị ảnh.
 - `npm run check:docs` kiểm file đích của liên kết nội bộ; còn cần đọc lại nội dung và đối chiếu code. Lệnh này không xác minh cloud hoặc liên kết web ngoài.

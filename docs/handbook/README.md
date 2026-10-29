@@ -64,4 +64,6 @@ Tài liệu hiện hành chỉ gồm trang này, [01](01-kien-truc-va-cong-nghe.
 
 Các JSON lịch sử đã gom vào [thư mục evidence](evidence/README.md): [evidence nền](evidence/evidence.json), [17/10](evidence/evidence-2026-10-17.json), [20/10](evidence/evidence-2026-10-20.json) và [21/10](evidence/evidence-2026-10-21.json). Hash cũ không đại diện working tree sau audit.
 
+Cleanup local ngày 29/10/2026 đã chuyển các backup/review artifact lớn ngoài Git (`output/`, `data/backups/`) ra `../_chicong-local-archive/` bên ngoài checkout. Chúng được giữ nguyên để đối chiếu/khôi phục; `data/live/` và `data/imports/` vẫn là dữ liệu local đang dùng.
+
 Mỗi thay đổi cập nhật hướng dẫn chính, rồi thêm record có ngày và nguồn khi có nghiệm thu mới. [Mục lục và quy tắc tài liệu](../README.md) chỉ rõ nơi sửa; tránh thêm nhiều trang “hiện tại” cạnh nhau.
