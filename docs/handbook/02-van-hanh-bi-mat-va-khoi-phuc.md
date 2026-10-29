@@ -1,8 +1,8 @@
 # 02 — Vận hành, bí mật và khôi phục
 
-> **Cập nhật 28/10/2026:** feedback/handover đã được chủ dự án xác nhận đưa lên production. Snapshot local trước release, revision chưa ghi nhận và checklist LIVE nằm ở [biên bản production 28/10](08-production-release-2026-10-28.md); không coi test local hoặc working tree là bằng chứng live.
+> **Cập nhật 28/10/2026:** release `a375ec9` đã được kiểm trực tiếp trên production. Revision, baseline, live smoke và giới hạn còn lại nằm ở [biên bản production 28/10](08-production-release-2026-10-28.md); secret, cookie và dữ liệu khách không ghi trong repo.
 
-**Cập nhật 28/10/2026 · Phạm vi:** production được ghi nhận theo xác nhận triển khai; chưa SSH/đọc live trong lượt tài liệu này. Production: VPS iNET, database Supabase, media R2 private. Pilot Drive/no-op đã đạt; worker enabled và restart idle đạt, chưa reboot VPS. Backup ngoài VPS và restore ứng dụng offline đã đạt; chưa có lịch backup media hoặc full cloud restore. Danh mục Render dành cho hạ tầng cũ/staging.
+**Cập nhật 28/10/2026 · Phạm vi:** production chạy VPS iNET, database Supabase, media R2 private; worker enabled, scheduler tắt. Live smoke đã kiểm health, media, route admin/freelancer/feedback và media lease; chưa reboot VPS, full cloud restore, hoặc thử email recipient thật. Danh mục Render dành cho hạ tầng cũ/staging.
 
 ## 1. Bộ hồ sơ cần có để tự quản lý website
 

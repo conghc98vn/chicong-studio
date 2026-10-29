@@ -56,7 +56,7 @@ Theo xác nhận ngày 28/10/2026, tính năng đã được đưa lên producti
 
 Khách có thể gửi và sửa cảm nhận qua link riêng không hết hạn. Studio xem bản mới nhất, toàn bộ lịch sử và đánh dấu bản đã đọc trong admin. Pause chặn khách đọc/gửi; thu hồi hoặc cấp mới vô hiệu link cũ. Hồ sơ đã cấp link không dùng lại cho khách/buổi khác. Cảm nhận chỉ dùng nội bộ, không tự công khai trên portfolio.
 
-Email feedback có hàng đợi lưu trong DB, thử lại qua restart và ghi trạng thái từng revision; chỉ gửi studio. Gửi email lỗi không làm mất cảm nhận. Sau restore, API bị khóa cho đến khi đối soát sổ xóa; link cũ và email đang chờ không tự hoạt động lại. Vì chưa có log recipient/live smoke trong lượt cập nhật này, hãy kiểm queue và một hồ sơ thử được phép trước khi gửi lời mời khách thật. Xem [contract, cấu hình và runbook khôi phục/xóa](docs/customer-feedback-spec.md#implementation) trước khi vận hành.
+Email feedback có hàng đợi lưu trong DB, thử lại qua restart và ghi trạng thái từng revision; chỉ gửi studio. Gửi email lỗi không làm mất cảm nhận. Sau restore, API bị khóa cho đến khi đối soát sổ xóa; link cũ và email đang chờ không tự hoạt động lại. Release smoke đã kiểm route pause/link sai; trước khi gửi lời mời khách thật vẫn cần kiểm recipient/provider bằng hồ sơ thử được phép. Xem [contract, cấu hình và runbook khôi phục/xóa](docs/customer-feedback-spec.md#implementation) trước khi vận hành.
 
 ## 6. Sự cố và sao lưu
 

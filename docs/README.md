@@ -28,5 +28,5 @@ Cập nhật 28/10/2026. Mỗi chủ đề có một hướng dẫn chính; biê
 - Một lượt release/audit: lưu biên bản có ngày, source/revision, môi trường, cách chạy, pass/fail/skip và giới hạn; cập nhật link từ handbook.
 - Giữ nguyên snapshot/evidence lịch sử; không sửa hash cũ thành bằng chứng của code mới. Link file `output/` chỉ có trên máy thực hiện, không phải artifact bảo đảm có trong checkout sạch.
 - Mẫu config không chứng minh cấu hình live. Kết quả đọc report phải ghi REPORT, chạy thử cách ly ghi TEST, xác nhận của chủ dự án ghi DEPLOYED-REPORTED, kiểm production trực tiếp mới ghi LIVE.
-- Không đưa credential, ảnh khách, cookie, private ICS URL hay dump DB vào Git. Feedback đã được xác nhận đưa lên production ngày 28/10; revision, secret, log và live smoke phải được ghi ở [biên bản release](handbook/08-production-release-2026-10-28.md), không suy ra từ working tree.
+- Không đưa credential, ảnh khách, cookie, private ICS URL hay dump DB vào Git. Release production đang chạy `a375ec9`; revision, baseline, log và live smoke được ghi ở [biên bản release](handbook/08-production-release-2026-10-28.md), còn secret không ghi vào tài liệu.
 - `npm run check:docs` kiểm file đích của liên kết nội bộ; còn cần đọc lại nội dung và đối chiếu code. Lệnh này không xác minh cloud hoặc liên kết web ngoài.

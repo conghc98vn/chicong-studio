@@ -488,7 +488,8 @@ export async function createApp(options={}){
  app.use('/api',(req,res)=>res.status(404).json({error:'Không tìm thấy chức năng này.'}));
  app.use('/app',express.static(path.resolve('studio/web'),{maxAge:0,index:false}));
  registerFeedbackShell(app);
- // Services content is retained in web/services.mjs for a future launch.
+ // The former services draft remains a compatibility redirect; the active site
+ // uses the contact flow instead.
  app.get('/services',(req,res)=>res.redirect(302,'/'));
  app.get('/bookme',(req,res)=>res.redirect(301,'/contact'));
  app.get('/robots.txt',(req,res)=>res.type('text/plain').send(indexing?`User-agent: *\nDisallow: /admin\nDisallow: /gallery/\nDisallow: /feedback/\nDisallow: /api/\nSitemap: ${(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'')}/sitemap.xml`:'User-agent: *\nDisallow: /'));

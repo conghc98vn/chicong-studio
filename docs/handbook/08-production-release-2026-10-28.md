@@ -1,55 +1,43 @@
 # 08 — Cập nhật production ngày 28/10/2026
 
-## 1. Nguồn và trạng thái
+## 1. Release đang chạy
 
-Theo xác nhận của chủ dự án trong ngày 28/10/2026, bản tính năng mới đã được đưa lên production. Bản ghi này cập nhật handbook theo xác nhận đó; trong lượt tài liệu này không SSH vào VPS, không đọc process/env live, không gọi provider thật và không gửi email thật.
+Lượt kiểm tra trực tiếp ngày 28/10/2026 đã kích hoạt release sau:
 
-Vì chưa có commit triển khai, thời điểm restart, log health-check hoặc ảnh chụp cấu hình production đi kèm, trạng thái được ghi như sau:
-
-| Mục | Trạng thái |
+| Mục | Giá trị |
 |---|---|
-| Mã nguồn/tính năng | **Đã lên PROD theo xác nhận của chủ dự án** |
-| Revision đang chạy | **Chưa ghi nhận**; cần lấy từ release folder/PM2 trước lần rollback sau |
-| Runtime dự kiến | VPS iNET → Caddy/Cloudflare → PM2/Node 24 → PostgreSQL Supabase + R2 private |
-| Feedback/handover | Đã mở khả năng vận hành production; chỉ cấp link sau khi kiểm secret, origin, quyền và trạng thái bàn giao |
-| Email feedback | Chưa coi là giao thành công chỉ từ trạng thái queue; cần kiểm recipient, provider và một lần smoke được phép |
-| Browser/edge | Chưa có bằng chứng LIVE trong lượt này; browser fixture/CI vẫn là TEST |
-| Rollback/restore | Runbook đã cập nhật; chưa có bản ghi diễn tập production sau release |
+| Git revision | `a375ec9` — `fix: keep zip download names browser-safe` |
+| Release folder | `20261028T102431831Z-c32e376d` |
+| Runtime | VPS iNET → Caddy/Cloudflare → PM2/Node 24.22.0 |
+| Database/media | PostgreSQL Supabase + R2 private `chicong-production` |
+| Worker | `chicong-drive.service` active; Drive thủ công bật, scheduler tắt |
+| Feedback flags | API và notifications đang mở sau khi smoke maintenance pass |
+| CI | GitHub Actions `40671835785` thành công |
 
-Phạm vi được đối chiếu từ working tree hiện tại gồm feedback/handover, form và admin feedback, queue/retry email, freelancer site, bảo vệ inquiry cạnh tranh, hardening PostgreSQL, Drive/backup guards, browser runner/CI và các chỉnh sửa gallery/UI. Nếu release thực tế chỉ gồm một phần, sửa lại bảng này và ghi revision cụ thể; không dùng working tree làm thay thế manifest triển khai.
+Release được stage bằng `npm run deploy:vps -- --stage`, sau đó giữ maintenance lease trong lúc dừng worker, drain writer, backup/verify, swap source và khởi động lại các consumer. Bản rollback source được giữ riêng tại VPS. Baseline media/database đã verify ở `/var/backups/chicongphoto/production-baseline-20261028-a375ec9`; SQL dump sau release có quyền `0600`.
 
-## 2. Việc phải chốt trong hồ sơ release
+## 2. LIVE smoke đã chạy
 
-Người vận hành cần bổ sung các trường sau vào biên bản release hoặc hệ thống quản lý secret:
+- `/api/health` trả 200 và `{"ok":true}`.
+- Trang chính trả 200; `freelancer.chicongphoto.vn` trả 200, `X-Robots-Tag: noindex, nofollow` và `Cache-Control: private,no-store`.
+- Endpoint admin chưa đăng nhập trả 401.
+- Link feedback giả trả 403 `LINK_UNAVAILABLE`; trong lúc swap, cờ pause đã trả 503 đúng rồi được mở lại sau nghiệm thu.
+- Ba media public đọc qua R2 trả 200 với `image/webp` và `private,no-cache`.
+- `gallery-download.mjs` trên production chứa bản sửa tên ZIP ASCII an toàn.
+- Media control sau unlock có `owner=null`, không có writer/unknown/cleanup; PM2 web và worker đều active.
 
-- revision/commit hoặc tên release folder thực sự đang chạy;
-- thời điểm bắt đầu/kết thúc, người thực hiện và phương án rollback;
-- kết quả migration/schema và số phiên bản backup runner tương thích;
-- trạng thái `FEEDBACK_LINK_SECRET`, `FEEDBACK_API_PAUSED` và `FEEDBACK_NOTIFICATIONS_PAUSED` trên mọi instance;
-- `SITE_URL`, `FREELANCER_HOST`, DNS/TLS và header `no-store/no-referrer/noindex` của `/feedback/*`;
-- database/storage binding (`PostgreSQL Supabase` + bucket R2 private) và kết quả health/media smoke;
-- recipient/provider email, một hồ sơ thử được phép và kết quả queue sau restart;
-- manifest DB + media baseline ngoài VPS trước release và đường dẫn rollback.
+Smoke này xác nhận runtime, binding, route bảo mật và media path. Chưa gửi email thật, chưa sửa dữ liệu khách, chưa chạy Drive import mới và chưa gọi đây là full cloud restore.
 
-Không đưa secret, token, link khách, dump DB hoặc ảnh khách vào commit hay tài liệu này. Chỉ ghi tên biến, nơi lưu secret và mã bằng chứng không nhạy cảm.
+## 3. Kiểm thử source
 
-## 3. Checklist xác minh sau release
+- `npm run check`: 218 file JavaScript/config/shell pass.
+- `npm run check:docs`: 67 Markdown, 503 link nội bộ pass.
+- `npm test` trên Node 24: 527 test, 475 pass, 52 skip có chủ đích, 0 fail.
+- Browser smoke cuối cho gallery download pass: JPEG/ZIP, 51 ảnh chia gói, retry, cancel, focus và viewport 320/390/768/1440.
+- `npm audit --omit=dev --audit-level=high`: 0 vulnerability.
 
-Đánh dấu **LIVE** chỉ sau khi chạy trên hostname production và lưu bằng chứng có thời gian:
+Các test này không thay cho việc thử email recipient thật, full Supabase/PITR restore, reboot/kill worker giữa import hoặc benchmark 500/5.000 JPEG nguồn. Những cổng đó vẫn nằm trong runbook vận hành.
 
-- [ ] `/api/health` trả 200 và truy vấn đúng PostgreSQL production.
-- [ ] Trang chính, `/admin`, album công khai và gallery riêng vẫn hoạt động; kiểm một gallery có mật khẩu bằng phiên khách.
-- [ ] `/feedback/*` không cache riêng tư, không referrer, không index; không có analytics/beacon ngoài chủ ý qua Caddy/Cloudflare.
-- [ ] Link feedback hợp lệ mở được; link sai, link đã thu hồi và hồ sơ chưa mở nhận đều bị từ chối đúng.
-- [ ] Gửi mới, sửa bản đã gửi, hai tab, retry sau mất ACK và conflict version không tạo revision/notification trùng.
-- [ ] Admin thấy bản mới nhất, lịch sử, unread và trạng thái email; lỗi email không làm mất feedback.
-- [ ] Restart một instance không làm mất queue/lease; không tự gửi lại event cũ ngoài lựa chọn của người vận hành.
-- [ ] Freelancer host trả `X-Robots-Tag: noindex, nofollow`, không làm lộ bảng giá trước khi nhập mã và không ảnh hưởng host chính.
-- [ ] Drive vẫn giữ scheduler tắt nếu chưa có kế hoạch bật; worker đúng revision/binding.
-- [ ] Backup DB + media sau release có manifest, checksum và đường dẫn restore; chưa gọi “đã khôi phục production” nếu chưa restore độc lập.
+## 4. Quy tắc cập nhật tiếp theo
 
-## 4. Giới hạn của bản ghi này
-
-Kết quả `npm run check`, `npm run check:docs` và test Node 24 trong [snapshot 28/10](07-cap-nhat-du-an-2026-10-28.md) là **TEST local**. Báo cáo audit 23/10 là **REPORT** của source tại thời điểm đó. Chúng không thay cho các mục LIVE ở trên và không chứng minh deployment hiện tại không có lỗi.
-
-Bản snapshot local ngày 28/10 vẫn được giữ để biết những gì đã có trong working tree trước khi release. Từ sau xác nhận production này, mọi sửa code tiếp theo phải ghi revision mới và cập nhật lại bản ghi release; không sửa hash hoặc kết quả lịch sử để biến chúng thành bằng chứng live.
+Mọi thay đổi sau release này phải tạo revision mới, stage và cập nhật bản ghi này bằng kết quả LIVE tương ứng. Không đưa secret, cookie, dump database, media backup hoặc link khách vào Git. Snapshot trước release ở [07](07-cap-nhat-du-an-2026-10-28.md) và các evidence cũ giữ nguyên phạm vi lịch sử của chúng.

@@ -18,7 +18,7 @@
 
 **CODE** là hành vi đọc từ source; **CONFIG** là cấu hình tham chiếu; **TEST** là kết quả thực chạy trong fixture cách ly; **REPORT** là kết quả từ biên bản có ngày; **LIVE** chỉ dùng cho thao tác trực tiếp trên hệ thống thật trong chính lượt đó. Không lấy một loại thay cho loại khác.
 
-Theo xác nhận của chủ dự án ngày 28/10, bản tính năng mới đã được đưa lên production. Repo hiện vẫn có working tree chưa commit và chưa có revision/health-check live được ghi trong lượt này, nên handbook phân biệt rõ **đã lên PROD theo xác nhận** với **LIVE đã kiểm trực tiếp**. Snapshot local trước release được giữ ở [07](07-cap-nhat-du-an-2026-10-28.md); checklist và các trường còn thiếu nằm ở [biên bản production 28/10](08-production-release-2026-10-28.md).
+Release `a375ec9` đã được đưa lên production và kiểm trực tiếp ngày 28/10: health, public media, freelancer host, admin auth, feedback guard, PM2 và worker đều đạt smoke. Snapshot local trước release được giữ ở [07](07-cap-nhat-du-an-2026-10-28.md); revision, baseline và giới hạn nghiệm thu nằm ở [biên bản production 28/10](08-production-release-2026-10-28.md).
 
 ## 3. Trạng thái production theo report gần nhất
 
@@ -32,7 +32,7 @@ Theo xác nhận của chủ dự án ngày 28/10, bản tính năng mới đã 
 | Backup | 3.386 object ngoài VPS, restore SQLite + media offline đạt, 0 lỗi FK | Không phải full Supabase/cloud restore; chưa có lịch backup media/cảnh báo tuổi snapshot |
 | Cron SQL | Theo report chạy 03:00, ghi SQL gzip trên VPS | Không chứa bytes ảnh, không thay backup offsite; chưa kiểm cron mới trong lượt này |
 | Email/Calendar | Tích hợp qua Resend/SMTP và private ICS | Chưa kiểm lại deliverability/config thật; inquiry chưa có outbox |
-| Feedback khách | Đã lên PROD theo xác nhận 28/10; [cách dùng và contract](../customer-feedback-spec.md#implementation) | Chưa có live smoke/log trong lượt này; phải ghi revision, secret, queue và kết quả recipient |
+| Feedback khách | Đã chạy trong release `a375ec9`; [cách dùng và contract](../customer-feedback-spec.md#implementation) | Route guard/link sai đã smoke; email recipient thật và queue nghiệp vụ chưa thử bằng dữ liệu khách |
 
 Nguồn: [nghiệm thu Drive 20/10](../archive/google-drive-sync-production-release-2026-10-20.md), [cutover R2 21/10](../archive/r2-production-cutover-2026-10-21.md), [review R2](../archive/r2-performance-review-2026-10-21.md). Snapshot [bàn giao 21/10](../archive/handbook/06-cap-nhat-du-an-2026-10-21.md) giữ chi tiết runtime manifest, backup ID và phạm vi cũ.
 
@@ -49,9 +49,9 @@ Nguồn: [nghiệm thu Drive 20/10](../archive/google-drive-sync-production-rele
 
 ## 5. Kiểm thử và việc còn mở
 
-Kết quả audit mới và giới hạn xác minh nằm ở [review 23/10](../review-2026-10-23.md): **446/446 PostgreSQL**, **17/17 browser suite** và **10 scan axe không violation được báo cáo** trong lượt tiếp nối; các incomplete về color-contrast vẫn phải kiểm thủ công. CI chạy Node 24/PostgreSQL 16 và đã có job browser/axe riêng với công cụ pin, nhưng job Linux/branch protection chưa được nghiệm thu theo report. [Snapshot 28/10](07-cap-nhat-du-an-2026-10-28.md) là TEST local trước release; [biên bản production 28/10](08-production-release-2026-10-28.md) ghi phần đã lên PROD theo xác nhận và phần chưa có bằng chứng LIVE.
+Kết quả audit và giới hạn lịch sử nằm ở [review 23/10](../review-2026-10-23.md). Release hiện tại có CI GitHub thành công, `npm test` Node 24 đạt **475 pass + 52 skip, 0 fail**, browser gallery smoke pass và live smoke theo [biên bản production 28/10](08-production-release-2026-10-28.md). Các cổng chưa đóng gồm email recipient thật, full Supabase/PITR restore, reboot/kill worker giữa import và benchmark 500/5.000 JPEG.
 
-Ưu tiên vận hành tiếp theo: ghi revision và manifest của release production; chạy checklist LIVE cho feedback/freelancer, queue email và proxy; chốt lịch/retention/cảnh báo backup và thử full cloud restore; kiểm reboot/kill worker trên môi trường thử; đo JPEG thật theo capacity; xử lý 284 ảnh legacy thiếu JPEG nếu số này còn đúng sau kiểm kê. Outbox inquiry vẫn là backlog; browser/axe CI cần lần chạy Linux thật và cấu hình branch protection theo điều kiện nghiệm thu trong tài liệu QA.
+Ưu tiên vận hành tiếp theo: kiểm email recipient bằng hồ sơ thử được phép; chốt lịch/retention/cảnh báo backup và thử full cloud restore; kiểm reboot/kill worker trên môi trường thử; đo JPEG thật theo capacity; xử lý 284 ảnh legacy thiếu JPEG nếu số này còn đúng sau kiểm kê. Outbox inquiry vẫn là backlog.
 
 ## 6. Lưu trữ và duy trì
 

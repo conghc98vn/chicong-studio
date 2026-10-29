@@ -4,7 +4,7 @@
 
 Hồ sơ đối tác **freelancer.chicongphoto.vn** chạy chung service ở host riêng: giới thiệu năng lực chụp truyền thống/phóng sự, portfolio, thiết bị, quy trình, lịch theo ngày và liên hệ Messenger/Zalo. Phần báo giá chỉ mở bằng `FREELANCER_PRICE_CODE`; hồ sơ trả `noindex` và không được dẫn từ web chính. Xem [brief](docs/archive/freelancer-website-brief.md) và [hướng dẫn hosting](HOSTING.md#hồ-sơ-đối-tác-freelancerchicongphotovn). Khi chạy local, mở `http://localhost:4173/freelancer`.
 
-Theo biên bản ngày **21/10/2026**, production chạy **VPS iNET → PostgreSQL Supabase + R2 private**. Nhập Drive thủ công bật, scheduler tắt. Theo xác nhận ngày **28/10/2026**, bản tính năng feedback/handover mới đã được đưa lên PROD; revision và live smoke còn phải ghi bổ sung trong [biên bản release production](docs/handbook/08-production-release-2026-10-28.md). [Trạng thái và giới hạn xác minh](docs/handbook/README.md).
+Production chạy **VPS iNET → PostgreSQL Supabase + R2 private**. Nhập Drive thủ công bật, scheduler tắt. Release đang chạy là `a375ec9` trong [biên bản production 28/10](docs/handbook/08-production-release-2026-10-28.md); health, public media, freelancer host, admin auth và worker đã được smoke trực tiếp.
 
 ## Chạy local
 
@@ -64,4 +64,4 @@ Browser runner chạy 21 suite với fixture riêng, cần Playwright và Google
 - `scripts/`, `ecosystem.config.cjs`: chuẩn bị release VPS, systemd worker và dump DB.
 - `.env.example`: tên biến và ví dụ; không phải cấu hình đang chạy. `render.yaml` là cấu hình tham chiếu nếu sử dụng Render lại.
 
-Git không lưu `.env`, ảnh khách, database, backup hoặc `output/`. JSON xuất từ admin chỉ là metadata, không thay bản backup DB + media. Hệ thống không giao RAW, không tự xác nhận booking/thanh toán. [Feedback sau bàn giao](docs/customer-feedback-spec.md#implementation) đã được xác nhận đưa lên production ngày 28/10; cần kiểm secret, queue, recipient và live smoke trước khi cấp link khách thật.
+Git không lưu `.env`, ảnh khách, database, backup hoặc `output/`. JSON xuất từ admin chỉ là metadata, không thay bản backup DB + media. Hệ thống không giao RAW, không tự xác nhận booking/thanh toán. [Feedback sau bàn giao](docs/customer-feedback-spec.md#implementation) đã lên production; release smoke đã kiểm route bảo mật và trạng thái pause, còn email recipient thật vẫn cần kiểm riêng trước khi cấp link khách.
