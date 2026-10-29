@@ -6,22 +6,24 @@ import {createStorage} from '../server/storage.mjs';
 import {mediaType} from '../server/r2-storage.mjs';
 import {driveTables} from '../server/drive-schema.mjs';
 import {FEEDBACK_TABLES} from '../server/feedback-schema.mjs';
+import {INQUIRY_NOTIFICATION_TABLES} from '../server/inquiry-notification-schema.mjs';
 import {drainPhotoCleanup} from '../server/photo-deletion.mjs';
 
 export const legacyTables=['settings','admins','albums','album_sections','album_slugs','photos','selections','sessions','photo_upload_receipts','photo_cleanup','inquiries','blocked_dates','rate_limits','media_control','media_writers','media_writes','backup_runs'];
 // Historical registries are fixed: adding a table must not silently change
 // the meaning of an existing snapshot version.
 export const version2Tables = [...legacyTables, ...driveTables];
-export const tables = [...version2Tables, ...FEEDBACK_TABLES];
+export const version3Tables = [...version2Tables, ...FEEDBACK_TABLES];
+export const tables = [...version3Tables, ...INQUIRY_NOTIFICATION_TABLES];
 // Recognize disposable worker caches without copying private preview pixels
 // into durable backups. Unknown tables still fail closed.
 const ephemeralTables = new Set(['drive_comparison_cache','drive_folder_preview_cache']);
 
 export function validateDatabaseSnapshot(snapshot) {
-  if (![1, 2, 3].includes(snapshot?.schemaVersion) || !snapshot.tables || typeof snapshot.tables !== 'object') {
+  if (![1, 2, 3, 4].includes(snapshot?.schemaVersion) || !snapshot.tables || typeof snapshot.tables !== 'object') {
     throw Error('Unsupported database snapshot');
   }
-  const expected = snapshot.schemaVersion === 1 ? legacyTables : snapshot.schemaVersion === 2 ? version2Tables : tables;
+  const expected = snapshot.schemaVersion === 1 ? legacyTables : snapshot.schemaVersion === 2 ? version2Tables : snapshot.schemaVersion === 3 ? version3Tables : tables;
   if (expected.some(table => !Array.isArray(snapshot.tables[table])) ||
       Object.keys(snapshot.tables).some(table => !expected.includes(table))) {
     throw Error('Unsupported database snapshot tables');
@@ -37,7 +39,7 @@ export async function databaseSnapshot(db){
   const found=tx.cloud?(await tx.all("SELECT tablename AS name FROM pg_tables WHERE schemaname=current_schema()")):(await tx.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"));
   if(found.some(r=>!tables.includes(r.name)&&!ephemeralTables.has(r.name)))throw Error('Unrecognized database tables: update the backup schema before proceeding');
   const data={};for(const table of tables)data[table]=await tx.all('SELECT * FROM '+table);
-  return {schemaVersion:3,capturedAt:new Date().toISOString(),tables:data};
+  return {schemaVersion:4,capturedAt:new Date().toISOString(),tables:data};
  });
 }
 export function mediaReferences(snapshot){
@@ -141,7 +143,7 @@ export async function exportBackup(root,destination,runId){
  await mkdir(destination,{recursive:false,mode:0o700});
  for(const digest of new Set([manifest.databaseSha256,...manifest.objects.map(o=>o.sha256)]))await putBlob(destination,digest,await readFile(path.join(root,'blobs',digest)));
  await atomicFile(path.join(destination,'snapshots',manifest.runId+'.json'),jsonBytes(manifest));
- await atomicFile(path.join(destination,'RESTORE.txt'),Buffer.from('Contains a complete independent website backup, including credentials and customer data. Keep private. Use the matching application revision: '+manifest.appRevision+'\nnode studio/tools/media-ops.mjs restore --repository THIS_DIRECTORY --target NEW_EMPTY_DIRECTORY\nSessions and operational locks are reset. No network credentials are required for local restore.\nFeedback remains blocked after restore. Reconcile the independent deletion ledger and rotate the signing secret before reopening; previous links are revoked and pending email is suppressed. Follow docs/customer-feedback-spec.md section 13.4.\n'));
+ await atomicFile(path.join(destination,'RESTORE.txt'),Buffer.from('Contains a complete independent website backup, including credentials and customer data. Keep private. Use the matching application revision: '+manifest.appRevision+'\nnode studio/tools/media-ops.mjs restore --repository THIS_DIRECTORY --target NEW_EMPTY_DIRECTORY\nSessions and operational locks are reset. No network credentials are required for local restore.\nFeedback access and inquiry email notifications remain blocked after restore. Reconcile the independent deletion ledger and rotate the signing secret before reopening; previous links are revoked and pending notifications are suppressed. Follow docs/customer-feedback-spec.md section 13.4.\n'));
  await verifyBackup(destination,manifest);return manifest;
 }
 export async function restoreBackup(root,destination,runId){
@@ -174,7 +176,7 @@ export async function restoreBackup(root,destination,runId){
   // mail until an operator reconciles the independent deletion ledger.
   await tx.run("INSERT INTO settings(key,value) VALUES('feedback_restore_pending','true') ON CONFLICT(key) DO UPDATE SET value=excluded.value");
  });}finally{await db.close();}
- await atomicFile(path.join(destination,'RESTORED.json'),jsonBytes({runId:manifest.runId,appRevision:manifest.appRevision,sessionsRevoked:true,cleanupReset:true,driveSyncDisabled:true,driveApprovalsInvalidated:true,feedbackAccessBlocked:true,feedbackLinksRevoked:true,feedbackNotificationsSuppressed:true,feedbackDeletionReconciliationRequired:true}));return manifest;
+ await atomicFile(path.join(destination,'RESTORED.json'),jsonBytes({runId:manifest.runId,appRevision:manifest.appRevision,sessionsRevoked:true,cleanupReset:true,driveSyncDisabled:true,driveApprovalsInvalidated:true,feedbackAccessBlocked:true,feedbackLinksRevoked:true,feedbackNotificationsSuppressed:true,inquiryNotificationsSuppressed:true,feedbackDeletionReconciliationRequired:true}));return manifest;
 }
 
 function orderDriveJobs(rows) {
@@ -207,7 +209,7 @@ function restoreRow(table, original) {
    invitation_nonce: randomUUID().replaceAll('-', ''), handover_version: Number(row.handover_version) + 1,
    operation_key: null, operation_hash: null, operation_result: null, updated_at: new Date(timestamp).toISOString()};
  }
- if (table === 'feedback_notifications' && row.state !== 'accepted_by_provider') {
+ if (['feedback_notifications','inquiry_notifications'].includes(table) && row.state !== 'accepted_by_provider') {
   return {...row, state: 'suppressed', claim_id: null, lease_until: 0, next_attempt_at: 0,
    suppressed_reason: 'restored_requires_review', suppressed_at: new Date(timestamp).toISOString(), updated_at: new Date(timestamp).toISOString()};
  }

@@ -124,11 +124,11 @@ test('Version 2 restore preserves ownership and submissions but disables every r
     await fixture.db.run("UPDATE albums SET selection_status = 'submitted', submission_generation = 3, catalog_revision = 12, selection_revision = 4");
     await fixture.db.run("INSERT INTO gallery_submissions(id,album_id,request_key,catalog_revision,selection_revision,submission_generation,selected_photos) VALUES('submission','album','submitted',12,4,3,'[]')");
     const snapshot = await databaseSnapshot(fixture.db);
-    assert.equal(snapshot.schemaVersion, 3);
+    assert.equal(snapshot.schemaVersion, 4);
     snapshot.tables.drive_sync_jobs.reverse();
     const repository = path.join(fixture.dir, 'repository');
     const manifest = await saveSnapshot(repository, snapshot);
-    assert.equal((await verifyBackup(repository, manifest)).schemaVersion, 3);
+    assert.equal((await verifyBackup(repository, manifest)).schemaVersion, 4);
     const destination = path.join(fixture.dir, 'restored');
     await restoreBackup(repository, destination);
     const restored = await openDatabase(destination, {url: null});

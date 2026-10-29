@@ -158,7 +158,7 @@ test('Inquiry API triggers notification on submission, skips replay and survives
     db,
     dataDir: dir,
     mailer: mockMailer,
-    env: { SITE_URL: 'https://chicongphoto.vn' },
+    env: { SITE_URL: 'https://chicongphoto.vn', NOTIFICATION_EMAIL: 'studio@example.com' },
     origin: 'http://localhost'
   });
 

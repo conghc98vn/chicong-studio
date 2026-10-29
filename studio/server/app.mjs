@@ -24,7 +24,9 @@ import {imageSources,heroDesktopSizes,heroMobileSizes} from '../web/responsive-i
 import {createMailer} from './mailer.mjs';
 import {registerFeedbackRoutes} from './feedback.mjs';
 import {createFeedbackDispatcher} from './feedback-notifications.mjs';
+import {createInquiryDispatcher} from './inquiry-notifications.mjs';
 import {FEEDBACK_TABLES} from './feedback-schema.mjs';
+import {INQUIRY_NOTIFICATION_TABLES} from './inquiry-notification-schema.mjs';
 import {privateFeedbackHeaders,registerFeedbackShell} from './private-feedback-shell.mjs';
 import {registerFreelancerSite} from './freelancer-site.mjs';
 import express from 'express';
@@ -67,6 +69,7 @@ export async function createApp(options={}){
  const feedbackRestorePending=(await db.get("SELECT value FROM settings WHERE key='feedback_restore_pending'"))?.value==='true';
  const feedbackEnv=feedbackRestorePending?{...env,FEEDBACK_API_PAUSED:'true',FEEDBACK_NOTIFICATIONS_PAUSED:'true'}:env;
  const feedbackDispatcher=createFeedbackDispatcher({db,env:feedbackEnv,mailer});
+ const inquiryEnv=feedbackRestorePending?{...env,INQUIRY_NOTIFICATIONS_PAUSED:'true'}:env;
  const googleCalendar=options.googleCalendar||createGoogleCalendar(env);
  const deletedPhotos=photoDeletion({db,storage,mediaControl,enabled:env.MEDIA_CLEANUP_ENABLED!=='false'});
  await deletedPhotos.initialize();
@@ -93,6 +96,7 @@ export async function createApp(options={}){
   if(!row)throw fail(429,'Bạn đã thao tác nhiều lần liên tiếp. Vui lòng thử lại sau 15 phút.');
  };
  const settings=async()=>currentCopy(Object.fromEntries((await db.all('SELECT * FROM settings')).filter(r=>!r.key.startsWith('feedback_')).map(r=>[r.key,r.value])));
+ const inquiryDispatcher=createInquiryDispatcher({db,env:inquiryEnv,mailer});
  const albumDTOs=async(rows,admin=false)=>{
   if(!rows.length)return [];
   const ids=rows.map(a=>a.id),placeholders=ids.map(()=>'?').join(',');
@@ -238,20 +242,17 @@ export async function createApp(options={}){
   await rate(req,'inquiry-valid',5);
   let inserted=false;
   try{
-   const key=id();
-   const result=await db.run('INSERT INTO inquiries(id,name,email,phone,date,service,message,status,created,budget,request_key,request_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING',[key,name,email,phone,date,service,message,'new',now(),budget,requestKey,requestKey?hash:null]);
-   inserted=Number(result.changes)>0;
-   const row=inserted?{id:key}:await replay();
+   const siteSettings=await settings();
+   const result=await db.transaction(async tx=>{
+    const key=id();
+    const insertedResult=await tx.run('INSERT INTO inquiries(id,name,email,phone,date,service,message,status,created,budget,request_key,request_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING',[key,name,email,phone,date,service,message,'new',now(),budget,requestKey,requestKey?hash:null]);
+    inserted=Number(insertedResult.changes)>0;
+    if(inserted)await inquiryDispatcher.enqueueInTransaction(tx,{inquiryId:key,settings:siteSettings});
+    return inserted?{id:key}:null;
+   });
+   const row=inserted?result:await replay();
    if(!row)throw fail(503,'Chưa lưu được yêu cầu tư vấn. Vui lòng thử gửi lại.');
-   if(inserted){
-    const ref=row.id.slice(0,8);
-    const siteUrl=(env.SITE_URL||'https://chicongphoto.vn').replace(/\/$/,'');
-    settings().then(s=>{
-     mailer.notifyNewInquiry({inquiry:{name,email,phone,date,service,budget,message},reference:ref,settings:s,siteUrl}).catch(err=>{
-      console.error('[mailer] Failed to send inquiry notification:',err?.message||err);
-     });
-    }).catch(()=>{});
-   }
+   if(inserted)inquiryDispatcher.wake();
    res.status(inserted?201:200).json({success:true,reference:row.id.slice(0,8)});
   }finally{
    // Concurrent replays and failed writes do not spend a successful-submission slot.
@@ -272,7 +273,7 @@ export async function createApp(options={}){
  app.get('/api/admin/albums/:id/selection',asyncRoute(async(req,res)=>{const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');res.set('Cache-Control','private,no-store').json(await selectionState(db,req.params.id,{catalogAlbum:a}));}));
  app.get('/api/admin/albums/:id',asyncRoute(async(req,res)=>{const a=await db.get('SELECT * FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');res.set('Cache-Control','private,no-store');await sendCatalog(req,res,await albumDTO(a,true));}));
  app.get('/api/admin/media-status',asyncRoute(async(req,res)=>res.set('Cache-Control','private,no-store').json(await mediaControl.status())));
- app.get('/api/admin/dashboard',asyncRoute(async(req,res)=>{const albums=await db.all('SELECT status,COUNT(*) AS count FROM albums GROUP BY status');const inquiries=await db.all('SELECT status,COUNT(*) AS count FROM inquiries GROUP BY status');const recent=await db.all('SELECT * FROM inquiries ORDER BY created DESC LIMIT 5');const selections=await selectionSummary();const photos=await db.get('SELECT COUNT(*) AS count FROM photos');const s=await settings();const visible=await db.get("SELECT COUNT(*) AS count FROM albums WHERE status='published' AND EXISTS(SELECT 1 FROM photos WHERE photos.album_id=albums.id)");res.json({albums,inquiries,recent,selections,photos:photos.count,readiness:{contact:!!(s.email||s.phone),portfolio:Number(visible.count)>0,cloud:!!db.cloud&&!!storage.cloud,production}});}));
+ app.get('/api/admin/dashboard',asyncRoute(async(req,res)=>{const albums=await db.all('SELECT status,COUNT(*) AS count FROM albums GROUP BY status');const inquiries=await db.all('SELECT status,COUNT(*) AS count FROM inquiries GROUP BY status');const recent=await db.all('SELECT * FROM inquiries ORDER BY created DESC LIMIT 5');const selections=await selectionSummary();const photos=await db.get('SELECT COUNT(*) AS count FROM photos');const s=await settings();const visible=await db.get("SELECT COUNT(*) AS count FROM albums WHERE status='published' AND EXISTS(SELECT 1 FROM photos WHERE photos.album_id=albums.id)");const inquiryNotifications=await inquiryDispatcher.summary();res.json({albums,inquiries,recent,selections,photos:photos.count,inquiryNotifications,readiness:{contact:!!(s.email||s.phone),portfolio:Number(visible.count)>0,cloud:!!db.cloud&&!!storage.cloud,production}});}));
  app.get('/api/admin/albums',asyncRoute(async(req,res)=>{const rows=await db.all('SELECT * FROM albums ORDER BY created DESC');res.set('Cache-Control','private,no-store');await sendCatalog(req,res,req.query.view==='summary'?await adminAlbumSummaries(rows):await albumDTOs(rows,true));}));
  app.post('/api/admin/albums',asyncRoute(async(req,res)=>{
   const title=clean(req.body.title,150),category=clean(req.body.category),status=clean(req.body.status)||'draft',password=clean(req.body.password,200);
@@ -387,6 +388,11 @@ export async function createApp(options={}){
  app.delete('/api/admin/photos/:id',asyncRoute(async(req,res)=>{await deletedPhotos.remove(req.params.id,{background:true});res.json({success:true});}));
  app.get('/api/admin/albums/:id/selections.csv',asyncRoute(async(req,res)=>{const a=await db.get('SELECT id,title FROM albums WHERE id=?',[req.params.id]);if(!a)throw fail(404,'Không tìm thấy bộ ảnh.');const rows=await db.all('SELECT photos.original,photos.caption,photos.id,album_sections.title AS section FROM photos JOIN selections ON photos.id=selections.photo_id LEFT JOIN album_sections ON album_sections.id=photos.section_id WHERE selections.album_id=? ORDER BY CASE WHEN album_sections.id IS NULL THEN 1 ELSE 0 END,album_sections.position,album_sections.id,photos.position,photos.id',[a.id]);const cell=x=>'"'+String(x||'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';res.type('text/csv; charset=utf-8').set('Cache-Control','private,no-store').attachment(`${albumSlug(a.title)}-anh-da-chon-${today()}.csv`).send('\ufeffID,File,Caption,Section\r\n'+rows.map(r=>[r.id,r.original,r.caption,r.section||'Chưa phân loại'].map(cell).join(',')).join('\r\n'));}));
  app.get('/api/admin/inquiries',asyncRoute(async(req,res)=>res.json(await db.all('SELECT * FROM inquiries ORDER BY created DESC'))));
+ app.get('/api/admin/inquiries/:id/notifications',asyncRoute(async(req,res)=>{if(!await db.get('SELECT id FROM inquiries WHERE id=?',[req.params.id]))throw fail(404,'Không tìm thấy yêu cầu tư vấn.');res.set('Cache-Control','private,no-store').json(await inquiryDispatcher.listForInquiry(req.params.id));}));
+ app.post('/api/admin/inquiries/:id/notifications/:notificationId/retry',asyncRoute(async(req,res)=>{
+  const notification=await inquiryDispatcher.retryNotification(req.params.notificationId,{inquiryId:req.params.id,recipient:req.body?.recipient});
+  res.json({success:true,notification});
+ }));
  app.patch('/api/admin/inquiries/:id',asyncRoute(async(req,res)=>{
   const r=await db.get('SELECT * FROM inquiries WHERE id=?',[req.params.id]);
   if(!r)throw fail(404,'Không tìm thấy yêu cầu tư vấn.');
@@ -479,8 +485,8 @@ export async function createApp(options={}){
   if(feedbackRestorePending||feedbackEnv.FEEDBACK_API_PAUSED==='true')throw fail(503,'Phần cảm nhận đang được đối soát. Chưa thể xuất dữ liệu.');
   const output=await db.transaction(async tx=>{
    if(tx.cloud)await tx.exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
-   const data={version:3,exported:now()};
-   for(const table of ['settings','albums','photos','selections','inquiries','blocked_dates','album_slugs','album_sections',...FEEDBACK_TABLES])data[table]=await tx.all('SELECT * FROM '+table);
+   const data={version:4,exported:now()};
+   for(const table of ['settings','albums','photos','selections','inquiries','blocked_dates','album_slugs','album_sections',...INQUIRY_NOTIFICATION_TABLES,...FEEDBACK_TABLES])data[table]=await tx.all('SELECT * FROM '+table);
    return data;
   });
   res.attachment('chicong-backup.json').json(output);
@@ -566,5 +572,5 @@ export async function createApp(options={}){
  app.get(['/', '/portfolio','/about','/contact','/admin','/album/:key','/gallery/:id'],page);
  app.use((req,res)=>res.status(404).send(shell.replaceAll('__TITLE__','Không tìm thấy trang').replaceAll('__DESCRIPTION__','').replaceAll('__CANONICAL__','').replaceAll('__ROBOTS__','noindex').replaceAll('__OG_META__','').replaceAll('__STRUCTURED_DATA__','').replaceAll('__ANALYTICS__','')));
  app.use((err,req,res,next)=>{if(res.headersSent)return next(err);if(err.code==='MEDIA_LOCKED')return res.status(503).set('Retry-After','30').json({code:err.code,error:err.message});const status=err instanceof multer.MulterError?422:err.status||500;if(status>=500)console.error('Request failed:',err.name);res.status(status).json({...(err.fields?{fields:err.fields}:{}),error:status>=500?'Hệ thống chưa xử lý được thao tác này. Vui lòng thử lại sau ít phút.':err instanceof multer.MulterError?`Mỗi lần tải tối đa 8 ảnh, dung lượng tối đa ${uploadSizeLabel} mỗi ảnh.`:err.message});});
- return {app,db,storage,mailer,mediaControl,photoCleanup:deletedPhotos,feedback,feedbackDispatcher};
+ return {app,db,storage,mailer,mediaControl,photoCleanup:deletedPhotos,feedback,feedbackDispatcher,inquiryDispatcher};
 }

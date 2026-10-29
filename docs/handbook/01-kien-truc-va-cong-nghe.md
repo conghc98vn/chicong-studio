@@ -184,11 +184,11 @@ Yazl dùng stream để không gom toàn bộ ZIP thành một buffer server, nh
 
 ### 6.6. Gửi yêu cầu tư vấn
 
-Validate/honeypot/rate guard → nhận requestKey và hash dữ liệu → tìm bản ghi retry → nếu có ngày thì kiểm Calendar và lịch nội bộ → áp quota đơn hợp lệ → INSERT → trả reference → gửi email bất đồng bộ.
+Validate/honeypot/rate guard → nhận requestKey và hash dữ liệu → tìm bản ghi retry → nếu có ngày thì kiểm Calendar và lịch nội bộ → áp quota đơn hợp lệ → transaction INSERT inquiry + hai outbox notification (studio/client khi có email hợp lệ) → trả reference → đánh thức dispatcher.
 
 Calendar dùng cache 5 phút, timeout fetch 10 giây, giới hạn feed 5.000.000 byte. Nếu feed cấu hình nhưng unavailable hoặc ngoài phạm vi đã kiểm, assertAvailable từ chối ngày với 409. Gửi không có ngày có thể tiếp tục. Đây là lựa chọn fail closed cho tính đúng của lịch.
 
-Mailer ưu tiên Resend nếu có key, nếu không mới xét SMTP. App không chờ email trước khi trả thành công; code gửi thông báo studio rồi xử lý email khách, không phải hai email luôn chạy song song. Không có durable email outbox/retry trong phần này. App restart ngay sau insert có thể làm mất thông báo trong khi đơn vẫn còn DB. Resend chấp nhận request cũng chưa đồng nghĩa email đã vào inbox.
+Mailer ưu tiên Resend nếu có key, nếu không mới xét SMTP. App không chờ email trước khi trả thành công; dispatcher đọc outbox sau commit, claim bằng lease, gửi từng notification và retry lỗi vận chuyển sau restart. Thiếu provider hoặc recipient hợp lệ giữ trạng thái `blocked_config`; provider accept chưa đồng nghĩa email đã vào inbox.
 
 **Oracle QA:** một requestKey không tạo hai đơn; same key/different payload bị từ chối; ngày bận không được nhận như ngày trống; email lỗi không làm mất đơn đã commit; hai thao tác confirm cùng ngày không cùng thành công. Xem [app.mjs](../../studio/server/app.mjs), [mailer.mjs](../../studio/server/mailer.mjs), [google-calendar.mjs](../../studio/server/google-calendar.mjs).
 

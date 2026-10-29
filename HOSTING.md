@@ -22,7 +22,7 @@ Dùng Node 24 và `npm ci --omit=dev`; chạy `npm start` hoặc PM2 theo [ecosy
 | `PORT`, `HOST` | Khớp Caddy/PM2; không coi default `0.0.0.0` là firewall |
 | `SETUP_TOKEN` | Cần khi tạo admin đầu tiên; không có tài khoản/mật khẩu mặc định |
 | `FEEDBACK_LINK_SECRET` | Khóa base64url chứa ít nhất 32 byte ngẫu nhiên, riêng từng môi trường, ổn định qua restart và giống nhau trên mọi web instance; giữ trong vault ngoài snapshot |
-| `FEEDBACK_API_PAUSED`, `FEEDBACK_NOTIFICATIONS_PAUSED` | Đặt cả hai `true` khi bảo trì/restore feedback; restart mọi web instance để áp dụng |
+| `FEEDBACK_API_PAUSED`, `FEEDBACK_NOTIFICATIONS_PAUSED`, `INQUIRY_NOTIFICATIONS_PAUSED` | Đặt các cờ liên quan thành `true` khi bảo trì/restore; restart mọi web instance để áp dụng |
 
 Repo giữ CA công khai `certs/supabase-root-2021.crt`. Kiểm tính hợp lệ/expiry theo chứng chỉ thực tế; không tắt TLS verification để xử lý lỗi kết nối. `NODE_EXTRA_CA_CERTS` không có tác dụng nếu chỉ đặt muộn trong file do ứng dụng tự đọc.
 
@@ -64,13 +64,13 @@ Kích hoạt do người vận hành thực hiện với cấu hình production 
 1. Giữ source/config/service definition hiện tại và xác nhận phương án rollback. Với release đã có feedback, bật cả hai cờ pause, restart áp dụng trên mọi instance, kiểm API trả 503 và drain dispatcher; media lease không chặn ghi feedback hoặc gửi thư. Lấy maintenance lease, ngừng claim/schedule, drain writer/cleanup; dừng worker/runner cũ và xác minh đã thoát.
 2. Dùng runtime hiện hành tương thích DB trước migration để chụp **DB + media baseline**, verify và giữ bản ngoài VPS; lease phải còn hiệu lực. Hết hạn không có nghĩa được bỏ khóa.
 3. Dừng web sau khi writer đã drain. Giữ `.env` 0600, credential ngoài repo, data và quyền đọc module cho user worker; thay source từ release đã kiểm.
-4. Khởi động một web instance với Drive tắt và hai cờ feedback vẫn pause để migration có một owner. Kiểm health, số lượng/invariant DB, public/private media và admin. Cập nhật worker/runner về cùng revision và binding; backup runner sau migration phải hiểu schema v3 gồm sáu bảng feedback. Runner v2 sẽ từ chối bảng mới, còn runner v3 không dùng để chụp DB trước khi các bảng mới được tạo.
+4. Khởi động một web instance với Drive tắt và các cờ feedback/inquiry vẫn pause để migration có một owner. Kiểm health, số lượng/invariant DB, public/private media và admin. Cập nhật worker/runner về cùng revision và binding; backup runner sau migration phải hiểu schema v4 gồm sáu bảng feedback và một bảng inquiry outbox. Runner v2/v3 không dùng để chụp DB sau khi các bảng mới được tạo.
 5. Kiểm heartbeat, quyền người dùng worker, upload/đọc bằng fixture được phép, rồi bật nhập thủ công và unlock đúng lease. Giữ scheduler tắt trừ khi có kế hoạch riêng.
 6. Xác nhận signing key riêng, sổ xóa độc lập và bản sao của sổ đã có người vận hành; kiểm feedback bằng hồ sơ thử được phép, chỉ mở API/mail sau nghiệm thu và restart áp dụng cờ. Kiểm album draft và retry/no-op theo runbook. Nếu thất bại, giữ writer dừng và dùng rollback tương thích. Không restore DB cũ đè lên dữ liệu khách đã được nhận sau release.
 
 Chi tiết lease/recovery và lệnh chính xác nằm ở [runbook Drive](docs/google-drive-sync-operations.md#6-lỗi-dừng-và-phục-hồi) và `npm run media -- help`. Chuyển storage cần `lock → drain → backup/copy/verify → switch → restart mọi consumer → smoke → unlock`; giữ kho nguồn cho tới khi nghiệm thu xong. Có ảnh mới ở R2 thì rollback phải xử lý delta ngược dưới khóa.
 
-**Rollback feedback:** giữ database và runtime backup v3 tương thích; rollback UI không được làm mất revision/receipt/queue đã nhận. Gói `--stage` có module feedback và công cụ vận hành nhưng không chứa tài liệu, signing key hoặc sổ xóa. Giữ runbook và sổ xóa riêng ngoài thư mục release. Trợ giúp deploy chỉ nhắc quy trình media/Drive; các bước feedback ở trên cũng bắt buộc. [Quy trình restore và khác biệt SQL dump](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md#36-feedback-snapshot-v3-và-phục-hồi-từ-sql-dump).
+**Rollback feedback/inquiry:** giữ database và runtime backup v4 tương thích; rollback UI không được làm mất revision/receipt/queue đã nhận. Gói `--stage` có module feedback/inquiry và công cụ vận hành nhưng không chứa tài liệu, signing key hoặc sổ xóa. Giữ runbook và sổ xóa riêng ngoài thư mục release. Trợ giúp deploy chỉ nhắc quy trình media/Drive; các bước feedback/inquiry ở trên cũng bắt buộc. [Quy trình restore và khác biệt SQL dump](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md#36-feedback-snapshot-v3-và-phục-hồi-từ-sql-dump).
 
 ## 4. Kiểm tra sau release
 
@@ -79,7 +79,7 @@ Chi tiết lease/recovery và lệnh chính xác nằm ở [runbook Drive](docs/
 - Không cấu hình CDN ghi đè cache theo prefix `/media/*`: public/private dùng chung route. R2 private qua proxy không tự thành CDN cache.
 - Kiểm upload/retry, JPEG/ZIP dùng được, lựa chọn khách, DB/media tồn tại sau restart và worker đúng revision/binding. Inquiry đã lưu không phụ thuộc email giao thành công.
 - `/feedback/*` và `/api/feedback/*` phải giữ no-store/no-referrer/noindex qua Caddy/Cloudflare; kiểm không chèn analytics vào shell riêng. Kiểm link sai/thu hồi, bản nháp khi mất ACK, unread/history và job mail accepted sau restart bằng fixture. WebKit local không chứng minh Zalo/iOS/Android thật.
-- Xem log lỗi và tuổi backup hoàn chỉnh, không chỉ trạng thái process. Bản vá xử lý mất kết nối PostgreSQL cả lúc pool rảnh và giữa transaction, giữ lỗi gốc nếu rollback thất bại, không tự chạy lại thao tác ghi chưa rõ kết quả. Release `30ce096` đã có revision/process/health/media smoke trong hồ sơ production; email recipient thật và full cloud restore vẫn là các cổng riêng.
+- Xem log lỗi và tuổi backup hoàn chỉnh, không chỉ trạng thái process. Bản vá xử lý mất kết nối PostgreSQL cả lúc pool rảnh và giữa transaction, giữ lỗi gốc nếu rollback thất bại, không tự chạy lại thao tác ghi chưa rõ kết quả. Inquiry đã lưu không phụ thuộc email giao thành công; dashboard phải còn nhìn thấy pending/retry/blocked/failed. Email recipient thật và full cloud restore vẫn là các cổng riêng.
 
 ## 5. Giới hạn nghiệm thu
 

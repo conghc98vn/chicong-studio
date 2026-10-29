@@ -346,23 +346,27 @@ export function createMailer(env = process.env, options = {}) {
       return { studio: { skipped: true }, client: { skipped: true } };
     }
 
-    const studioRecipient = notificationEmail || settings?.email || 'info@chicongphoto.vn';
+    const studioRecipient = [notificationEmail, settings?.email]
+      .find(value => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))?.trim() || null;
     const studioMail = buildStudioEmail({ inquiry, reference, settings, siteUrl });
 
     const results = {};
 
-    // 1. Send alert to studio
-    try {
-      results.studio = await sendEmail({
-        to: studioRecipient,
-        subject: studioMail.subject,
-        html: studioMail.html,
-        text: studioMail.text,
-        replyTo: inquiry.email || undefined
-      });
-    } catch (err) {
-      console.error('[mailer] Failed to send studio alert:', err?.message || err);
-      results.studio = { success: false, error: err?.message || String(err) };
+    // 1. Send alert to studio only when a configured recipient exists.
+    if (!studioRecipient) results.studio = { skipped: true, reason: 'missing_recipient' };
+    else {
+      try {
+        results.studio = await sendEmail({
+          to: studioRecipient,
+          subject: studioMail.subject,
+          html: studioMail.html,
+          text: studioMail.text,
+          replyTo: inquiry.email || undefined
+        });
+      } catch (err) {
+        console.error('[mailer] Failed to send studio alert:', err?.message || err);
+        results.studio = { success: false, error: err?.message || String(err) };
+      }
     }
 
     // 2. Send confirmation to client if valid email provided

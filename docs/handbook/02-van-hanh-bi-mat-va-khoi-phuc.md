@@ -45,7 +45,7 @@ Mật khẩu/key nên nằm trong kho bí mật được mã hóa do bạn kiể
 | R2_SECRET_ACCESS_KEY | **Secret** | Ký request S3; cấp quyền theo bucket cần dùng | Vault khi tạo token; mất secret thì tạo lại credential |
 | MEDIA_CLEANUP_ENABLED | Config | false để tắt worker khởi động của app trong môi trường restore/staging | app.mjs; không phải công tắc vô hiệu mọi lệnh CLI cleanup |
 | FEEDBACK_LINK_SECRET | **Secret** | Ký link feedback, base64url ít nhất 32 byte, ổn định qua restart và đồng nhất mọi instance; không có trong snapshot | Vault/env riêng từng môi trường; rotate sau restore |
-| FEEDBACK_API_PAUSED, FEEDBACK_NOTIFICATIONS_PAUSED | Config | Pause API/admin/export và dispatcher riêng; phải restart áp dụng, không thay bằng media lease | Env mọi web instance và runbook feedback |
+| FEEDBACK_API_PAUSED, FEEDBACK_NOTIFICATIONS_PAUSED, INQUIRY_NOTIFICATIONS_PAUSED | Config | Pause API/admin/export feedback hoặc inquiry dispatcher; phải restart áp dụng, không thay bằng media lease | Env mọi web instance và runbook feedback/inquiry |
 | SETUP_TOKEN | **Secret khởi tạo** | Thiết lập tài khoản admin đầu tiên theo điều kiện app | Vault/env VPS; không phải mật khẩu đăng nhập sau setup |
 | RESEND_API_KEY | **Secret** | Chọn provider Resend | Resend API keys/vault |
 | EMAIL_FROM | Config | Địa chỉ/tên gửi, cần phù hợp domain xác minh | Resend domains + env |
@@ -100,9 +100,9 @@ Quy trình rotate: kiểm kê consumer → tạo credential mới nếu dịch v
 
 | Loại | Có | Không có hoặc không được bảo đảm |
 |---|---|---|
-| Export JSON từ admin, GET /api/admin/export | Version 3: 8 bảng nghiệp vụ cũ + 6 bảng feedback; cùng transaction, PostgreSQL REPEATABLE READ READ ONLY | Không có bytes media, admins, sessions, bảng Drive đầy đủ, env, DNS hoặc sổ xóa; không phải full backup |
+| Export JSON từ admin, GET /api/admin/export | Version 4: 8 bảng nghiệp vụ cũ + 6 bảng feedback + 1 bảng inquiry notification; cùng transaction, PostgreSQL REPEATABLE READ READ ONLY | Không có bytes media, admins, sessions, bảng Drive đầy đủ, env, DNS hoặc sổ xóa; không phải full backup |
 | PostgreSQL logical dump | Cấu trúc/dữ liệu các schema đã chọn; phạm vi phụ thuộc options/quyền | Không có file Storage/R2, env, tài khoản nhà cung cấp; globals/role cần kế hoạch riêng |
-| Công cụ media backup mới | Snapshot schema v3 gồm 34 bảng (28 bảng v2 + 6 bảng feedback), manifest, media được tham chiếu, checksum, appRevision; reader nhận v1/v2/v3 | Không chứa drive_comparison_cache, drive_folder_preview_cache, key service account, signing key feedback, sổ xóa độc lập, source repo, env, DNS, JPEG nguồn/RAW; appRevision chưa mô tả dirty tree |
+| Công cụ media backup mới | Snapshot schema v4 gồm 35 bảng (28 bảng v2 + 6 bảng feedback + 1 bảng inquiry notification), manifest, media được tham chiếu, checksum, appRevision; reader nhận v1/v2/v3/v4 | Không chứa drive_comparison_cache, drive_folder_preview_cache, key service account, signing key feedback, sổ xóa độc lập, source repo, env, DNS, JPEG nguồn/RAW; appRevision chưa mô tả dirty tree |
 | Cron DB trên VPS iNET | Theo biên bản: SQL gzip lúc 03:00 giờ Việt Nam vào /var/backups/chicongphoto; script có retention -mtime +14 | Chỉ DB trên cùng máy; chưa phải backup media/offsite, chưa xác minh cron thực tế trong lượt này; script local mới loại dữ liệu cả hai cache tạm nhưng vẫn có thể giữ schema cache |
 | Bản offline export của công cụ | Manifest và toàn bộ blob mà snapshot chọn cần | Không tự chứa mọi lịch sử snapshot trong repository hoặc quyền truy cập cloud |
 | Ảnh gốc trên ổ cứng/Drive | RAW/JPEG nguồn theo cách studio lưu | Không có selections, inquiries, album layout, password, slug history |
@@ -167,9 +167,9 @@ Cron SQL 03:00 vẫn không chứa bytes ảnh. Lịch backup media, kiểm tu�
 
 ### 3.6. Feedback: snapshot v3 và phục hồi từ SQL dump
 
-Sáu bảng mới là `handovers`, `handover_albums`, `feedback`, `feedback_revisions`, `feedback_request_receipts`, `feedback_notifications`. Cập nhật mọi backup runner sau migration: bản v2 cũ từ chối bảng lạ; bản v3 cần đủ bảng mới nên baseline trước migration phải dùng runtime cũ tương thích. Khi hạ giao diện/app, vẫn giữ runtime backup đọc v3; không xóa bảng hoặc restore baseline cũ đè các cảm nhận mới đã nhận.
+Sáu bảng feedback mới là `handovers`, `handover_albums`, `feedback`, `feedback_revisions`, `feedback_request_receipts`, `feedback_notifications`; inquiry outbox nằm trong bảng `inquiry_notifications` của snapshot v4. Cập nhật mọi backup runner sau migration: bản v2 cũ từ chối bảng lạ; bản v3 chỉ hiểu feedback; bản v4 hiểu cả outbox inquiry. Khi hạ giao diện/app, vẫn giữ runtime backup đọc v4; không xóa bảng hoặc restore baseline cũ đè các cảm nhận/yêu cầu mới đã nhận.
 
-`media-backup.mjs restore` hiện tạo **SQLite + media local ở đích mới**. Công cụ thu hồi link, đổi nonce, xóa receipt admin gần nhất, suppress mọi notification chưa accepted và đặt `feedback_restore_pending=true`. Đây là bảo đảm của đường restore này, không phải hook chạy tự động mỗi lần DB được nhập lại. Sổ xóa phải được giữ ngoài backup được khôi phục; đối soát lại cả các ý định đã thực hiện trước đó, rotate signing key mọi instance, rồi mới bỏ gate bằng [feedback-ops.mjs](../../studio/tools/feedback-ops.mjs). Lệnh và điều kiện cụ thể nằm ở [đặc tả feedback](../customer-feedback-spec.md#implementation).
+`media-backup.mjs restore` hiện tạo **SQLite + media local ở đích mới**. Công cụ thu hồi link, đổi nonce, xóa receipt admin gần nhất, suppress mọi notification chưa accepted (gồm feedback và inquiry) và đặt `feedback_restore_pending=true`; cờ này cũng pause inquiry dispatcher khi app khởi động. Đây là bảo đảm của đường restore này, không phải hook chạy tự động mỗi lần DB được nhập lại. Sổ xóa phải được giữ ngoài backup được khôi phục; đối soát lại cả các ý định đã thực hiện trước đó, rotate signing key mọi instance, rồi mới bỏ gate bằng [feedback-ops.mjs](../../studio/tools/feedback-ops.mjs). Lệnh và điều kiện cụ thể nằm ở [đặc tả feedback](../customer-feedback-spec.md#implementation).
 
 **SQL dump/PITR là đường khác:** `pg_dump` lưu nguyên các bảng feedback và pending mail, nhưng `psql`/khôi phục nhà cung cấp không gọi `restoreRow`, không tự đặt restore gate, revoke link hoặc suppress queue. Trước đưa bản SQL phục hồi cho web, giữ mọi process dừng và cả hai cờ pause; chỉ chạy DB ở môi trường cách ly. Chạy `feedback-ops.mjs prepare-restored` với DB đích tường minh, `--data-dir`, sổ xóa độc lập và `--processes-stopped yes`, theo lệnh trong [mục 13.4 đặc tả feedback](../customer-feedback-spec.md#implementation). Lệnh lưu gate bền vững trước, rồi thu hồi link và suppress queue trong transaction; giữ revisions, receipts khách và event accepted. Bản DB cũ chưa có feedback chỉ được bổ sung schema feedback, không khởi động ứng dụng hoặc dispatcher.
 
@@ -306,7 +306,7 @@ Các mức bên dưới là **đề xuất ban đầu**, chưa phải monitor/SL
 | Inquiry | Tỉ lệ lưu thành công, lỗi 409/422/429/5xx theo nguyên nhân | Tách business rejection khỏi sự cố server |
 | Upload | X-Upload-Id, stage, thời gian, RSS, trạng thái ack | Cảnh báo tăng timeout/unknown write/OOM; heartbeat 15 giây chỉ là log, không phải alert |
 | Cleanup | Số job, tuổi job cũ nhất, tốc độ drain | Queue tồn lâu sau khi service đã ổn cần điều tra |
-| Email | Provider accept/reject và phản hồi delivery nếu có | Feedback có queue bền vững và trạng thái provider trong admin; inquiry chưa có outbox. Chưa có monitor delivery/inbox chung |
+| Email | Provider accept/reject và phản hồi delivery nếu có | Feedback và inquiry đều có queue bền vững, lease/retry và trạng thái trong admin; chưa có monitor delivery/inbox chung |
 | Backup | Tuổi snapshot complete đã verify | Nếu chọn daily, có thể bắt đầu thảo luận ngưỡng 30 giờ; cần monitor độc lập phát hiện job không chạy |
 | Quota/cost | DB, storage, egress, operations, mail, Drive | Theo dõi xu hướng và cảnh báo trước hết; không suy diễn từ số ảnh thành số GB |
 

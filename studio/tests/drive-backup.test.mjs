@@ -4,7 +4,7 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {driveRepository} from '../tools/drive-backup.mjs';
-import {tables,jsonBytes,sha256,putBlob,mappingHash,verifyBackup} from '../tools/media-backup.mjs';
+import {tables,version3Tables,jsonBytes,sha256,putBlob,mappingHash,verifyBackup} from '../tools/media-backup.mjs';
 const env={BACKUP_DRIVE_CLIENT_ID:'fixture-client',BACKUP_DRIVE_CLIENT_SECRET:'fixture-secret',BACKUP_DRIVE_REFRESH_TOKEN:'fixture-refresh',BACKUP_DRIVE_ACCOUNT_EMAIL:'fixture@example.test',BACKUP_DRIVE_FOLDER_ID:'folder'};
 function mockDrive(){
  const files=new Map(),sessions=new Map(),deleted=[];let next=0,quota='5000000000000',refreshFailure=false,shared=false;
@@ -25,7 +25,7 @@ function mockDrive(){
  return {files,deleted,fetchImpl,set quota(v){quota=v;},set refreshFailure(v){refreshFailure=v;},set shared(v){shared=v;}};
 }
 async function snapshot(root,runId,capturedAt,image=Buffer.from('image')){
- const data={schemaVersion:3,capturedAt,tables:Object.fromEntries(tables.map(t=>[t,[]]))};const key='a'.repeat(32);data.tables.settings=[{key:'portrait',value:key}];
+ const data={schemaVersion:3,capturedAt,tables:Object.fromEntries(version3Tables.map(t=>[t,[]]))};const key='a'.repeat(32);data.tables.settings=[{key:'portrait',value:key}];
  const bytes=image,digest=sha256(bytes),dbBytes=jsonBytes(data),databaseSha256=sha256(dbBytes);await putBlob(root,digest,bytes);await putBlob(root,databaseSha256,dbBytes);
  return {version:1,state:'complete',runId,capturedAt,appRevision:'fixture',storage:'fixture-source',mappingHash:mappingHash(data),databaseSha256,objects:[{key:key+'.webp',bytes:bytes.length,contentType:'image/webp',sha256:digest}]};
 }

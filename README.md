@@ -64,4 +64,4 @@ Browser runner chạy 21 suite với fixture riêng, cần Playwright và Google
 - `scripts/`, `ecosystem.config.cjs`: chuẩn bị release VPS, systemd worker và dump DB.
 - `.env.example`: tên biến và ví dụ; không phải cấu hình đang chạy. `render.yaml` là cấu hình tham chiếu nếu sử dụng Render lại.
 
-Git không lưu `.env`, ảnh khách, database, backup hoặc `output/`. JSON xuất từ admin chỉ là metadata, không thay bản backup DB + media. Hệ thống không giao RAW, không tự xác nhận booking/thanh toán. [Feedback sau bàn giao](docs/customer-feedback-spec.md#implementation) đã lên production; release smoke đã kiểm route bảo mật và trạng thái pause, còn email recipient thật vẫn cần kiểm riêng trước khi cấp link khách.
+Git không lưu `.env`, ảnh khách, database, backup hoặc `output/`. JSON xuất từ admin chỉ là metadata, không thay bản backup DB + media. Hệ thống không giao RAW, không tự xác nhận booking/thanh toán. [Feedback sau bàn giao](docs/customer-feedback-spec.md#implementation) đã lên production; email inquiry hiện được ghi vào outbox và retry qua restart, còn email recipient thật vẫn cần kiểm riêng trước khi cấp link khách.

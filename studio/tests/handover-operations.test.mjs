@@ -12,7 +12,7 @@ import {createMailer} from '../server/mailer.mjs';
 import {FEEDBACK_TABLES} from '../server/feedback-schema.mjs';
 import {createFeedbackService} from '../server/feedback.mjs';
 import {initializeDeletionLedger,purgeHandover,reconcileFeedbackDeletions,readDeletionLedger} from '../server/handover-privacy.mjs';
-import {databaseSnapshot,validateDatabaseSnapshot,version2Tables,legacyTables,jsonBytes,sha256,putBlob,mappingHash,atomicFile,restoreBackup,verifyBackup} from '../tools/media-backup.mjs';
+import {databaseSnapshot,validateDatabaseSnapshot,version2Tables,version3Tables,legacyTables,jsonBytes,sha256,putBlob,mappingHash,atomicFile,restoreBackup,verifyBackup} from '../tools/media-backup.mjs';
 
 async function fixture(t) {
  const dir=await mkdtemp(path.join(tmpdir(),'chicong-handover-ops-'));
@@ -59,19 +59,19 @@ test('private shell, authorization errors and malformed paths remain isolated fr
  const sitemap=await (await fetch(f.base+'/sitemap.xml')).text();assert.ok(!sitemap.includes('/feedback/'));
 });
 
-test('metadata export includes all revisions, receipts and notifications in v3 without signing secrets',async t=>{
+test('metadata export includes all revisions, receipts and notifications in v4 without signing secrets',async t=>{
  const f=await fixture(t);await f.service.putPublic(f.h.id,f.token,f.payload);
  await f.service.putPublic(f.h.id,f.token,{...f.payload,expectedVersion:1,message:'Second version',requestKey:randomUUID()});
- const res=await f.request('/api/admin/export');assert.equal(res.status,200);const output=await res.json();assert.equal(output.version,3);
+ const res=await f.request('/api/admin/export');assert.equal(res.status,200);const output=await res.json();assert.equal(output.version,4);
  for(const table of FEEDBACK_TABLES)assert.ok(Array.isArray(output[table]));
  assert.equal(output.feedback_revisions.length,2);assert.equal(output.feedback_notifications.length,2);assert.equal(output.feedback_request_receipts.length,2);
  const raw=JSON.stringify(output);assert.ok(!raw.includes(f.token));assert.ok(!raw.includes(f.env.FEEDBACK_LINK_SECRET));
  f.env.FEEDBACK_API_PAUSED='true';assert.equal((await f.request('/api/admin/export')).status,503);
 });
 
-test('fixed backup registries read v1/v2 and reject incomplete or mislabeled v3 snapshots',async t=>{
- const f=await fixture(t),snapshot=await databaseSnapshot(f.db);assert.equal(snapshot.schemaVersion,3);validateDatabaseSnapshot(snapshot);
- for(const [schemaVersion,tables] of [[1,legacyTables],[2,version2Tables]])validateDatabaseSnapshot({...snapshot,schemaVersion,tables:Object.fromEntries(tables.map(table=>[table,snapshot.tables[table]]))});
+test('fixed backup registries read v1/v2/v3 and reject incomplete or mislabeled v4 snapshots',async t=>{
+ const f=await fixture(t),snapshot=await databaseSnapshot(f.db);assert.equal(snapshot.schemaVersion,4);validateDatabaseSnapshot(snapshot);
+ for(const [schemaVersion,tables] of [[1,legacyTables],[2,version2Tables],[3,version3Tables]])validateDatabaseSnapshot({...snapshot,schemaVersion,tables:Object.fromEntries(tables.map(table=>[table,snapshot.tables[table]]))});
  for(const table of FEEDBACK_TABLES){const incomplete=structuredClone(snapshot);delete incomplete.tables[table];assert.throws(()=>validateDatabaseSnapshot(incomplete),/Unsupported/);}
  assert.throws(()=>validateDatabaseSnapshot({...snapshot,schemaVersion:2}),/Unsupported/);
  const legacy={...snapshot,schemaVersion:2,tables:Object.fromEntries(version2Tables.map(table=>[table,snapshot.tables[table]]))};
@@ -84,7 +84,7 @@ test('restore revokes links, suppresses mail and blocks admin/export until indep
  const repository=path.join(f.dir,'repository'),manifest=await saveSnapshot(repository,await databaseSnapshot(f.db));await verifyBackup(repository,manifest);
  const ledger=path.join(f.dir,'independent','deletions.jsonl');await initializeDeletionLedger(ledger);
  await purgeHandover({db:f.db,ledgerFile:ledger,handoverId:f.h.id});assert.equal(Number((await f.db.get('SELECT COUNT(*) AS n FROM feedback_revisions')).n),0);
- const target=path.join(f.dir,'restored');await restoreBackup(repository,target);
+ const target=path.join(f.dir,'restored');await restoreBackup(repository,target);assert.equal(JSON.parse(await readFile(path.join(target,'RESTORED.json'))).inquiryNotificationsSuppressed,true);
  const db=await openDatabase(target,{url:null});let restored;
  try{
   assert.equal((await db.get('SELECT invitation_state FROM handovers')).invitation_state,'revoked');assert.equal((await db.get('SELECT state FROM feedback_notifications')).state,'suppressed');

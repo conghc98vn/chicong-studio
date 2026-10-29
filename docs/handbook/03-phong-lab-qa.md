@@ -82,7 +82,7 @@ Các lệnh browser này là hướng dẫn có điều kiện, không phải k�
 | SEL-01 / P0 | Lựa chọn chỉ thuộc ảnh hợp lệ, không bị UI stale ghi đè | Hai context cùng chọn, xóa ảnh khi tab khác mở, response về muộn | gallery-selection.test.mjs; proofing-concurrency.smoke.mjs |
 | BOOK-01 / P1 | Một key là một đơn, một ngày chỉ một confirmed | Double submit, response drop, confirm đồng thời | studio.test.mjs; security.test.mjs; inquiry counts/constraint |
 | CAL-01 / P1 | Không coi lịch không kiểm được là lịch trống | Feed lỗi, cache stale, recurrence, ngày ngoài range | google-calendar.test.mjs; HTTP/fields và DB |
-| MAIL-01 / P1 | Email lỗi không làm mất đơn đã lưu | Provider reject/timeout hoặc process ngừng sau insert | mailer.test.mjs; rủi ro durable retry còn mở |
+| MAIL-01 / P1 | Email lỗi không làm mất đơn đã lưu | Provider reject/timeout hoặc process ngừng sau insert | mailer.test.mjs; inquiry-notifications.test.mjs; feedback queue tests |
 | DEL-01 / P0 | Xóa DB và job cleanup nhất quán | Storage remove fail rồi phục hồi, restart worker | photo-management.test.mjs; storage/object absence + queue drain |
 | DL-01 / P1 | Chỉ tải đúng ảnh, file dùng được, hủy không giữ slot | 1/50/51 ảnh, 429, truncated response, abort | gallery-download*.test.mjs; browser smoke; decode/unzip |
 | DR-01 / P0 | Chỉ backup đủ mới được publish/restore | Thiếu blob, sai hash, manifest lỗi, restore đích tồn tại | media-backup.test.mjs; drive-backup.test.mjs; restore độc lập |

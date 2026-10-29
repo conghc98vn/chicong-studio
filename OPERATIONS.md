@@ -48,7 +48,7 @@ Nếu trạng thái/ngày/ghi chú đã được cập nhật ở tab khác kể
 
 Lịch kết hợp ngày studio chặn, booking đã xác nhận và Google Calendar nếu cấu hình. Khi nguồn Google lỗi, ứng dụng không coi ngày đó là trống; khách có thể bỏ ngày để gửi tư vấn. [Hướng dẫn Calendar](docs/google-calendar.md).
 
-Email chỉ gửi khi có cấu hình Resend/SMTP; luôn kiểm tra yêu cầu đã lưu trong quản trị. Lỗi email không làm mất inquiry; email inquiry hiện chưa có outbox/retry bền vững qua restart. Cấu hình email nằm trong [danh mục biến](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md#21-web-runtime).
+Email dùng Resend/SMTP nếu đã cấu hình; yêu cầu được lưu cùng hai bản ghi outbox cho studio và khách (khi khách có email hợp lệ). Worker email chạy trong tiến trình web, tự nhận lại lượt đang giữ lease sau restart và retry lỗi vận chuyển theo backoff. Khi provider chưa cấu hình, bản ghi ở trạng thái chờ cấu hình và sẽ được nhận lại sau khi bật provider. Có thể tạm dừng bằng `INQUIRY_NOTIFICATIONS_PAUSED=true`; kiểm tra trạng thái trong Tổng quan quản trị và luôn kiểm tra inquiry đã lưu. Cấu hình email nằm trong [danh mục biến](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md#21-web-runtime).
 
 ### Cảm nhận sau bàn giao
 
