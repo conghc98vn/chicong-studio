@@ -52,7 +52,7 @@ Email dùng Resend/SMTP nếu đã cấu hình; yêu cầu được lưu cùng h
 
 ### Cảm nhận sau bàn giao
 
-Theo kiểm tra LIVE ngày 29/10/2026, tính năng đã được đưa lên production trong release `30ce096`. Trước khi cấp link thật vẫn phải kiểm `SITE_URL`, `FEEDBACK_LINK_SECRET`, trạng thái pause và người nhận email trên mọi instance. Mở **Cảm nhận → Tạo hồ sơ bàn giao**, hoặc **Bàn giao & cảm nhận** ở bộ ảnh. Một hồ sơ ứng với một khách/buổi chụp, có thể gắn nhiều bộ ảnh hoặc không gắn bộ nào. Chỉ chọn **Đã bàn giao đầy đủ & mở nhận** khi studio đã giao đủ; copy link/lời mời rồi tự gửi khách. Revision và checklist LIVE xem ở [biên bản production 29/10](docs/handbook/09-production-release-2026-10-29.md).
+Theo kiểm tra LIVE ngày 29/10/2026, tính năng đã được đưa lên production trong release `7a6c039`. Trước khi cấp link thật vẫn phải kiểm `SITE_URL`, `FEEDBACK_LINK_SECRET`, trạng thái pause và người nhận email trên mọi instance. Mở **Cảm nhận → Tạo hồ sơ bàn giao**, hoặc **Bàn giao & cảm nhận** ở bộ ảnh. Một hồ sơ ứng với một khách/buổi chụp, có thể gắn nhiều bộ ảnh hoặc không gắn bộ nào. Chỉ chọn **Đã bàn giao đầy đủ & mở nhận** khi studio đã giao đủ; copy link/lời mời rồi tự gửi khách. Revision và checklist LIVE xem ở [biên bản production 29/10](docs/handbook/09-production-release-2026-10-29.md).
 
 Khách có thể gửi và sửa cảm nhận qua link riêng không hết hạn. Studio xem bản mới nhất, toàn bộ lịch sử và đánh dấu bản đã đọc trong admin. Pause chặn khách đọc/gửi; thu hồi hoặc cấp mới vô hiệu link cũ. Hồ sơ đã cấp link không dùng lại cho khách/buổi khác. Cảm nhận chỉ dùng nội bộ, không tự công khai trên portfolio.
 

@@ -1,6 +1,6 @@
 # Vận hành Google Drive Sync
 
-Cập nhật 29/10/2026. Production đang chạy release `30ce096` trên VPS iNET, PostgreSQL Supabase và R2 private; nhập thủ công bật, scheduler tắt, worker active. Pilot 33 ảnh/no-op là bằng chứng lịch sử trước cutover R2. [Trạng thái và giới hạn](handbook/README.md), [LIVE release hiện tại](handbook/09-production-release-2026-10-29.md), [nghiệm thu Drive lịch sử](archive/google-drive-sync-production-release-2026-10-20.md).
+Cập nhật 29/10/2026. Production đang chạy release `7a6c039` trên VPS iNET, PostgreSQL Supabase và R2 private; nhập thủ công bật, scheduler tắt, worker active. Pilot 33 ảnh/no-op là bằng chứng lịch sử trước cutover R2. [Trạng thái và giới hạn](handbook/README.md), [LIVE release hiện tại](handbook/09-production-release-2026-10-29.md), [nghiệm thu Drive lịch sử](archive/google-drive-sync-production-release-2026-10-20.md).
 
 ## 1. Nguồn ảnh và quyền kết nối
 
