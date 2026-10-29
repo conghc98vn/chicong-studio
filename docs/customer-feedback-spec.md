@@ -1,8 +1,8 @@
 # Đặc tả feedback sau bàn giao — ChiCong Studio
 
-**Bản hiện hành: 28/10/2026 · v1.7 · đã được xác nhận đưa lên production.** Quyết định nghiệp vụ giữ nguyên; contract, cấu hình, vận hành và bằng chứng mới ở mục 13, lượt rà độc lập ở mục 13.6 và kiểm tra phát hành ở mục 13.7. Bản ghi release production, revision và checklist LIVE nằm trong [handbook 08](handbook/08-production-release-2026-10-28.md). Mục 10–11 lưu bằng chứng các lượt thiết kế trước.
+**Bản hiện hành: 29/10/2026 · v1.8 · đã được kiểm LIVE trong release `30ce096`.** Quyết định nghiệp vụ giữ nguyên; contract, cấu hình, vận hành và bằng chứng mới ở mục 13, lượt rà độc lập ở mục 13.6 và các record release ở mục 13.8–13.9. Bản ghi release production, revision và checklist LIVE nằm trong [handbook 09](handbook/09-production-release-2026-10-29.md). Mục 10–11 lưu bằng chứng các lượt thiết kế trước.
 
-**Trạng thái: đã có backend, form khách, admin, email queue và vận hành khôi phục/xóa; chủ dự án xác nhận bản tính năng đã được đưa lên production ngày 28/10.** Lượt tài liệu này chưa SSH/đọc log live, nên chưa đánh dấu các ca edge/SMTP/Zalo/restore là LIVE; cần hoàn tất checklist sau release trước khi gửi lời mời thật trên diện rộng. Đây là tài liệu chính duy nhất. Mục 13 ghi cách dùng và bằng chứng triển khai; các phần thiết kế bên dưới giữ các yêu cầu nghiệm thu.
+**Trạng thái: đã có backend, form khách, admin, email queue và vận hành khôi phục/xóa; release `30ce096` đã được kiểm LIVE ngày 29/10.** Smoke đã kiểm runtime, route feedback pause/link sai và trạng thái worker; chưa gửi email recipient thật, chưa kiểm Zalo/thiết bị thật hoặc full cloud restore. Đây là tài liệu chính duy nhất. Mục 13 ghi cách dùng và bằng chứng triển khai; các phần thiết kế bên dưới giữ các yêu cầu nghiệm thu.
 
 Luồng đã thống nhất: **studio xác nhận giao đủ → copy link gửi riêng → khách viết cảm nhận và chấm sao tùy chọn → khách được sửa khi hồ sơ mở → admin đọc bản mới nhất, xem toàn bộ lịch sử và nhận email.** Feedback chỉ dùng nội bộ, không có ngày hết hạn.
 
@@ -892,4 +892,10 @@ Trước kích hoạt còn cần baseline/rollback tương thích, signing key r
 
 Theo xác nhận của chủ dự án, bản feedback/handover và phần tính năng đi kèm đã được đưa lên production ngày 28/10. Mốc này **DEPLOYED-REPORTED**, không phải LIVE verification của lượt đọc tài liệu: chưa có revision đang chạy, log PM2/Caddy, kết quả `/api/health`, trạng thái env hoặc email recipient được đính kèm trong repo.
 
-Vì vậy, phần 13.7 được giữ nguyên như bằng chứng chuẩn bị trước release; không dùng câu “chưa deploy” ở phần lịch sử để phủ nhận mốc mới. Trước khi cấp link cho khách thật, hoàn tất [checklist sau release](handbook/08-production-release-2026-10-28.md#3-checklist-xác-minh-sau-release), ghi manifest DB + media và xác nhận `FEEDBACK_LINK_SECRET`/hai cờ pause trên mọi instance. Không ghi secret, token, link khách hoặc dump vào tài liệu.
+Vì vậy, phần 13.7 được giữ nguyên như bằng chứng chuẩn bị trước release; không dùng câu “chưa deploy” ở phần lịch sử để phủ nhận mốc mới. Trước khi cấp link cho khách thật, đối chiếu [kết quả LIVE mới nhất](handbook/09-production-release-2026-10-29.md#2-live-smoke-đã-chạy), ghi manifest DB + media và xác nhận `FEEDBACK_LINK_SECRET`/hai cờ pause trên mọi instance. Không ghi secret, token, link khách hoặc dump vào tài liệu.
+
+### 13.9. Kiểm tra LIVE production ngày 29/10/2026
+
+Release `30ce096` được kích hoạt tại `/var/www/chicongphoto` với release folder `20261029T022402692Z-9fd9d0c6`, Node 24.22.0, PM2 web online và `chicong-drive.service` active. `FEEDBACK_API_PAUSED=false` và `FEEDBACK_NOTIFICATIONS_PAUSED=false` sau khi smoke bảo trì hoàn tất; không ghi giá trị secret vào repo.
+
+Live smoke đạt: health và trang chính 200; freelancer trả `noindex, nofollow` và `private,no-store`; admin session chưa đăng nhập báo `authenticated:false`; link feedback sai trả 403; media R2 public trả 200; media control không còn owner/writer/unknown/cleanup. Không gửi email thật và không sửa dữ liệu khách trong lượt này. Chi tiết đầy đủ nằm ở [biên bản production 29/10](handbook/09-production-release-2026-10-29.md).

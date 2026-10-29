@@ -1,6 +1,6 @@
 # Hosting và release ChiCong Studio
 
-Hướng dẫn hiện hành ngày 28/10/2026. Production theo [biên bản cutover](docs/archive/r2-production-cutover-2026-10-21.md): **Cloudflare → Caddy trên VPS iNET → PM2/Node**, database **PostgreSQL Supabase**, media **R2 private**. Release đang chạy `a375ec9`; revision, baseline và LIVE smoke được ghi trong [biên bản production 28/10](docs/handbook/08-production-release-2026-10-28.md). [Handbook](docs/handbook/README.md) phân biệt bằng chứng live và lịch sử.
+Hướng dẫn hiện hành ngày 29/10/2026. Production theo [biên bản cutover](docs/archive/r2-production-cutover-2026-10-21.md): **Cloudflare → Caddy trên VPS iNET → PM2/Node**, database **PostgreSQL Supabase**, media **R2 private**. Release đang chạy `30ce096`; revision, baseline và LIVE smoke được ghi trong [biên bản production 29/10](docs/handbook/09-production-release-2026-10-29.md). [Handbook](docs/handbook/README.md) phân biệt bằng chứng live và lịch sử.
 
 ## 1. Runtime và dữ liệu
 
@@ -79,7 +79,7 @@ Chi tiết lease/recovery và lệnh chính xác nằm ở [runbook Drive](docs/
 - Không cấu hình CDN ghi đè cache theo prefix `/media/*`: public/private dùng chung route. R2 private qua proxy không tự thành CDN cache.
 - Kiểm upload/retry, JPEG/ZIP dùng được, lựa chọn khách, DB/media tồn tại sau restart và worker đúng revision/binding. Inquiry đã lưu không phụ thuộc email giao thành công.
 - `/feedback/*` và `/api/feedback/*` phải giữ no-store/no-referrer/noindex qua Caddy/Cloudflare; kiểm không chèn analytics vào shell riêng. Kiểm link sai/thu hồi, bản nháp khi mất ACK, unread/history và job mail accepted sau restart bằng fixture. WebKit local không chứng minh Zalo/iOS/Android thật.
-- Xem log lỗi và tuổi backup hoàn chỉnh, không chỉ trạng thái process. Bản vá xử lý mất kết nối PostgreSQL cả lúc pool rảnh và giữa transaction, giữ lỗi gốc nếu rollback thất bại, không tự chạy lại thao tác ghi chưa rõ kết quả. Release `a375ec9` đã có revision/process/health/media smoke trong hồ sơ production; email recipient thật và full cloud restore vẫn là các cổng riêng.
+- Xem log lỗi và tuổi backup hoàn chỉnh, không chỉ trạng thái process. Bản vá xử lý mất kết nối PostgreSQL cả lúc pool rảnh và giữa transaction, giữ lỗi gốc nếu rollback thất bại, không tự chạy lại thao tác ghi chưa rõ kết quả. Release `30ce096` đã có revision/process/health/media smoke trong hồ sơ production; email recipient thật và full cloud restore vẫn là các cổng riêng.
 
 ## 5. Giới hạn nghiệm thu
 

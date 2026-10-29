@@ -4,7 +4,7 @@
 
 Hồ sơ đối tác **freelancer.chicongphoto.vn** chạy chung service ở host riêng: giới thiệu năng lực chụp truyền thống/phóng sự, portfolio, thiết bị, quy trình, lịch theo ngày và liên hệ Messenger/Zalo. Phần báo giá chỉ mở bằng `FREELANCER_PRICE_CODE`; hồ sơ trả `noindex` và không được dẫn từ web chính. Xem [brief](docs/archive/freelancer-website-brief.md) và [hướng dẫn hosting](HOSTING.md#hồ-sơ-đối-tác-freelancerchicongphotovn). Khi chạy local, mở `http://localhost:4173/freelancer`.
 
-Production chạy **VPS iNET → PostgreSQL Supabase + R2 private**. Nhập Drive thủ công bật, scheduler tắt. Release đang chạy là `a375ec9` trong [biên bản production 28/10](docs/handbook/08-production-release-2026-10-28.md); health, public media, freelancer host, admin auth và worker đã được smoke trực tiếp.
+Production chạy **VPS iNET → PostgreSQL Supabase + R2 private**. Nhập Drive thủ công bật, scheduler tắt. Release đang chạy là `30ce096` trong [biên bản production 29/10](docs/handbook/09-production-release-2026-10-29.md); health, public media, freelancer host, admin session, feedback guard và worker đã được smoke trực tiếp.
 
 ## Chạy local
 

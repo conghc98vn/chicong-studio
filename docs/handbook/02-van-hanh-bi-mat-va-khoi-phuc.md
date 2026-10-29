@@ -1,8 +1,8 @@
 # 02 — Vận hành, bí mật và khôi phục
 
-> **Cập nhật 28/10/2026:** release `a375ec9` đã được kiểm trực tiếp trên production. Revision, baseline, live smoke và giới hạn còn lại nằm ở [biên bản production 28/10](08-production-release-2026-10-28.md); secret, cookie và dữ liệu khách không ghi trong repo.
+> **Cập nhật 29/10/2026:** release `30ce096` đã được kiểm trực tiếp trên production. Revision, baseline, live smoke và giới hạn còn lại nằm ở [biên bản production 29/10](09-production-release-2026-10-29.md); secret, cookie và dữ liệu khách không ghi trong repo.
 
-**Cập nhật 28/10/2026 · Phạm vi:** production chạy VPS iNET, database Supabase, media R2 private; worker enabled, scheduler tắt. Live smoke đã kiểm health, media, route admin/freelancer/feedback và media lease; chưa reboot VPS, full cloud restore, hoặc thử email recipient thật. Danh mục Render dành cho hạ tầng cũ/staging.
+**Cập nhật 29/10/2026 · Phạm vi:** production chạy VPS iNET, database Supabase, media R2 private; worker enabled, scheduler tắt. Live smoke đã kiểm health, media, route admin/freelancer/feedback và media lease; chưa reboot VPS, full cloud restore, hoặc thử email recipient thật. Danh mục Render dành cho hạ tầng cũ/staging.
 
 ## 1. Bộ hồ sơ cần có để tự quản lý website
 

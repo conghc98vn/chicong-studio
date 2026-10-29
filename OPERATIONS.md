@@ -1,6 +1,6 @@
 # Vận hành ChiCong Studio
 
-Cập nhật 23/10/2026. Hướng dẫn thao tác hằng ngày; cấu hình máy chủ ở [HOSTING](HOSTING.md), credential và khôi phục ở [handbook vận hành](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md).
+Cập nhật 29/10/2026. Hướng dẫn thao tác hằng ngày; cấu hình máy chủ ở [HOSTING](HOSTING.md), credential và khôi phục ở [handbook vận hành](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md).
 
 ## 1. Thiết lập nội dung
 
@@ -52,7 +52,7 @@ Email chỉ gửi khi có cấu hình Resend/SMTP; luôn kiểm tra yêu cầu �
 
 ### Cảm nhận sau bàn giao
 
-Theo xác nhận ngày 28/10/2026, tính năng đã được đưa lên production. Trước khi cấp link thật vẫn phải kiểm `SITE_URL`, `FEEDBACK_LINK_SECRET`, trạng thái pause và người nhận email trên mọi instance. Mở **Cảm nhận → Tạo hồ sơ bàn giao**, hoặc **Bàn giao & cảm nhận** ở bộ ảnh. Một hồ sơ ứng với một khách/buổi chụp, có thể gắn nhiều bộ ảnh hoặc không gắn bộ nào. Chỉ chọn **Đã bàn giao đầy đủ & mở nhận** khi studio đã giao đủ; copy link/lời mời rồi tự gửi khách. Revision và checklist LIVE xem ở [biên bản production 28/10](docs/handbook/08-production-release-2026-10-28.md).
+Theo kiểm tra LIVE ngày 29/10/2026, tính năng đã được đưa lên production trong release `30ce096`. Trước khi cấp link thật vẫn phải kiểm `SITE_URL`, `FEEDBACK_LINK_SECRET`, trạng thái pause và người nhận email trên mọi instance. Mở **Cảm nhận → Tạo hồ sơ bàn giao**, hoặc **Bàn giao & cảm nhận** ở bộ ảnh. Một hồ sơ ứng với một khách/buổi chụp, có thể gắn nhiều bộ ảnh hoặc không gắn bộ nào. Chỉ chọn **Đã bàn giao đầy đủ & mở nhận** khi studio đã giao đủ; copy link/lời mời rồi tự gửi khách. Revision và checklist LIVE xem ở [biên bản production 29/10](docs/handbook/09-production-release-2026-10-29.md).
 
 Khách có thể gửi và sửa cảm nhận qua link riêng không hết hạn. Studio xem bản mới nhất, toàn bộ lịch sử và đánh dấu bản đã đọc trong admin. Pause chặn khách đọc/gửi; thu hồi hoặc cấp mới vô hiệu link cũ. Hồ sơ đã cấp link không dùng lại cho khách/buổi khác. Cảm nhận chỉ dùng nội bộ, không tự công khai trên portfolio.
 
