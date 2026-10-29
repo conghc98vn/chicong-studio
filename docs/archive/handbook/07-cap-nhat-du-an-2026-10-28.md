@@ -13,7 +13,7 @@
 | Gallery/UI | CSS gallery tách khỏi CSS admin; phân trang Drive rollback offset khi request detail lỗi; thêm kiểm form mật khẩu và inquiry | Browser suite local đạt theo report |
 | Backup/restore feedback | Snapshot v3 gồm 34 bảng dài hạn; SQL/PITR có bước `prepare-restored` và gate bền vững trước reconcile | Đã kiểm fixture SQLite/PostgreSQL; chưa phải full Supabase/PITR production |
 
-Các thay đổi nằm trong working tree và nhiều file còn untracked. Không suy từ số test hoặc source local rằng VPS đã nhận chúng. Bằng chứng chi tiết: [audit 23/10](../review-2026-10-23.md), [evidence tổng hợp](../evidence/customer-feedback-2026-10-23.json) và [kiểm tra release cô lập](../evidence/customer-feedback-release-check-2026-10-23.json).
+Các thay đổi nằm trong working tree và nhiều file còn untracked. Không suy từ số test hoặc source local rằng VPS đã nhận chúng. Bằng chứng chi tiết: [audit 23/10](../../review-2026-10-23.md), [evidence tổng hợp](../../evidence/customer-feedback-2026-10-23.json) và [kiểm tra release cô lập](../../evidence/customer-feedback-release-check-2026-10-23.json).
 
 ## 2. Kết quả kiểm thử mới nhất theo phạm vi
 
@@ -39,4 +39,4 @@ Trước release cần chốt signing key/secret riêng, recipient email, origin
 4. Đo workload JPEG 500/5.000 thật, đánh giá 284 ảnh legacy thiếu JPEG và throughput R2 trước tối ưu.
 5. Chỉ sau các cổng trên mới cân nhắc phát hành feedback, bật dispatcher production hoặc bật scheduler Drive.
 
-Các mốc 20–21/10 trong [handbook archive](../archive/README.md) giữ bằng chứng production trước đợt thay đổi local này.
+Các mốc 20–21/10 trong [handbook archive](../README.md) giữ bằng chứng production trước đợt thay đổi local này.

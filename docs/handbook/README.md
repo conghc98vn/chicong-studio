@@ -17,13 +17,13 @@
 | Hạ tầng: cấu hình host, stage/activate và rollback | [Hosting](../../HOSTING.md) |
 | Chuyên đề: Drive import và job recovery | [Runbook Drive](../google-drive-sync-operations.md) |
 | Chuyên đề: feedback sau bàn giao | [Đặc tả feedback](../customer-feedback-spec.md) |
-| Audit và snapshot trước release | [Review 23/10](../review-2026-10-23.md), [snapshot 28/10](07-cap-nhat-du-an-2026-10-28.md) |
+| Audit và snapshot trước release | [Review 23/10](../review-2026-10-23.md), [snapshot 28/10](../archive/handbook/07-cap-nhat-du-an-2026-10-28.md) |
 
 ## 2. Cách hiểu bằng chứng
 
 **CODE** là hành vi đọc từ source; **CONFIG** là cấu hình tham chiếu; **TEST** là kết quả thực chạy trong fixture cách ly; **REPORT** là kết quả từ biên bản có ngày; **LIVE** chỉ dùng cho thao tác trực tiếp trên hệ thống thật trong chính lượt đó. Không lấy một loại thay cho loại khác.
 
-Release `30ce096` đã được đưa lên production và kiểm trực tiếp ngày 29/10: health, public media, freelancer host, admin session, feedback guard, PM2 và worker đều đạt smoke. Snapshot local trước release được giữ ở [07](07-cap-nhat-du-an-2026-10-28.md); revision, baseline và giới hạn nghiệm thu nằm ở [biên bản production 29/10](09-production-release-2026-10-29.md).
+Release `30ce096` đã được đưa lên production và kiểm trực tiếp ngày 29/10: health, public media, freelancer host, admin session, feedback guard, PM2 và worker đều đạt smoke. Snapshot local trước release được giữ ở [07](../archive/handbook/07-cap-nhat-du-an-2026-10-28.md); revision, baseline và giới hạn nghiệm thu nằm ở [biên bản production 29/10](09-production-release-2026-10-29.md).
 
 ## 3. Trạng thái production theo report gần nhất
 
@@ -60,7 +60,7 @@ Kết quả audit và giới hạn lịch sử nằm ở [review 23/10](../revie
 
 ## 6. Lưu trữ và duy trì
 
-Tài liệu hiện hành chỉ gồm trang này, [01](01-kien-truc-va-cong-nghe.md), [02](02-van-hanh-bi-mat-va-khoi-phuc.md), [03](03-phong-lab-qa.md) và [09](09-production-release-2026-10-29.md). [07](07-cap-nhat-du-an-2026-10-28.md) là snapshot trước release; [08](08-production-release-2026-10-28.md) là biên bản release cũ. Hai file này giữ nguyên để truy vết, không dùng thay trạng thái hiện hành.
+Tài liệu hiện hành chỉ gồm trang này, [01](01-kien-truc-va-cong-nghe.md), [02](02-van-hanh-bi-mat-va-khoi-phuc.md), [03](03-phong-lab-qa.md) và [09](09-production-release-2026-10-29.md). [07](../archive/handbook/07-cap-nhat-du-an-2026-10-28.md) là snapshot trước release; [08](../archive/handbook/08-production-release-2026-10-28.md) là biên bản release cũ. Hai file này giữ nguyên để truy vết, không dùng thay trạng thái hiện hành.
 
 Các JSON lịch sử đã gom vào [thư mục evidence](evidence/README.md): [evidence nền](evidence/evidence.json), [17/10](evidence/evidence-2026-10-17.json), [20/10](evidence/evidence-2026-10-20.json) và [21/10](evidence/evidence-2026-10-21.json). Hash cũ không đại diện working tree sau audit.
 

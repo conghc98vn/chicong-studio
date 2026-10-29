@@ -9,7 +9,7 @@ Cập nhật 29/10/2026. Mỗi chủ đề có một hướng dẫn chính; biê
 | Hosting, release và rollback | [HOSTING](../HOSTING.md) |
 | Trạng thái production được báo cáo, bằng chứng và giới hạn | [Handbook — bắt đầu tại đây](handbook/README.md) |
 | Trạng thái release production mới nhất | [Biên bản production 29/10](handbook/09-production-release-2026-10-29.md) |
-| Snapshot local trước release | [Handbook 28/10](handbook/07-cap-nhat-du-an-2026-10-28.md) |
+| Snapshot local trước release | [Handbook 28/10](archive/handbook/07-cap-nhat-du-an-2026-10-28.md) |
 | Kiến trúc/API/dữ liệu | [01 — Kiến trúc](handbook/01-kien-truc-va-cong-nghe.md) |
 | Credential, backup, restore và sự cố | [02 — Vận hành kỹ thuật](handbook/02-van-hanh-bi-mat-va-khoi-phuc.md) |
 | Cách chạy test, ma trận rủi ro và bài lab | [03 — QA](handbook/03-phong-lab-qa.md) |

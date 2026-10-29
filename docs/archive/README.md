@@ -32,6 +32,8 @@ Không ghi đè evidence/hash cũ khi source thay đổi. Không cộng số tes
 | [04-cap-nhat-du-an-2026-10-17](handbook/04-cap-nhat-du-an-2026-10-17.md) | 04 — Cập nhật dự án đến 17/10/2026 |
 | [05-cap-nhat-du-an-2026-10-20](handbook/05-cap-nhat-du-an-2026-10-20.md) | 05 — Trạng thái dự án và bàn giao đến 20/10/2026 |
 | [06-cap-nhat-du-an-2026-10-21](handbook/06-cap-nhat-du-an-2026-10-21.md) | 06 — Trạng thái dự án và bàn giao đến 21/10/2026 |
+| [07-cap-nhat-du-an-2026-10-28](handbook/07-cap-nhat-du-an-2026-10-28.md) | 07 — Snapshot local trước release 29/10/2026 |
+| [08-production-release-2026-10-28](handbook/08-production-release-2026-10-28.md) | 08 — Biên bản production ngày 28/10/2026 |
 | [homepage-display-review-2026-10-08](homepage-display-review-2026-10-08.md) | Rà soát hiển thị trang chủ — 08/10/2026 |
 | [homepage-swipe-review-2026-10-14](homepage-swipe-review-2026-10-14.md) | Trang chủ: bố cục và vuốt ảnh — 14/10/2026 |
 | [inet-vps-migration-2026-10-16](inet-vps-migration-2026-10-16.md) | Báo cáo chuyển đổi hạ tầng sang Cloud Server iNET — 16/10/2026 |
