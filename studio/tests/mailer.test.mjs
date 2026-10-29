@@ -214,6 +214,36 @@ test('Inquiry API triggers notification on submission, skips replay and survives
     await new Promise(r => setTimeout(r, 60));
     assert.equal(sentEmails.length, 2, 'Replay must not trigger duplicate emails');
 
+    // 2b. Admin can inspect and retry a notification after configuration was fixed
+    const setupResponse = await fetch(base + '/api/admin/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': 'http://localhost' },
+      body: JSON.stringify({ email: 'studio@example.com', password: 'temporary-test-password' })
+    });
+    assert.equal(setupResponse.status, 201);
+    const adminCookie = setupResponse.headers.get('set-cookie').split(';')[0];
+    const shortReferenceResponse = await fetch(base + '/api/admin/inquiries/' + data1.reference + '/notifications', {
+      headers: { Origin: 'http://localhost', Cookie: adminCookie }
+    });
+    assert.equal(shortReferenceResponse.status, 404, 'Notification route must use the inquiry id, not its short reference');
+    const inquiryRow = await db.get('SELECT id FROM inquiries WHERE request_key=?', [validPayload.requestKey]);
+    const notificationsResponse = await fetch(base + '/api/admin/inquiries/' + inquiryRow.id + '/notifications', {
+      headers: { Origin: 'http://localhost', Cookie: adminCookie }
+    });
+    assert.equal(notificationsResponse.status, 200);
+    const notifications = await notificationsResponse.json();
+    assert.equal(notifications.length, 2);
+    const studioNotification = notifications.find(row => row.kind === 'studio');
+    await db.run("UPDATE inquiry_notifications SET recipient=NULL,state='blocked_config',error_code='CONFIG_MISSING' WHERE id=?", [studioNotification.id]);
+    const retryResponse = await fetch(base + '/api/admin/inquiries/' + inquiryRow.id + '/notifications/' + studioNotification.id + '/retry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': 'http://localhost', Cookie: adminCookie },
+      body: JSON.stringify({ recipient: 'studio@example.com' })
+    });
+    assert.equal(retryResponse.status, 200);
+    await new Promise(r => setTimeout(r, 60));
+    assert.equal(sentEmails.length, 3, 'Manual retry must deliver only the selected notification');
+
     // 3. Mailer failure does not break inquiry creation response
     shouldFail = true;
     const failPayload = {
