@@ -154,19 +154,21 @@ env -i PATH="$PATH" NODE_ENV=test node --test studio/tests/image-optimizer.test.
 **Dữ liệu:** adapter giả và DB local theo các test hiện có; không tắt dịch vụ production. **Kỹ năng:** lỗi phụ thuộc, fail-open/fail-closed, eventual consistency.
 
 ~~~sh
-env -i PATH="$PATH" NODE_ENV=test node --test studio/tests/mailer.test.mjs studio/tests/google-calendar.test.mjs \
+env -i PATH="$PATH" NODE_ENV=test node --test studio/tests/mailer.test.mjs studio/tests/inquiry-notifications.test.mjs studio/tests/google-calendar.test.mjs \
   studio/tests/photo-management.test.mjs studio/tests/storage.test.mjs
 ~~~
 
 | Tiêm lỗi | Expected ở API/UI | Expected ở dữ liệu |
 |---|---|---|
-| Mail provider reject/timeout | Inquiry đã lưu vẫn trả thành công theo luồng hiện tại | Có đúng một đơn; không giả định sẽ tự gửi lại sau restart |
+| Mail provider lỗi tạm thời/timeout | Inquiry đã lưu vẫn trả thành công; admin thấy trạng thái email chờ thử lại | Có đúng một đơn và outbox bền vững; dispatcher thử lại sau backoff, kể cả sau restart |
+| Mail provider từ chối vĩnh viễn/hết lượt retry | Inquiry vẫn được giữ; admin thấy email lỗi và có thể thử lại sau khi xử lý nguyên nhân | Notification chuyển `failed`, không tự gửi vô hạn |
+| Thiếu provider/người nhận studio | Inquiry vẫn được giữ; admin thấy email chờ cấu hình | Notification ở `blocked_config`; bật provider thì tự tiếp tục nếu có recipient, thiếu recipient cần xác nhận địa chỉ và retry trong admin |
 | Calendar fetch fail, khách chọn ngày | 409/fields date khi không xác nhận được lịch | Không tạo đơn mới với ngày chưa kiểm; không ngày có thể gửi |
 | Storage remove fail | Xóa logic hoàn tất theo luồng cleanup | Còn job bền vững để retry; không còn ảnh trong danh sách |
 | Storage phục hồi | Lần cleanup tiếp theo có thể hoàn tất | Objects không còn; job được dọn, không đụng file khác |
 | PUT timeout nhưng cloud có thể đã ghi | Không đánh dấu chắc chắn chưa có object | Journal unknown phải chặn các thao tác yêu cầu trạng thái chắc chắn |
 
-**Evidence:** cả response và state DB/storage/queue trước-sau; kiểm gọi lại không tạo side effect ngoài ý muốn. **Cleanup:** fixture và mocks. **Câu hỏi:** durable outbox khác Promise.catch ở điểm nào? Để bảo đảm không mất email sau crash cần lưu thêm trạng thái nào và gửi lại sao cho không nhân đôi?
+**Evidence:** cả response và state DB/storage/queue trước-sau; kiểm retry không tạo thêm inquiry/notification và lease chặn hai dispatcher cùng nhận một lượt. `accepted_by_provider` chỉ chứng minh provider nhận yêu cầu, chưa chứng minh thư đến inbox. **Cleanup:** fixture và mocks. **Câu hỏi:** nếu provider đã nhận thư nhưng process dừng trước khi ghi nhận kết quả, vì sao outbox vẫn có thể gửi lại? Lease và request key giải quyết những ranh giới nào, và vì sao không thay được kiểm deliverability?
 
 ### Lab 6 — Download, cancellation và accessibility
 

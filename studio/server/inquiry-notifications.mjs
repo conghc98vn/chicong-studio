@@ -1,9 +1,6 @@
 import {randomBytes} from 'node:crypto';
 import {buildClientEmail,buildStudioEmail} from './mailer.mjs';
 
-export const INQUIRY_NOTIFICATION_STATES = Object.freeze([
-  'pending','processing','retry_wait','blocked_config','failed','accepted_by_provider','suppressed'
-]);
 export const INQUIRY_NOTIFICATION_MAX_ATTEMPTS = 6;
 export const INQUIRY_NOTIFICATION_BACKOFF_MS = Object.freeze([
   60_000,300_000,1_800_000,7_200_000,21_600_000

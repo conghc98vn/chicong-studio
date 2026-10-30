@@ -45,10 +45,10 @@ Không ghi đè evidence/hash cũ khi source thay đổi. Không cộng số tes
 | [predeploy-review-2026-10-09](predeploy-review-2026-10-09.md) | Kiểm tra trước deploy — 09/10/2026 |
 | [project-regression-2026-10-14](project-regression-2026-10-14.md) | Regression trước khi push — 14/10/2026 |
 | [r2-implementation-plan](r2-implementation-plan.md) | Kế hoạch triển khai Cloudflare R2 và backup website — ChiCong Studio |
-| [r2-migration-plan-2026-10-14](r2-migration-plan-2026-10-14.md) | > **Tài liệu lịch sử — đã hợp nhất ngày 16/10/2026.** Đọc [kế hoạch triển khai R2 và backup chính](r2-implementation-plan.md) để có các quyết định và điều kiện hiện hành. Nội dung bên dưới được giữ làm lịch sử review; những câu hỏi/trạng thái cũ có thể đã được giải quyết trong bản hợp nhất. |
+| [r2-migration-plan-2026-10-14](r2-migration-plan-2026-10-14.md) | Kế hoạch chuyển R2 — 14/10/2026; hợp nhất vào kế hoạch triển khai ngày 16/10 |
 | [r2-performance-review-2026-10-21](r2-performance-review-2026-10-21.md) | Review hiệu năng và chức năng sau chuyển R2 — 21/10/2026 |
-| [r2-plan-verification-2026-10-15](r2-plan-verification-2026-10-15.md) | > **Tài liệu lịch sử — đã hợp nhất ngày 16/10/2026.** Đọc [kế hoạch triển khai R2 và backup chính](r2-implementation-plan.md) để có các quyết định và điều kiện hiện hành. Nội dung bên dưới được giữ làm lịch sử review; những câu hỏi/trạng thái cũ có thể đã được giải quyết trong bản hợp nhất. |
-| [r2-preimplementation-checklist-2026-10-15](r2-preimplementation-checklist-2026-10-15.md) | > **Tài liệu lịch sử — đã hợp nhất ngày 16/10/2026.** Đọc [kế hoạch triển khai R2 và backup chính](r2-implementation-plan.md) để có các quyết định và điều kiện hiện hành. Nội dung bên dưới được giữ làm lịch sử review; những câu hỏi/trạng thái cũ có thể đã được giải quyết trong bản hợp nhất. |
+| [r2-plan-verification-2026-10-15](r2-plan-verification-2026-10-15.md) | Đối chiếu kế hoạch R2 — 15/10/2026; giữ kết quả review trước triển khai |
+| [r2-preimplementation-checklist-2026-10-15](r2-preimplementation-checklist-2026-10-15.md) | Checklist trước triển khai R2 — 15/10/2026; giữ điều kiện nghiệm thu tại thời điểm review |
 | [r2-production-cutover-2026-10-21](r2-production-cutover-2026-10-21.md) | Chuyển kho ảnh production sang R2 — 21/10/2026 |
 | [release-review-2026-10-09](release-review-2026-10-09.md) | Final release review — 09/10/2026 |
 | [security-audit-2026-10-13](security-audit-2026-10-13.md) | Báo cáo kiểm tra bảo mật — ChiCong Studio |

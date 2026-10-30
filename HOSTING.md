@@ -1,6 +1,6 @@
 # Hosting và release ChiCong Studio
 
-Hướng dẫn hiện hành ngày 29/10/2026. Production theo [biên bản cutover](docs/archive/r2-production-cutover-2026-10-21.md): **Cloudflare → Caddy trên VPS iNET → PM2/Node**, database **PostgreSQL Supabase**, media **R2 private**. Release đang chạy `7a6c039`; revision, baseline và LIVE smoke được ghi trong [biên bản production 29/10](docs/handbook/09-production-release-2026-10-29.md). [Handbook](docs/handbook/README.md) phân biệt bằng chứng live và lịch sử.
+Hướng dẫn hiện hành ngày 30/10/2026. Production theo [biên bản cutover](docs/archive/r2-production-cutover-2026-10-21.md): **Cloudflare → Caddy trên VPS iNET → PM2/Node**, database **PostgreSQL Supabase**, media **R2 private**. Release đang chạy `7a6c039`; revision, baseline và LIVE smoke được ghi trong [biên bản production 29/10](docs/handbook/09-production-release-2026-10-29.md). [Handbook](docs/handbook/README.md) phân biệt bằng chứng live và lịch sử.
 
 ## 1. Runtime và dữ liệu
 
@@ -61,7 +61,7 @@ npm run deploy:vps -- --stage
 
 Kích hoạt do người vận hành thực hiện với cấu hình production rõ ràng:
 
-1. Giữ source/config/service definition hiện tại và xác nhận phương án rollback. Với release đã có feedback, bật cả hai cờ pause, restart áp dụng trên mọi instance, kiểm API trả 503 và drain dispatcher; media lease không chặn ghi feedback hoặc gửi thư. Lấy maintenance lease, ngừng claim/schedule, drain writer/cleanup; dừng worker/runner cũ và xác minh đã thoát.
+1. Giữ source/config/service definition hiện tại và xác nhận phương án rollback. Bật `FEEDBACK_API_PAUSED`, `FEEDBACK_NOTIFICATIONS_PAUSED` và `INQUIRY_NOTIFICATIONS_PAUSED`, restart áp dụng trên mọi instance, kiểm API feedback trả 503 và drain cả hai dispatcher email; media lease không chặn ghi feedback hoặc gửi thư. Lấy maintenance lease, ngừng claim/schedule, drain writer/cleanup; dừng worker/runner cũ và xác minh đã thoát.
 2. Dùng runtime hiện hành tương thích DB trước migration để chụp **DB + media baseline**, verify và giữ bản ngoài VPS; lease phải còn hiệu lực. Hết hạn không có nghĩa được bỏ khóa.
 3. Dừng web sau khi writer đã drain. Giữ `.env` 0600, credential ngoài repo, data và quyền đọc module cho user worker; thay source từ release đã kiểm.
 4. Khởi động một web instance với Drive tắt và các cờ feedback/inquiry vẫn pause để migration có một owner. Kiểm health, số lượng/invariant DB, public/private media và admin. Cập nhật worker/runner về cùng revision và binding; backup runner sau migration phải hiểu schema v4 gồm sáu bảng feedback và một bảng inquiry outbox. Runner v2/v3 không dùng để chụp DB sau khi các bảng mới được tạo.
@@ -70,7 +70,7 @@ Kích hoạt do người vận hành thực hiện với cấu hình production 
 
 Chi tiết lease/recovery và lệnh chính xác nằm ở [runbook Drive](docs/google-drive-sync-operations.md#6-lỗi-dừng-và-phục-hồi) và `npm run media -- help`. Chuyển storage cần `lock → drain → backup/copy/verify → switch → restart mọi consumer → smoke → unlock`; giữ kho nguồn cho tới khi nghiệm thu xong. Có ảnh mới ở R2 thì rollback phải xử lý delta ngược dưới khóa.
 
-**Rollback feedback/inquiry:** giữ database và runtime backup v4 tương thích; rollback UI không được làm mất revision/receipt/queue đã nhận. Gói `--stage` có module feedback/inquiry và công cụ vận hành nhưng không chứa tài liệu, signing key hoặc sổ xóa. Giữ runbook và sổ xóa riêng ngoài thư mục release. Trợ giúp deploy chỉ nhắc quy trình media/Drive; các bước feedback/inquiry ở trên cũng bắt buộc. [Quy trình restore và khác biệt SQL dump](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md#36-feedback-snapshot-v3-và-phục-hồi-từ-sql-dump).
+**Rollback feedback/inquiry:** giữ database và runtime backup v4 tương thích; rollback UI không được làm mất revision/receipt/queue đã nhận. Gói `--stage` có module feedback/inquiry và công cụ vận hành nhưng không chứa tài liệu, signing key hoặc sổ xóa. Giữ runbook và sổ xóa riêng ngoài thư mục release. `npm run deploy:vps -- --help` tóm tắt các cờ pause và yêu cầu backup v4; dùng hướng dẫn này cho đầy đủ các bước kích hoạt. [Quy trình restore và khác biệt SQL dump](docs/handbook/02-van-hanh-bi-mat-va-khoi-phuc.md#36-feedback-snapshot-v3-và-phục-hồi-từ-sql-dump).
 
 ## 4. Kiểm tra sau release
 

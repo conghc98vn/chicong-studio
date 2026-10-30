@@ -21,24 +21,31 @@ This command uploads source and installs dependencies in a new private directory
 It does not copy .env, credentials or data; stop/restart services; or run migrations.
 There is no unattended activation or automatic database rollback.
 
-Required activation procedure (see docs/google-drive-sync-operations.md):
+Required activation procedure (see HOSTING.md and docs/google-drive-sync-operations.md):
 1. Save the current source, private runtime configuration and service definitions.
+   Set FEEDBACK_API_PAUSED, FEEDBACK_NOTIFICATIONS_PAUSED and
+   INQUIRY_NOTIFICATIONS_PAUSED to true on every web instance; restart to apply,
+   verify feedback returns 503 and drain both email dispatchers.
 2. Using the current runtime and explicit production environment, acquire a media
    maintenance lease and drain writers/cleanup with studio/tools/media-ops.mjs.
    Stop Drive workers and backup runners gracefully; verify every writer exited.
 3. While holding the lease, take and verify a database + media baseline backup.
    Keep the lease valid through activation; an expired lease is not permission to
-   proceed. Record a rollback revision compatible with the current Drive schema.
+   proceed. Use a schema-v4 backup runner and record a rollback revision compatible
+   with the current Drive, feedback and inquiry notification schemas.
 4. Stop chicong-photo gracefully and verify its process exited. Preserve the live
    .env (0600), external secrets and data when replacing the source directory.
    Make release directories and runtime modules readable/traversable by the worker
    user while keeping .env and external credentials private. Verify as that user.
-   Start only the web process with Drive disabled so migration has one owner.
+   Start only the web process with Drive disabled and all three pause flags still
+   enabled so migration has one owner.
 5. Check public/admin health, album/photo counts and media reads; then install the
    matching worker/backup runtime with explicit shared database/storage settings.
 6. Verify worker heartbeat and media checks, enable manual Drive sync, and unlock
    with the same lease. Validate a draft pilot after the write fence is released.
    Do not enable scheduled Drive imports unless their schedule was approved.
+   Verify feedback/inquiry guards and queue state, then restore the intended pause
+   flags and restart to apply. Keep signing keys and the deletion ledger intact.
 7. If checks fail, keep writers stopped and use the compatible rollback procedure.
    Never automatically restore an old database over newly accepted customer data.
 
@@ -72,7 +79,6 @@ let temporary;
 
 try {
   run(process.execPath, ['studio/tests/check-syntax.mjs']);
-  run(process.execPath, ['--check', 'ecosystem.config.cjs']);
   // An allowlist avoids packaging local test data, OAuth downloads or credentials
   // that broad directory archives can accidentally include in future releases.
   const files = ['package.json', 'package-lock.json', 'ecosystem.config.cjs'];

@@ -12,10 +12,6 @@ function expose(row) {
   return {...row, payload: decode(row.payload_json), manifest: decode(row.manifest_json), progress: decode(row.progress_json)};
 }
 
-export function createDriveJobStore({db, ...options}) {
-  return createDriveJobs(db, options);
-}
-
 export function createDriveJobs(db, {now = Date.now, leaseMs = 60000, maxAttempts = 5} = {}) {
   if (!Number.isSafeInteger(leaseMs) || leaseMs < 1000 || !Number.isSafeInteger(maxAttempts) || maxAttempts < 1) {
     throw new Error('Invalid Drive queue lease or retry policy');
