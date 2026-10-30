@@ -1,8 +1,8 @@
 # 03 — Dùng ChiCong Studio làm phòng lab QA
 
-> **Cập nhật 29/10/2026:** release `7a6c039` đã được kiểm LIVE ở production. Audit local, test fixture và CI browser/axe vẫn là TEST/REPORT; kết quả runtime nằm trong [biên bản production 29/10](09-production-release-2026-10-29.md).
+> **Cập nhật 30/10/2026:** audit local, test fixture và CI browser/axe là TEST/REPORT. Revision production và kết quả LIVE được ghi riêng tại [handbook](README.md).
 
-**Dành cho chủ website đang làm QA · Cập nhật 29/10/2026.** Mục tiêu là giải thích được vì sao hệ thống đúng, thiết kế cách làm nó sai có kiểm soát, và thu thập bằng chứng. Không cần biến mọi bài tập thành một framework automation mới.
+**Dành cho chủ website đang làm QA · Cập nhật 30/10/2026.** Mục tiêu là giải thích được vì sao hệ thống đúng, thiết kế cách làm nó sai có kiểm soát, và thu thập bằng chứng. Không cần biến mọi bài tập thành một framework automation mới.
 
 ## 1. Chiến lược kiểm thử theo rủi ro
 
@@ -43,7 +43,7 @@ Runner chỉ truyền danh sách biến cần cho browser; loại URL database, 
 
 Playwright/axe là dependency ngoài, không tự được cài bởi `npm ci`. Các suite hỗ trợ WebKit có thể chạy riêng với `STUDIO_BROWSER=webkit` khi engine đã cài. `STUDIO_AXE_MODULE` là opt-in local ở suite có hỗ trợ; không cấp thì không được ghi “axe đã chạy”. Gallery layout, download, prepared upload và form tư vấn lưu kết quả scan trước assertion để còn chẩn đoán khi lỗi. Scan tự động không thay kiểm screen reader/keyboard và không chứng nhận WCAG.
 
-CI [check.yml](../../.github/workflows/check.yml) dùng Node 24/PostgreSQL 16 cho `npm ci`, syntax, link tài liệu và `npm test`. Job `browser-smoke` riêng trên Ubuntu 24.04 cài Playwright **1.62.1**, axe **4.14.0** ngoài project, cài Chromium đi kèm và cấp cả hai module cho runner. Job không nhận secret cloud; log/ảnh fixture được upload kể cả khi lỗi và giữ 7 ngày. Release `7a6c039` đã chạy check local; run GitHub Actions tương ứng chưa có kết quả đọc được tại thời điểm cập nhật, nên không ghi là CI đã đạt. Không dùng CI xanh thay kiểm cloud/backup/rollback.
+CI [check.yml](../../.github/workflows/check.yml) dùng Node 24/PostgreSQL 16 cho `npm ci`, syntax, link tài liệu và `npm test`. Job `browser-smoke` riêng trên Ubuntu 24.04 cài Playwright **1.62.1**, axe **4.14.0** ngoài project, cài Chromium đi kèm và cấp cả hai module cho runner. Job không nhận secret cloud; log/ảnh fixture được upload kể cả khi lỗi và giữ 7 ngày. Kết quả local và CI của từng release nằm trong biên bản được dẫn từ [handbook](README.md); chỉ ghi CI đạt khi đã đọc được run tương ứng đúng revision. Không dùng CI xanh thay kiểm cloud/backup/rollback.
 
 ## 3. Chuẩn bị lab tách khỏi dữ liệu studio
 
@@ -304,7 +304,7 @@ Ghi kết quả theo [report hiện hành](../review-2026-10-23.md), tách rõ S
 
 | Ưu tiên | Khoảng trống | Điều kiện gọi là hoàn thành |
 |---|---|---|
-| Cao | Nghiệm thu job browser/axe mới trên GitHub | Run `40806115510` là bằng chứng lịch sử đã đạt trên Linux; release `7a6c039` chưa có kết quả workflow mới đọc được và vẫn cần đối chiếu branch protection |
+| Cao | Nghiệm thu job browser/axe mới trên GitHub | Run `40806115510` là bằng chứng lịch sử đã đạt trên Linux; cần đọc kết quả workflow đúng revision đang release và đối chiếu branch protection |
 | Cao | Email recipient thật và deliverability | Cấu hình recipient được studio cho phép, gửi hồ sơ thử, đối chiếu provider/inbox và giữ bằng chứng; không suy ra từ mock mailer |
 | Cao | Backup DB + media lên Drive chưa có lịch/monitor được xác nhận | Job chạy thật trên dữ liệu được phép, tuổi snapshot được cảnh báo độc lập, restore drill đạt; phân biệt cron SQL 03:00 trên cùng VPS đã được báo cáo |
 | Cao | Duy trì kiểm kê credential sau mỗi lần thay khóa | Khóa Drive thử cũ đã thu hồi 19/10; giữ bằng chứng consumer dùng key mới, key cũ vô hiệu và nơi lưu được cập nhật cho các lần rotate tiếp theo |

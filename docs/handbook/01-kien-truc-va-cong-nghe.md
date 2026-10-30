@@ -1,6 +1,6 @@
 # 01 — Kiến trúc và công nghệ ChiCong Studio
 
-**Đối chiếu source đến 29/10/2026.** Các mốc storage/R2 cũ vẫn ghi ngày lịch sử trong từng mục; trạng thái runtime và LIVE smoke hiện tại nằm ở [biên bản production 29/10](09-production-release-2026-10-29.md). Đọc [phạm vi bằng chứng](README.md) và [trạng thái từng môi trường](README.md#3-trạng-thái-production-theo-report-gần-nhất) trước khi dùng các thông tin này để ra quyết định production.
+**Đối chiếu source đến 30/10/2026.** Các mốc storage/R2 cũ vẫn ghi ngày lịch sử trong từng mục. Đọc [phạm vi bằng chứng](README.md) và [trạng thái production theo report gần nhất](README.md#3-trạng-thái-production-theo-report-gần-nhất) trước khi dùng các thông tin này để ra quyết định production.
 
 ## 1. Mô hình hệ thống
 

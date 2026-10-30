@@ -1,6 +1,6 @@
 # Vận hành Google Drive Sync
 
-Cập nhật 29/10/2026. Production đang chạy release `7a6c039` trên VPS iNET, PostgreSQL Supabase và R2 private; nhập thủ công bật, scheduler tắt, worker active. Pilot 33 ảnh/no-op là bằng chứng lịch sử trước cutover R2. [Trạng thái và giới hạn](handbook/README.md), [LIVE release hiện tại](handbook/09-production-release-2026-10-29.md), [nghiệm thu Drive lịch sử](archive/google-drive-sync-production-release-2026-10-20.md).
+Cập nhật 30/10/2026. Production dùng VPS iNET, PostgreSQL Supabase và R2 private; nhập thủ công bật, scheduler tắt. [Handbook](handbook/README.md) ghi revision, trạng thái worker và giới hạn LIVE mới nhất. Pilot 33 ảnh/no-op là [bằng chứng lịch sử trước cutover R2](archive/google-drive-sync-production-release-2026-10-20.md).
 
 ## 1. Nguồn ảnh và quyền kết nối
 
@@ -44,7 +44,7 @@ node --env-file=.env.drive-sync-local studio/tools/drive-sync.mjs worker
 
 `once` xử lý **một batch** của một job; job lớn cần chạy tiếp hoặc dùng `worker`. `npm run drive:once` và `npm run drive:worker` dùng biến môi trường đã được cấp, không tự đọc `.env`. CLI trả exit 2 khi batch kết thúc với job lỗi; trạng thái `queued` vẫn có thể còn việc. Xem trạng thái job trong admin, không suy từ exit 0 rằng cả album đã nhập xong.
 
-Trên cloud, dùng PostgreSQL riêng cho staging và provider/credential storage rõ ràng. Không dùng SQLite hoặc storage local trên filesystem tạm của nhiều instance. `openDatabase` có thể migrate schema: không chạy CLI mới vào production với mục đích “chỉ xem”. Web production ở VPS iNET đã bật Drive thủ công; worker systemd riêng hoạt động, lịch tự động vẫn tắt. Release hiện tại và trạng thái worker được kiểm LIVE trong [biên bản production 29/10](handbook/09-production-release-2026-10-29.md); pilot 33 ảnh vẫn là bằng chứng lịch sử. Phép diễn tập Linux cách ly dùng SQLite/storage tạm không thay cho nghiệm thu database/storage production.
+Trên cloud, dùng PostgreSQL riêng cho staging và provider/credential storage rõ ràng. Không dùng SQLite hoặc storage local trên filesystem tạm của nhiều instance. `openDatabase` có thể migrate schema: không chạy CLI mới vào production với mục đích “chỉ xem”. Web production ở VPS iNET đã bật Drive thủ công; worker systemd riêng hoạt động, lịch tự động vẫn tắt. Release hiện tại và bằng chứng kiểm worker nằm trong [handbook](handbook/README.md); pilot 33 ảnh vẫn là bằng chứng lịch sử. Phép diễn tập Linux cách ly dùng SQLite/storage tạm không thay cho nghiệm thu database/storage production.
 
 ## 3. Luồng nhập và duyệt
 

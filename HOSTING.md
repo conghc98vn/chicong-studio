@@ -1,6 +1,6 @@
 # Hosting và release ChiCong Studio
 
-Hướng dẫn hiện hành ngày 30/10/2026. Production theo [biên bản cutover](docs/archive/r2-production-cutover-2026-10-21.md): **Cloudflare → Caddy trên VPS iNET → PM2/Node**, database **PostgreSQL Supabase**, media **R2 private**. Release đang chạy `7a6c039`; revision, baseline và LIVE smoke được ghi trong [biên bản production 29/10](docs/handbook/09-production-release-2026-10-29.md). [Handbook](docs/handbook/README.md) phân biệt bằng chứng live và lịch sử.
+Hướng dẫn hiện hành ngày 30/10/2026. Production theo [biên bản cutover](docs/archive/r2-production-cutover-2026-10-21.md): **Cloudflare → Caddy trên VPS iNET → PM2/Node**, database **PostgreSQL Supabase**, media **R2 private**. Revision đang chạy, baseline và LIVE smoke được cập nhật tại [handbook](docs/handbook/README.md); runbook này mô tả quy trình áp dụng cho từng release.
 
 ## 1. Runtime và dữ liệu
 

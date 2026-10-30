@@ -1,8 +1,8 @@
 # 02 — Vận hành, bí mật và khôi phục
 
-> **Cập nhật 29/10/2026:** release `7a6c039` đã được kiểm trực tiếp trên production. Revision, baseline, live smoke và giới hạn còn lại nằm ở [biên bản production 29/10](09-production-release-2026-10-29.md); secret, cookie và dữ liệu khách không ghi trong repo.
+> **Cập nhật 30/10/2026:** revision đang chạy, baseline, LIVE smoke và giới hạn nghiệm thu được ghi tại [handbook](README.md); secret, cookie và dữ liệu khách không ghi trong repo.
 
-**Cập nhật 29/10/2026 · Phạm vi:** production chạy VPS iNET, database Supabase, media R2 private; worker enabled, scheduler tắt. Live smoke đã kiểm health, media, route admin/freelancer/feedback và media lease; chưa reboot VPS, full cloud restore, hoặc thử email recipient thật. Danh mục Render dành cho hạ tầng cũ/staging.
+**Phạm vi:** vận hành VPS iNET, PostgreSQL Supabase, media R2 private và worker Drive. Danh mục Render dành cho hạ tầng cũ/staging. Cần đối chiếu trạng thái thật trước khi áp dụng lệnh; hướng dẫn không thay bằng chứng đã diễn tập restore hoặc giao email.
 
 ## 1. Bộ hồ sơ cần có để tự quản lý website
 

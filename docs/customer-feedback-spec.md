@@ -1,8 +1,8 @@
 # Đặc tả feedback sau bàn giao — ChiCong Studio
 
-**Bản hiện hành: 29/10/2026 · v1.8 · đã được kiểm LIVE trong release `7a6c039`.** Quyết định nghiệp vụ giữ nguyên; contract, cấu hình, vận hành và bằng chứng mới ở mục 13, lượt rà độc lập ở mục 13.6 và các record release ở mục 13.8–13.9. Bản ghi release production, revision và checklist LIVE nằm trong [handbook 09](handbook/09-production-release-2026-10-29.md). Mục 10–11 lưu bằng chứng các lượt thiết kế trước.
+**Bản hiện hành: 30/10/2026 · v1.8.** Quyết định nghiệp vụ giữ nguyên; contract, cấu hình và vận hành nằm ở mục 13, lượt rà độc lập ở mục 13.6 và bằng chứng release lịch sử ở mục 13.8–13.9. Revision production và checklist LIVE mới nhất nằm trong [handbook](handbook/README.md). Mục 10–11 lưu bằng chứng các lượt thiết kế trước.
 
-**Trạng thái: đã có backend, form khách, admin, email queue bền vững và vận hành khôi phục/xóa; release `7a6c039` đã được kiểm LIVE ngày 29/10.** Smoke đã kiểm runtime, migration inquiry outbox, route feedback pause/link sai và trạng thái worker; chưa gửi email recipient thật, chưa kiểm Zalo/thiết bị thật hoặc full cloud restore. Đây là tài liệu chính duy nhất. Mục 13 ghi cách dùng và bằng chứng triển khai; các phần thiết kế bên dưới giữ các yêu cầu nghiệm thu.
+**Trạng thái: đã triển khai backend, form khách, admin, email queue bền vững và vận hành khôi phục/xóa.** Bằng chứng runtime/route guard và các giới hạn nghiệm thu được ghi ở biên bản release trong handbook. Chưa nghiệm thu email recipient thật, Zalo/thiết bị thật hoặc full cloud restore. Đây là tài liệu chính duy nhất cho contract feedback; các phần thiết kế bên dưới giữ yêu cầu nghiệm thu.
 
 Luồng đã thống nhất: **studio xác nhận giao đủ → copy link gửi riêng → khách viết cảm nhận và chấm sao tùy chọn → khách được sửa khi hồ sơ mở → admin đọc bản mới nhất, xem toàn bộ lịch sử và nhận email.** Feedback chỉ dùng nội bộ, không có ngày hết hạn.
 
